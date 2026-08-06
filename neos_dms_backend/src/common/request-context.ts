@@ -4,6 +4,10 @@ import type { Request, Response } from 'express';
 
 export const REQUEST_ID_HEADER = 'x-request-id';
 
+export const ORG_ID_CLS_KEY = 'organizationId';
+
+export const ORG_ID_HEADER = 'x-organization-id';
+
 export const clsModuleOptions: ClsModuleOptions = {
   global: true,
   middleware: {

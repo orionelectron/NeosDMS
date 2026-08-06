@@ -56,7 +56,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
 
       if (body !== null && typeof body === 'object') {
-        const { message, code } = body as { message?: unknown; code?: unknown };
+        const { message, code, details } = body as {
+          message?: unknown;
+          code?: unknown;
+          details?: unknown;
+        };
         const messageIsArray = Array.isArray(message);
 
         return {
@@ -67,7 +71,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
             : typeof message === 'string'
               ? message
               : 'Request failed',
-          details: messageIsArray ? message : undefined,
+          details: messageIsArray ? message : (details ?? undefined),
           requestId,
         };
       }

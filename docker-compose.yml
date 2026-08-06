@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: neos-dms-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: neos
+      POSTGRES_PASSWORD: neos
+      POSTGRES_DB: neos_dms
+    ports:
+      - "5432:5432"
+    volumes:
+      - neos_dms_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U neos -d neos_dms"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  neos_dms_pgdata:

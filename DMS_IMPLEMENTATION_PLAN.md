@@ -15,8 +15,8 @@
 | # | Decision | Status | Notes |
 |---|----------|--------|-------|
 | 1 | DB = PostgreSQL | Confirmed | Reference schema uses `jsonb`, partial unique indexes, CHECK constraints |
-| 2 | ORM = TypeORM (0.3.x) + `@nestjs/typeorm` | Confirmed | Decorator entities, supports PG constraints via `@Index({where})`, `@Check`, `jsonb` |
-| 3 | Feature focus order | Confirmed | Subscription → IAM/RBAC → Core accounting |
+| 2 | ORM = TypeORM (1.x) + `@nestjs/typeorm` | Confirmed | Decorator entities, supports PG constraints via `@Index({where})`, `@Check`, `jsonb` |
+| 3 | Feature focus order | **Revised** | Tenant+Subscription → IAM → Accounting engine → Trading → Inventory → Sales/AR → Purchase/AP → Reports (FMCG priority, see §8–12) |
 | 4 | `tsconfig` `baseUrl` | **Resolved: removed** | Deprecated; no imports rely on it (all relative paths) |
 | 5 | `noImplicitAny` | Current: `false` | Prefer keeping false for now; revisit per-file |
 | 6 | Migrations | Never `synchronize: true` in prod; `migration:generate` from entities, review, commit | |
@@ -24,6 +24,14 @@
 | 8 | Auth | JWT (access + refresh), bcrypt, stateless | Built in Phase 2 |
 | 9 | Frontend | Out of scope this round | |
 | 10 | Verticals | **Single vertical: General Trade** — drop `verticals` & `vertical_module_mappings`; price matrices not vertical-scoped | Simplifies subscription + tenant model |
+| 11 | Product scope | **FMCG distribution MVP** — implement a subset of the multi-vertical reference schema, tiered P0/P1/drop (see §3.1) | Reference was built for GT/retail/pharma/restro; FMCG only |
+| 12 | Subscription model | **Usage & seats, not module gating** — plans carry a `limits` jsonb (seat / periodic / feature-flag); **drop `plan_module_mappings`** | Every FMCG plan needs the full order→invoice→stock flow; plans differ by scale (see §5.2) |
+| 13 | Limit enforcement | Service layer via `PlanLimitService` + `@PlanLimit(code)` decorator; seat = live COUNT in txn, periodic = atomic counter with inline rollover reset | No scheduler; race-safe |
+| 14 | Accounting subset | **NPR-only MVP** — `exchange_rates`, `attachments`, `transaction_tags`/`journal_entry_tags` deferred to P1; keep the full posting engine | Single-currency FMCG distributors |
+| 15 | Allocation simplification | Replace the 7 allocation-chain junction tables with direct FK references; keep only partial-payment allocations (`customer_receipt_invoice_allocations`, `supplier_payment_bill_allocations`) | Order→invoice→return chains are over-modeled for MVP |
+| 16 | Inventory | Batches/expiry = P1, **serials dropped** (electronics vertical); MVP tracks locations, transactions, balances | FMCG expiry is real but P1; serials not needed |
+| 17 | Trading masters | `variant_attributes` deferred to P1; FMCG SKUs stay simple (item + brand + category + UOM) | |
+| 18 | MVP includes | **Sales-return credit-note flow + expenses are in MVP** (damage/expiry returns and petty cash are daily FMCG); resolved the §3.1 cut-lines | |
 
 ## 3. Target Backend Structure
 
@@ -34,18 +42,47 @@ neos_dms_backend/src/
   database/          data-source.ts, migrations/, seeders/, base.entity.ts
   common/            decorators/ guards/ interceptors/ filters/ pipes/ dto/ enums/
   modules/
-    tenant/          modules, organizations, branches
-    subscription/    plans, billing_periods, price_matrices, plan_module_mappings,
+    tenant/          modules (catalog only), organizations, branches
+    subscription/    plans (with `limits` jsonb), billing_periods, price_matrices,
                      subscriptions, organization_usages, subscription_transactions, subscription_history
     iam/             users, roles, permissions, role_permission_mappings, audit_logs, auth
-    accounting/      fiscal_years, fiscal_periods, currencies, exchange_rates, payment_terms,
-                     payment_methods, accounts, parties, party_addresses, tax_types, tax_codes,
-                     tax_templates, journal_entries, journal_lines, document_sequences, attachments,
-                     transaction_types, transaction_tags, journal_entry_tags
+    trading/         items, item_categories, uoms, uom_conversions, brands
+    inventory/       locations, inventory_transactions, inventory_balances
+    sales/           sales_orders, sales_invoices, sales_returns, customer_receipts
+    purchase/        purchase_orders, purchase_receipts (GRN), purchase_bills, purchase_returns,
+                     supplier_payments
+    accounting/      fiscal_years, fiscal_periods, currencies, payment_terms, payment_methods,
+                     accounts, parties, party_addresses, tax_types, tax_codes, tax_templates,
+                     journal_entries, journal_lines, document_sequences, transaction_types
   nepali-date/       existing module (AD/BS conversion, BS month calendar)
 ```
 
 Convention: each module = `*.module.ts`, `*.controller.ts`, `*.service.ts`, `entities/`, `dto/`, `*.spec.ts`. Colocate entities with features; migrations centralized in `src/database/migrations`.
+
+> **Removed vs reference:** `verticals`, `vertical_module_mappings`, `plan_module_mappings`, `variant_attributes` (P1), `exchange_rates` (P1), `attachments` (P1), `transaction_tags`/`journal_entry_tags` (P1), `inventory_serials`/batch/serial junction tables (dropped/P1), `cheques`, `landed_cost_*` (P1), 7 allocation chains → 2 allocation tables.
+
+## 3.1 FMCG MVP Scope — P0 / P1 / Drop
+
+> Priority rationale: an FMCG distributor's daily loop is **salesmen take orders → warehouse ships from stock → invoices → customer receipts**, and **purchase → GRN → bills → supplier payments**. Stock and money must move in the same transaction as the journal posting. The accounting **engine** (COA, journal, tax, fiscal year, doc sequences) is built early and NPR-only; non-core vertical features are cut or deferred.
+
+**P0 — MVP (build now):**
+- Tenant: `modules` (permission catalog), `organizations`, `branches`
+- Subscription: `plans` (+`limits`), `billing_periods`, `price_matrices`, `subscriptions`, `organization_usages`, `subscription_transactions`, `subscription_history`
+- IAM: `roles`, `permissions`, `role_permission_mappings`, `users`, `audit_logs` + auth
+- Trading masters: `item_categories`, `uoms`, `brands`, `items`, `uom_conversions` (case↔piece is core FMCG)
+- Inventory: `inventory_locations`, `inventory_transactions`, `inventory_balances` (quantity only)
+- Sales/AR: `sales_orders`(+lines), `sales_invoices`(+lines), `sales_returns`(+lines) credit-note flow, `customer_receipts`(+lines + invoice allocations)
+- Purchase/AP: `purchase_orders`(+lines), `purchase_receipts`/GRN(+lines), `purchase_bills`(+lines), `purchase_returns`(+lines), `supplier_payments`(+lines + bill allocations), `expenses`(+lines)
+- Accounting engine: `fiscal_years`, `fiscal_periods`, `currencies` (NPR base), `payment_terms`, `payment_methods`, `accounts` (+default COA seed), `parties`, `party_addresses`, `tax_types`, `tax_codes`, `tax_templates`, `journal_entries`, `journal_lines`, `document_sequences`, `transaction_types`
+- Core reports: trial balance, P&L, AR aging, stock report
+
+**P1 — quick follow-on (same fiscal cycle, out of MVP):**
+- `sales_quotations`(+lines), `inventory_batches`(+balances) for expiry, `variant_attributes`, `exchange_rates`, `attachments`, `transaction_tags`/`journal_entry_tags`, `cheques`, `landed_cost_*`, dedicated GRN merge, offline sync layer, dashboards
+
+**Drop (not FMCG):**
+- `verticals`, `vertical_module_mappings` (already), `inventory_serials` (+ batch/serial junction tables — electronics), restro/pharma/retail features
+
+**Cut-lines — resolved in favor of MVP:** `sales_returns` (credit-note flow) and `expenses` are **in MVP** — damage/expiry returns and petty expenses are daily FMCG reality, and both feed the journal engine.
 
 ## 4. Cross-Cutting Foundation (Phase 0)
 
@@ -62,31 +99,48 @@ Convention: each module = `*.module.ts`, `*.controller.ts`, `*.service.ts`, `ent
 
 ## 5. Phase 1 — Tenant & Subscription System
 
-DB ordering note: migrations 2 & 3 reference `organizations`, `modules`, `branches` — these tenant tables come from migration 1, so the **schema baseline is created foundation-first** even though accounting features land in Phase 3.
+DB ordering note: migrations 2 & 3 reference `organizations`, `modules`, `branches` — these tenant tables come from migration 1, so the **schema baseline is created foundation-first** even though operational features land in later phases.
 
 ### 5.1 Tenant scaffolding (from migration 1, simplified)
 - [ ] Entities + migration: `modules`, `organizations`, `branches`
-- [ ] Drop `verticals` / `vertical_module_mappings` (single vertical: General Trade)
-- [ ] Seeded modules: e.g. `inventory`, `sales`, `purchase`, `accounting`, `reports`, `dispatch`
+- [ ] `verticals` / `vertical_module_mappings` not created (single vertical: General Trade)
+- [ ] Seeded modules (catalog for permission codes only — **not** a subscription gate): `trading`, `sales`, `purchase`, `inventory`, `accounting`, `reports`, `dispatch`
+- [ ] Org onboarding hook: creates org + main branch + **default trial subscription** (+ in Phase 3, default COA — backfilled idempotently for pre-existing orgs by seed)
 
-### 5.2 Subscription tables (from migration 2, adapted)
-- [ ] Entities + migration: `plans`, `billing_periods`, `price_matrices`, `plan_module_mappings`, `subscriptions`, `organization_usages`, `subscription_transactions`, `subscription_history`
-- [ ] Adaptation — drop `price_matrices.vertical_id`; unique price point becomes `(plan_id, billing_period_id)`
-- [ ] Adaptation — `plans.code` (unique, stable slug: `basic`/`professional`/`enterprise`) for rename-safe system refs
-- [ ] Adaptation — partial unique index on `subscriptions`: at most one `trialing`/`active`/`past_due` per `organization_id`
-- [ ] Adaptation — price lock: snapshot `amount`/`currency` onto `subscriptions` (or keep `price_matrices` append-only/versioned)
-- [ ] Adaptation — `subscription_transactions.gateway_transaction_id` unique (webhook idempotency for eSewa/Khalti); add `paid_at`
-- [ ] Adaptation — CHECK constraints on `subscriptions.status` and `subscription_transactions.status` enum values
-- [ ] Adaptation — `subscription_history` gains `changed_by` + `reason` (self-contained state timeline)
-- [ ] Adaptation — grace handling: store `grace_period_end` (or compute from `current_period_end`) for past_due→canceled scheduler
-- [ ] Seed base plans (single General Trade vertical; price per billing period, no vertical dimension)
-- [ ] `SubscriptionService` — status lifecycle: `trial → active → past_due → canceled`
-- [ ] `PlanModuleMappingService` — which modules a plan unlocks (drives feature gating)
-- [ ] Usage counters (`organization_usages`) for plan limits
-- [ ] Endpoints: plan catalog (public), org subscription (create/change/cancel), usage, history, webhook hook point for billing
-- [ ] Guard: subscription/plan limits enforced at service layer
+### 5.2 Subscription model — usage & seats, NOT module gating
 
-**Acceptance:** new org gets trial subscription; plan change restricts module access; usage tracked; org can never hold two active subscriptions; gateway callbacks are idempotent (replay-safe).
+**Why:** every FMCG plan needs the full order→invoice→stock flow to be usable. Plans differ by **scale**, not by module availability. So a plan is a *limit profile*, and module availability is not restricted.
+
+**Limit kinds (enumerated in code, not DB):**
+
+| Kind | Meaning | Examples | Enforcement |
+|---|---|---|---|
+| `seat` | Absolute cap, counted live | `users`, `branches`, `items` | `COUNT` in the create transaction (small scale; no drift) |
+| `periodic` | Cap per billing period | `invoices_per_month`, `orders_per_month`, `purchase_receipts_per_month` | Atomic counter in `organization_usages`, auto-reset on period rollover |
+| `feature` | Boolean flag | `multi_branch`, `batch_tracking`, `cheques`, `landed_cost`, `offline` | Read-only check; drives UI + service guards |
+
+New limit dimension later = add a key to plan seeds + the code enum; **no schema change** — this is the anti-derail lever.
+
+- [ ] Entities + migration: `plans`, `billing_periods`, `price_matrices`, `subscriptions`, `organization_usages`, `subscription_transactions`, `subscription_history`
+- [ ] `plan_module_mappings` **not created** (replaced by `plans.limits` jsonb)
+- [ ] `plans.limits` jsonb — canonical limit profile, e.g.
+      `{"users": 5, "branches": 1, "items": 500, "invoices_per_month": 1000, "orders_per_month": 1000, "purchase_receipts_per_month": 500, "multi_branch": false, "batch_tracking": false, "offline": false}`
+- [ ] `plans.code` (unique, stable slug: `starter`/`growth`/`enterprise`) for rename-safe system refs; seed base plan profiles (single General Trade vertical, price per billing period, no vertical dimension)
+- [ ] `price_matrices` — unique price point `(plan_id, billing_period_id)`; append-only/versioned (price history preserved)
+- [ ] `subscriptions` — partial unique index: at most one `trialing`/`active`/`past_due` per `organization_id`; price lock via `amount`/`currency`/`billing_period_id` snapshot; CHECK on `status` (`trialing|active|past_due|canceled`); store `grace_period_end` for past_due→canceled
+- [ ] `organization_usages` — `(organization_id, resource_code)` unique; holds periodic counters with `current_usage` + `last_reset_at`; seat limits NOT stored here (computed live)
+- [ ] `subscription_transactions` — `gateway_transaction_id` UNIQUE (eSewa/Khalti webhook idempotency), `paid_at`, CHECK on `status`
+- [ ] `subscription_history` — `changed_by` + `reason` (self-contained state timeline)
+- [ ] `SubscriptionService` — lifecycle `trial → active → past_due → canceled`, period rollover, grace scheduler
+- [ ] `PlanLimitService` — enforcement primitives:
+  - `assertSeat(orgId, code)` — `COUNT` vs `plans.limits` inside the caller's transaction
+  - `consumePeriodic(orgId, code)` — single atomic `UPDATE organization_usages SET current_usage = CASE WHEN last_reset_at < $periodStart THEN 1 ELSE current_usage + 1 END, last_reset_at = $periodStart WHERE organization_id = $1 AND resource_code = $2 AND (last_reset_at < $periodStart OR current_usage < $limit) RETURNING id` — **no row back = exceeded** (no scheduler, race-safe)
+  - `assertFeature(orgId, code)` — boolean check
+- [ ] `@PlanLimit(code)` method decorator (interceptor): reads tenant from CLS → asserts → runs → on success consumes; throws `PLAN_LIMIT_EXCEEDED` with `{ resource, limit, current }` (UI uses this to upsell)
+- [ ] Endpoints: plan catalog (public), org subscription (create/change/cancel), **usage snapshot** (current vs limit per resource), history, webhook hook point for billing
+- [ ] Adapters to consume limits at call sites (Phase 2+): user create → `users` seat; invoice/order/GRN create → periodic counters
+
+**Acceptance:** new org gets trial subscription; `users`/`invoices_per_month` etc. enforced at service layer with a structured `PLAN_LIMIT_EXCEEDED` error; counters reset on period rollover without a cron; org can never hold two active subscriptions; gateway callbacks are idempotent (replay-safe).
 
 ## 6. Phase 2 — User & Access Control (IAM + RBAC)
 
@@ -101,40 +155,88 @@ DB ordering note: migrations 2 & 3 reference `organizations`, `modules`, `branch
 - [ ] `JwtAuthGuard` (global) + `PermissionsGuard` + `@RequirePermission(...)` decorator
 - [ ] `RolesGuard` only for coarse admin checks; fine-grained via permissions
 - [ ] Tenancy: org scoping helper (all queries auto-filtered by `organization_id`)
+- [ ] User create/enable enforces the `users` seat limit via `PlanLimitService.assertSeat` (inside the same transaction)
 - [ ] `AuditService` — records actor, action, entity, before/after, ip, occurred_at (BS/AD dual timestamp)
 - [ ] Endpoints: users CRUD, roles CRUD, permissions list, role-permission mapping, audit log query (paginated)
 
 **Acceptance:** login issues JWT; role with `sales.*` perms can't hit `accounting.*`; every mutation is audited.
 
-## 7. Phase 3 — Core Accounting
+## 7. Phase 3 — Accounting Engine (FMCG subset, NPR-only)
 
-Translates migration 1's accounting tables. Reuses `nepali-date` for dual dates + Nepali fiscal year (Shrawan start) + fiscal year close.
+The posting engine that sales/purchase/inventory post into. Reuses `nepali-date` for dual dates + Nepali fiscal year (Shrawan start). Deferred to P1: `exchange_rates`, `attachments`, `transaction_tags`/`journal_entry_tags`.
 
 - [ ] `fiscal_years`, `fiscal_periods` — one active FY per org (partial unique index), BS + AD date range
-- [ ] `currencies`, `exchange_rates` — global + org-specific, one base currency per org, NPR default seed
+- [ ] `currencies` — NPR base seed; `exchange_rates` NOT created in MVP
 - [ ] `payment_terms`, `payment_methods`
-- [ ] `accounts` — hierarchical chart of accounts, system-purpose accounts; **default COA seeded per org on creation**
-- [ ] `parties`, `party_addresses` — customer/supplier/lead (CHECK at-least-one-role), payment terms
-- [ ] `tax_types`, `tax_codes`, `tax_templates` — VAT/TDS, `math_sign IN (1,-1)` CHECK
-- [ ] `journal_entries` + `journal_lines` — balanced double-entry; debit/credit mutual-exclusion CHECK; posting in a transaction
+- [ ] `accounts` — hierarchical chart of accounts, system-purpose accounts; **default COA seeded per org on creation** (idempotent backfill for existing orgs)
+- [ ] `parties`, `party_addresses` — customer/supplier (CHECK at-least-one-role), payment terms
+- [ ] `tax_types`, `tax_codes`, `tax_templates` — VAT (13% seed) / TDS, `math_sign IN (1,-1)` CHECK
+- [ ] `journal_entries` + `journal_lines` — balanced double-entry; debit/credit mutual-exclusion CHECK; posting in a transaction; `transaction_types` as seeded constants
 - [ ] `document_sequences` — fiscal-year-scoped, branch-safe sequential numbering (gov-compliant invoices) with prefix
-- [ ] `transaction_types`, `transaction_tags`, `journal_entry_tags`, `attachments`
-- [ ] Core reports foundation: trial balance, general ledger, P&L, balance sheet
+- [ ] Core reports foundation: trial balance, general ledger, P&L
 - [ ] Fiscal year open/close workflow
 
-**Acceptance:** double-entry posting rejects unbalanced entries; invoice numbers unique per FY; reports tie to journal lines.
+**Acceptance:** double-entry posting rejects unbalanced entries; invoice numbers unique per FY; default COA exists for every org; reports tie to journal lines.
 
-## 8. Later Phases (tracked, not in current scope)
+## 8. Phase 4 — Trading Masters (FMCG core)
 
-- [ ] Trading masters (migration 4): `items`, `item_categories`, `uoms`, `uom_conversions`, `brands`, `variant_attributes`
-- [ ] Sales & purchasing / AR-AP (migration 5): quotations, orders, invoices, returns, bills, allocations
-- [ ] Inventory extension (migration 7): locations, transactions, batches, serials, balances
-- [ ] Payments (migration 8): customer receipts, supplier payments, allocations
-- [ ] GT extensions (migration 6): cheques, landed cost, GRN
-- [ ] Offline-friendly field ops (spec): sync layer for DRIVER/WAREHOUSE_MANAGER mobile flows
+- [ ] `item_categories`, `uoms`, `brands`, `items` (SKU, base UOM, default price, tax template, reorder level)
+- [ ] `uom_conversions` — case ↔ piece conversion (critical for FMCG; `factor` + CHECK factor > 0)
+- [ ] Enforce `items` seat limit on item create
+- [ ] Endpoints: items CRUD, categories, brands, UOM + conversions
+
+**Acceptance:** an item can be sold/invoiced in cases and stocked in pieces; conversions are unit-safe.
+
+## 9. Phase 5 — Inventory (quantity-based, no batches in MVP)
+
+- [ ] `inventory_locations` (godown / van / shop), `inventory_transactions`(+lines) with `transaction_type` (`purchase_receipt`, `sales_invoice`, `sales_return`, `purchase_return`, `stock_adjustment`), `inventory_balances` (per location × item)
+- [ ] Stock moves inside the same DB transaction as the source document (GRN, invoice, return)
+- [ ] Balance constraint: selling/deleting below available stock rejected; balance never goes negative
+- [ ] `batch_tracking` feature flag gates future P1 batch columns (no schema churn now)
+
+**Acceptance:** every stock in/out is an `inventory_transaction`; balance is derived & consistent; negative stock impossible.
+
+## 10. Phase 6 — Sales & AR
+
+- [ ] `sales_orders`(+lines) — order by SALESMAN, status flow (draft → confirmed → invoiced → completed / canceled)
+- [ ] `sales_invoices`(+lines) — creates journal entry (AR ↔ Sales Income + VAT) + stock out + doc sequence number, all in one transaction; `orders_per_month`/`invoices_per_month` limits consumed via `@PlanLimit`
+- [ ] `sales_returns`(+lines) — credit note flow, reverses journal + stock
+- [ ] `customer_receipts`(+lines + `customer_receipt_invoice_allocations`) — partial payments against invoices; posts to journal
+- [ ] FKs replace the reference's order→invoice→return allocation chains (Decision 15)
+
+**Acceptance:** invoicing posts balanced journals, decrements stock, consumes invoice quota atomically; partial payments allocate correctly; invoice number unique per FY.
+
+## 11. Phase 7 — Purchase & AP
+
+- [ ] `purchase_orders`(+lines) — supplier PO, status flow
+- [ ] `purchase_receipts`(+lines) — GRN (merge reference `goods_received_notes`); stock in + `purchase_receipts_per_month` limit consumed
+- [ ] `purchase_bills`(+lines) — supplier bill, posts to journal (AP ↔ Inventory/Expense + VAT)
+- [ ] `purchase_returns`(+lines) — debit note flow
+- [ ] `supplier_payments`(+lines + `supplier_payment_bill_allocations`) — partial payments
+- [ ] `expenses`/`expense_lines` — simple expense entry (category, party, tax), posts to journal
+
+**Acceptance:** GRN increases stock; bills post balanced journals; partial supplier payments allocate.
+
+## 12. Phase 8 — MVP Reports
+
+- [ ] Sales report (by item / by party / by salesman / by branch, AD+BS date filters)
+- [ ] Stock report (on-hand + movement), AR aging, supplier/payable summary
+- [ ] Trial balance + P&L (from journal lines), fiscal-year scoped
+- [ ] Dashboard endpoints for subscription usage vs limits
+
+## 13. Post-MVP (P1) — tracked, not in current scope
+
+- [ ] `sales_quotations`(+lines)
+- [ ] `inventory_batches`(+balances) — expiry tracking (gate behind `batch_tracking` feature flag)
+- [ ] `variant_attributes` + variant pricing
+- [ ] `exchange_rates` (multi-currency)
+- [ ] `attachments`, `transaction_tags`, `journal_entry_tags`
+- [ ] `cheques`, `landed_cost_*`
+- [ ] Offline-friendly field ops: sync layer for DRIVER/WAREHOUSE_MANAGER mobile flows
 - [ ] Reporting dashboards + Nepali calendar UX in frontend
+- [ ] Balance sheet report
 
-## 9. Nepal-Specific Requirements Mapping
+## 14. Nepal-Specific Requirements Mapping
 
 | Requirement | Where it lands |
 |---|---|
@@ -146,7 +248,7 @@ Translates migration 1's accounting tables. Reuses `nepali-date` for dual dates 
 | Full auditability | `audit_logs` + `AuditService` |
 | Offline-friendly | future sync layer |
 
-## 10. Risk Register
+## 15. Risk Register
 
 | Risk | Mitigation |
 |---|---|
@@ -157,8 +259,13 @@ Translates migration 1's accounting tables. Reuses `nepali-date` for dual dates 
 | Migration 1 dual role (tenant + accounting) | Foundation-first schema baseline; feature delivery stays phased |
 | Price-lock drift (in-place price edits change existing customers) | Snapshot `amount`/`currency` on `subscriptions`; price matrices append-only |
 | Double-charging from gateway webhook replays | Unique `gateway_transaction_id`; idempotent callback handling |
+| Usage-counter drift / race on limits | Seat = live `COUNT` in txn (no storage); periodic = single atomic `UPDATE ... RETURNING id`; over-limit aborts, never soft-increments |
+| Period-rollover counter reset timing | Reset inline on consume (`last_reset_at < period_start` branch); no cron dependency |
+| New limit dimensions needed later | Limits live in `plans.limits` jsonb + one code enum; no schema change |
+| Module-gating assumptions leak back in | `modules` is a catalog only; no `plan_module_mappings`; guards reference `PlanLimitService` |
+| FMCG scope creep from reference schema | §3.1 P0/P1/Drop is the contract; any new table must be tagged P0 or moved to P1 |
 
-## 11. Progress Tracker
+## 16. Progress Tracker
 
 **Legend:** `[x]` done & verified · `[~]` in progress · `[ ]` pending
 
@@ -177,17 +284,19 @@ Translates migration 1's accounting tables. Reuses `nepali-date` for dual dates 
 
 ### Next up
 - [ ] Commit Nepali date feature (awaiting user go-ahead)
-- [ ] Phase 1 scaffolding — tenant tables (migration 1) per section 5.1
+- [ ] **Plan revised** (2026-08-06): FMCG MVP scope (§3.1) + subscription re-scoped to usage/seat limits (§5.2) — decisions 11–17; cut-lines resolved: returns + expenses in MVP (18)
+- [ ] Phase 1 scaffolding — tenant tables + usage-based subscription per §5
 
-## 12. Reference Migration Inventory (for translation)
+## 17. Reference Migration Inventory (for translation)
 
-> **Applied simplification:** `verticals` and `vertical_module_mappings` are dropped (single General Trade vertical); `price_matrices` loses the vertical dimension.
+> **Applied simplifications:** single vertical (General Trade) — `verticals`/`vertical_module_mappings` dropped; `price_matrices` loses the vertical dimension; **`plan_module_mappings` dropped** (limits live in `plans.limits`); allocation chains collapsed to direct FKs (2 allocation tables kept); P1 items (`exchange_rates`, `attachments`, tags, `variant_attributes`, batches, `cheques`, `landed_cost_*`) and dropped items (`inventory_serials`) per §3.1.
 
-- **1_core_accounting_setup.js** — verticals, modules, vertical_module_mappings, organizations, branches, fiscal_years, fiscal_periods, currencies, exchange_rates, payment_terms, payment_methods, accounts, parties, party_addresses, tax_types, tax_codes, tax_templates, transaction_tags, journal_entries, journal_entry_tags, journal_lines, document_sequences, attachments, transaction_types
-- **2_subscription_system_setup.js** — plans, billing_periods, price_matrices, plan_module_mappings, subscriptions, organization_usages, subscription_transactions, subscription_history
-- **3_user_and_access_control_setup.js** — roles, permissions, role_permission_mappings, users, audit_logs
-- **4_trading_masters_setup.js** — item_categories, uoms, brands, variant_attributes, items, uom_conversions
-- **5_ar_ap_system_setup.js** — sales quotations/orders/invoices/returns (+lines), purchase orders/receipts/bills/returns (+lines), expenses (+lines), 7 allocation tables
-- **6_gt_extensions.js** — cheques, landed_cost_* (vouchers/expenses/item_adjustments), quotations, purchase_orders, goods_received_notes
-- **7_gt_inventory_extension.js** — inventory_locations, inventory_transactions (+lines), inventory_batches, inventory_serials, balances
+- **1_core_accounting_setup.js** — modules (catalog), organizations, branches → P0; fiscal_years, fiscal_periods, currencies, payment_terms, payment_methods, accounts, parties, party_addresses, tax_types, tax_codes, tax_templates, journal_entries, journal_lines, document_sequences, transaction_types → P0; exchange_rates, attachments, transaction_tags, journal_entry_tags → P1
+- **2_subscription_system_setup.js** — plans (+`limits` jsonb), billing_periods, price_matrices, subscriptions, organization_usages, subscription_transactions, subscription_history → P0; plan_module_mappings → dropped
+- **3_user_and_access_control_setup.js** — roles, permissions, role_permission_mappings, users, audit_logs → P0
+- **4_trading_masters_setup.js** — item_categories, uoms, brands, items, uom_conversions → P0; variant_attributes → P1
+- **5_ar_ap_system_setup.js** — sales orders/invoices/returns (+lines), purchase orders/receipts/bills/returns (+lines), expenses (+lines) → P0; sales_quotations → P1; 7 allocation tables → 2 (invoice + bill payment allocations)
+- **6_gt_extensions.js** — goods_received_notes merged into `purchase_receipts`; cheques, landed_cost_* → P1; quotations → P1
+- **7_gt_inventory_extension.js** — inventory_locations, inventory_transactions (+lines), inventory_balances → P0; inventory_batches → P1; inventory_serials → dropped
+- **8_payment_schema.js** — customer_receipts (+lines + invoice allocations), supplier_payments (+lines + bill allocations) → P0; supplier_payment_expense_allocations → P1 (with expenses)
 - **8_payment_schema.js** — customer_receipts, supplier_payments (+lines + allocations), expense allocations

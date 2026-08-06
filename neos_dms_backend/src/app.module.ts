@@ -7,6 +7,7 @@ import { CommonModule } from './common/common.module';
 import { clsModuleOptions } from './common/request-context';
 import { HealthModule } from './health/health.module';
 import { NepaliDateModule } from './nepali-date/nepali-date.module';
+import { TenancyModule } from './tenancy/tenancy.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { NepaliDateModule } from './nepali-date/nepali-date.module';
     CommonModule,
     HealthModule,
     NepaliDateModule,
+    TenancyModule,
   ],
 })
 export class AppModule {}

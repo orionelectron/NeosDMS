@@ -1,0 +1,474 @@
+Distribution Management System (DMS)
+Product Vision
+
+Build a modern Distribution Management System (DMS) for small and medium-sized FMCG distributors in Nepal.
+
+The system should cover the complete order-to-cash workflow while remaining simple enough for businesses with:
+
+1–20 sales representatives
+1–5 warehouses
+Small accounting teams
+Multiple delivery vehicles
+Nepal VAT and taxation compliance
+
+The architecture should prioritize:
+
+extensibility over hardcoding
+configurable business rules
+auditability
+accounting correctness
+offline-friendly field operations
+modular domain-driven design
+Core Principles
+
+The application should never assume business rules that vary between distributors.
+
+Instead of hardcoding behavior, prefer:
+
+configuration
+policies
+workflows
+rule engines where appropriate
+
+Every important business event should be traceable.
+
+Examples:
+
+Stock movement
+Invoice creation
+Payment
+Dispatch
+Stock adjustment
+Journal Entry
+Credit Note
+Delivery
+
+Every transaction should be auditable.
+
+Localization
+Nepal Support
+Nepali Calendar (Bikram Sambat)
+English Calendar
+Dual Date Display
+Nepali Fiscal Year
+Nepali Currency
+VAT compliance
+TDS compliance
+Government compliant invoice numbering
+Configurable tax rates
+Local reports
+User Roles
+
+Base roles:
+
+ADMIN
+ACCOUNTANT
+SALESMAN
+DRIVER
+WAREHOUSE_MANAGER
+
+Support future custom roles with permissions.
+
+Prefer RBAC with granular permissions instead of hardcoded role checks.
+
+Example:
+
+Products.View
+Products.Edit
+
+Orders.Create
+Orders.Approve
+
+Dispatch.AssignVehicle
+
+Accounting.PostJournal
+
+Warehouse.Transfer
+Accounting Module
+
+Accounting should be the financial source of truth.
+
+Everything that affects money should generate accounting entries.
+
+Core Features
+Double Entry Accounting
+General Ledger
+Journal Entries
+Chart of Accounts (hierarchical)
+Fiscal Year
+Opening Balance
+Trial Balance
+Balance Sheet
+Profit & Loss
+Cash Book
+Bank Book
+Day Book
+Receivables
+Customer Ledger
+Outstanding Receipts
+Payment Allocation
+Customer Statements
+Payables
+Vendor Ledger
+Bill Recording
+Payment Voucher
+Documents
+Debit Note
+Credit Note
+Journal Voucher
+Payment Voucher
+Receipt Voucher
+Taxation
+
+Tax rules should be configurable.
+
+Never hardcode VAT percentages.
+
+VAT Categories
+
+Each product belongs to one VAT category.
+
+Examples:
+
+Standard Rated
+Zero Rated
+Exempt
+
+Support configurable rates.
+
+VAT Accounting
+
+Automatically maintain
+
+Input VAT
+Output VAT
+VAT Payable
+VAT Receivable
+TDS
+
+Support
+
+configurable TDS rules
+manual override
+multiple TDS percentages
+TDS certificates
+adjustment entries
+Inventory
+
+Inventory should be event-driven.
+
+Never directly update stock quantities.
+
+Every stock change should produce a Stock Ledger Entry.
+
+Running stock is derived from ledger entries.
+
+Master Data
+Product
+Brand
+Category
+Unit
+Warehouse
+Rack / Bin Location
+Batch
+Supplier
+Stock Features
+Opening Stock
+Stock Ledger
+Stock Adjustment
+Goods Receipt Note (GRN)
+Purchase Return
+Sales Return
+Damage
+Shrinkage
+Warehouse Transfer
+Cycle Count
+Optional Features
+Batch Tracking
+Expiry Tracking
+FEFO Picking
+FIFO Costing
+Weighted Average Cost
+Stock Status
+
+Support separate quantities for
+
+Available
+Reserved
+In Transit
+Unsellable
+Damaged
+Expired
+Sales
+Customers
+
+(Outlets)
+
+Outlet CRUD
+Customer Groups
+Credit Limit
+Outstanding Balance
+Price Category
+GPS Location
+Orders
+
+Support lifecycle
+
+Draft
+
+↓
+
+Submitted
+
+↓
+
+Approved
+
+↓
+
+Allocated
+
+↓
+
+Picking
+
+↓
+
+Packed
+
+↓
+
+Dispatched
+
+↓
+
+Delivered
+
+↓
+
+Invoiced
+
+↓
+
+Paid
+
+
+Never jump between invalid states.
+
+Use a state machine.
+
+Route & Beat Planning
+
+Support
+
+Sales Routes
+Beats
+Assigned Salesman
+Visit Schedule
+Planned Visits
+Completed Visits
+
+Future support:
+
+GPS optimized routes
+Dispatch Management
+
+This is the module that often gets overcomplicated. For SMEs, keep it centered on fulfilling customer orders.
+
+Think of dispatch as managing how allocated orders leave the warehouse and reach customers.
+
+Dispatch Lifecycle
+Allocated Orders
+
+↓
+
+Create Dispatch
+
+↓
+
+Assign Vehicle
+
+↓
+
+Assign Driver
+
+↓
+
+Generate Pick List
+
+↓
+
+Warehouse Picking
+
+↓
+
+Packing
+
+↓
+
+Load Vehicle
+
+↓
+
+Vehicle Leaves
+
+↓
+
+Delivered / Partial Delivery / Failed Delivery
+
+↓
+
+Proof of Delivery
+
+↓
+
+Invoice Finalization
+
+A dispatch is one delivery run, not one order. Multiple orders can be grouped into a single dispatch if they share the same route or destination.
+
+Core Concepts
+Dispatch
+Delivery Run
+Vehicle
+Driver
+Route
+Stops
+Pick List
+Loading Sheet
+Delivery Confirmation
+Proof of Delivery (POD)
+Vehicle Management
+Vehicle CRUD
+Vehicle Type
+Capacity (weight/volume)
+Registration Number
+Driver Assignment
+Active/Inactive Status
+
+Avoid implementing maintenance schedules or fuel tracking initially unless there is a clear customer need.
+
+Dispatch Planning
+
+Allow planners to:
+
+Group multiple orders into one dispatch
+Split large orders across multiple dispatches
+Assign a driver and vehicle
+Schedule departure
+Prioritize urgent deliveries
+Reassign before departure
+Warehouse Operations
+
+Generate:
+
+Pick List (what to collect)
+Packing List
+Loading Sheet (what goes on the truck)
+
+Track loading progress so the team knows whether a dispatch is ready to leave.
+
+Delivery
+
+Each stop can result in:
+
+Delivered
+Partially Delivered
+Delivery Failed
+Customer Unavailable
+Rejected
+Returned
+
+Record reasons for failed or partial deliveries.
+
+Proof of Delivery (POD)
+
+Support:
+
+Customer Signature
+Photo Capture
+GPS Location
+Delivery Timestamp
+Receiver Name
+Delivery Notes
+
+Make these configurable so businesses without mobile devices can disable them.
+
+Returns
+
+Support reverse logistics:
+
+Full Return
+Partial Return
+Damaged Goods
+Wrong Product
+Customer Rejection
+
+Returned goods should generate stock and accounting events.
+
+Tracking
+
+Rather than "Live Vehicle Tracking", define it as an optional capability:
+
+Current Driver Location
+Last Known GPS Position
+Estimated Arrival
+Dispatch Status
+
+Do not make live GPS a core dependency; many SMEs may not need it.
+
+Dispatch Documents
+
+Generate:
+
+Pick List
+Packing List
+Loading Sheet
+Delivery Challan
+Delivery Manifest
+Proof of Delivery
+Return Note
+Purchasing
+Purchase Orders
+Goods Receipt Note (GRN)
+Supplier Bills
+Purchase Return
+Reporting
+
+Inventory
+
+Stock Ledger
+Stock Valuation
+Ageing Report
+Expiry Report
+Movement Report
+
+Sales
+
+Sales by Customer
+Sales by Route
+Sales by Product
+Salesman Performance
+
+Accounting
+
+Trial Balance
+General Ledger
+Profit & Loss
+Balance Sheet
+VAT Reports
+TDS Reports
+
+Dispatch
+
+Dispatch Efficiency
+Delivery Success Rate
+Vehicle Utilization
+Driver Performance
+Pending Deliveries
+Biggest recommendation
+
+The part I'd change most is your dispatch section. Don't think of it as "vehicle tracking." Think of it as order fulfillment:
+
+Orders → Allocation → Picking → Packing → Loading → Delivery → POD → Returns
+
+That workflow is flexible enough to support a distributor with one van today and dozens of trucks later, without locking you into a rigid implementation. Most successful DMS products treat dispatch as the orchestration layer between sales, warehouse, and delivery—not just a list of vehicles.

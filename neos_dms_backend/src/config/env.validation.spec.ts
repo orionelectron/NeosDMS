@@ -9,6 +9,7 @@ describe('validateEnv', () => {
     DB_USER: 'neos',
     DB_PASSWORD: 'secret',
     DB_NAME: 'neos_dms',
+    JWT_SECRET: 'test-secret-at-least-16-chars',
   };
 
   it('returns a typed instance for a valid environment', () => {

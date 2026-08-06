@@ -128,3 +128,27 @@ export const BASE_ROLES: readonly RoleDefinition[] = [
     permissions: ['inventory.*', 'trading.item.*', 'dispatch.dispatch.read'],
   },
 ];
+
+/**
+ * Expand `*` and `module.*` globs against the permission catalog into the
+ * concrete `module.resource.action` codes stored in `permissions`.
+ */
+export function expandGlobs(
+  patterns: readonly string[],
+  catalog: readonly string[] = PERMISSIONS,
+): string[] {
+  const codes = new Set<string>();
+  for (const pattern of patterns) {
+    if (pattern === '*') {
+      catalog.forEach((code) => codes.add(code));
+    } else if (pattern.endsWith('.*')) {
+      const prefix = pattern.slice(0, -1);
+      catalog
+        .filter((code) => code.startsWith(prefix))
+        .forEach((code) => codes.add(code));
+    } else if (catalog.includes(pattern)) {
+      codes.add(pattern);
+    }
+  }
+  return [...codes];
+}

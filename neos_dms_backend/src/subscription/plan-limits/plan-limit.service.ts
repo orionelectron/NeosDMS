@@ -68,8 +68,12 @@ export class PlanLimitService {
   /** Active subscription (trialing/active/past_due) with its plan loaded. */
   async requireActiveSubscription(
     organizationId: string,
+    manager?: EntityManager,
   ): Promise<SubscriptionEntity> {
-    const subscription = await this.subscriptionRepo.findOne({
+    const repo = manager
+      ? manager.getRepository(SubscriptionEntity)
+      : this.subscriptionRepo;
+    const subscription = await repo.findOne({
       where: { organizationId, status: In(LIVE_SUBSCRIPTION_STATUSES) },
       relations: { plan: true },
     });
@@ -88,14 +92,19 @@ export class PlanLimitService {
 
   /**
    * Seat enforcement — the caller provides the live `COUNT` computed inside
-   * its own transaction. Throws when `currentCount >= limit`.
+   * its own transaction. Throws when `currentCount >= limit`. Pass a
+   * `manager` to read the subscription inside the caller's transaction.
    */
   async assertSeat(
     organizationId: string,
     code: string,
     currentCount: number,
+    manager?: EntityManager,
   ): Promise<void> {
-    const subscription = await this.requireActiveSubscription(organizationId);
+    const subscription = await this.requireActiveSubscription(
+      organizationId,
+      manager,
+    );
     const limit = subscription.plan.limits[code];
     if (typeof limit !== 'number' || limit === UNLIMITED) return;
     if (currentCount >= limit) {

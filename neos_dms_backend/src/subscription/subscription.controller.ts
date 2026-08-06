@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentTenant } from '../common/decorators/current-tenant.decorator';
 import type { TenantContext } from '../common/decorators/current-tenant.decorator';
@@ -15,7 +7,8 @@ import {
   PaginationQueryDto,
   paginate,
 } from '../common/dto/pagination.dto';
-import { TenantHeaderGuard } from './plan-limits/tenant-header.guard';
+import { Public } from '../iam/decorators/public.decorator';
+import { RequirePermission } from '../iam/decorators/require-permission.decorator';
 import { PlanLimitService } from './plan-limits/plan-limit.service';
 import { SubscriptionService } from './subscription.service';
 import { ChangePlanDto } from './dto/change-plan.dto';
@@ -30,20 +23,21 @@ export class SubscriptionController {
     private readonly planLimitService: PlanLimitService,
   ) {}
 
+  @Public()
   @Get('subscription/plans')
   @ApiOperation({ summary: 'Public plan catalog with current pricing' })
   getPlans() {
     return this.subscriptionService.getCatalog();
   }
 
-  @UseGuards(TenantHeaderGuard)
+  @RequirePermission('subscription.subscription.read')
   @Get('subscriptions')
   @ApiOperation({ summary: 'Current subscription for the organization' })
   async getSubscription(@CurrentTenant() tenant: TenantContext) {
     return this.subscriptionService.getActive(tenant.id);
   }
 
-  @UseGuards(TenantHeaderGuard)
+  @RequirePermission('subscription.subscription.update')
   @Post('subscriptions/change-plan')
   @HttpCode(200)
   @ApiOperation({ summary: 'Upgrade or downgrade the organization plan' })
@@ -59,7 +53,7 @@ export class SubscriptionController {
     );
   }
 
-  @UseGuards(TenantHeaderGuard)
+  @RequirePermission('subscription.subscription.cancel')
   @Post('subscriptions/cancel')
   @HttpCode(200)
   @ApiOperation({ summary: 'Cancel the active subscription' })
@@ -71,14 +65,14 @@ export class SubscriptionController {
     return { canceled: true };
   }
 
-  @UseGuards(TenantHeaderGuard)
+  @RequirePermission('subscription.usage.read')
   @Get('subscriptions/usage')
   @ApiOperation({ summary: 'Usage snapshot: current vs limit per resource' })
   getUsage(@CurrentTenant() tenant: TenantContext) {
     return this.planLimitService.usageSnapshot(tenant.id);
   }
 
-  @UseGuards(TenantHeaderGuard)
+  @RequirePermission('subscription.subscription.read')
   @Get('subscriptions/history')
   @ApiOperation({ summary: 'Subscription state timeline (paginated)' })
   async history(
@@ -93,7 +87,7 @@ export class SubscriptionController {
     return paginate(data, total, query);
   }
 
-  @UseGuards(TenantHeaderGuard)
+  @RequirePermission('subscription.subscription.read')
   @Get('subscriptions/transactions')
   @ApiOperation({ summary: 'Payment transactions (paginated)' })
   async transactions(
@@ -108,6 +102,7 @@ export class SubscriptionController {
     return paginate(data, total, query);
   }
 
+  @Public()
   @Post('subscriptions/webhook')
   @ApiOperation({
     summary: 'Billing gateway webhook hook point (Phase 1 stub)',
@@ -150,7 +145,7 @@ export class SubscriptionController {
   }
 
   /** Manual payment record (used by tests/UI until gateway adapters land). */
-  @UseGuards(TenantHeaderGuard)
+  @RequirePermission('subscription.subscription.update')
   @Post('subscriptions/payments')
   @HttpCode(200)
   @ApiOperation({

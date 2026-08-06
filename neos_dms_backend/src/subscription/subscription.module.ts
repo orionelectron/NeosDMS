@@ -9,7 +9,6 @@ import { SubscriptionTransactionEntity } from './entities/subscription-transacti
 import { SubscriptionEntity } from './entities/subscription.entity';
 import { PlanLimitInterceptor } from './plan-limits/plan-limit.interceptor';
 import { PlanLimitService } from './plan-limits/plan-limit.service';
-import { TenantHeaderGuard } from './plan-limits/tenant-header.guard';
 import { SubscriptionController } from './subscription.controller';
 import { SubscriptionService } from './subscription.service';
 
@@ -26,12 +25,7 @@ import { SubscriptionService } from './subscription.service';
     ]),
   ],
   controllers: [SubscriptionController],
-  providers: [
-    SubscriptionService,
-    PlanLimitService,
-    PlanLimitInterceptor,
-    TenantHeaderGuard,
-  ],
-  exports: [SubscriptionService, PlanLimitService, TenantHeaderGuard],
+  providers: [SubscriptionService, PlanLimitService, PlanLimitInterceptor],
+  exports: [SubscriptionService, PlanLimitService],
 })
 export class SubscriptionModule {}

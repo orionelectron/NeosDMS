@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { SubscriptionEntity } from '../subscription/entities/subscription.entity';
 import { SubscriptionService } from '../subscription/subscription.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
@@ -26,47 +26,57 @@ export class TenancyService {
 
   /**
    * Org onboarding hook: creates the organization + main branch + default
-   * trial subscription in one transaction. Phase 3 will add the default COA
-   * here (idempotently backfilled for pre-existing orgs by seed).
+   * trial subscription in one transaction. Pass a `manager` to run inside the
+   * caller's transaction (Phase 2 registration adds base roles + owner user
+   * in the same txn). Phase 3 will add the default COA here.
    */
-  async onboard(dto: CreateOrganizationDto): Promise<OnboardingResult> {
-    return this.dataSource.transaction(async (manager) => {
-      const organization = await manager.save(
-        manager.create(OrganizationEntity, {
-          name: dto.name,
-          legalName: dto.legalName ?? null,
-          tradeName: dto.tradeName ?? null,
-          email: dto.email,
-          phoneNumber: dto.phoneNumber,
-          panNumber: dto.panNumber,
-          vatNumber: dto.vatNumber ?? null,
-          logoUrl: dto.logoUrl ?? null,
-          address: dto.address ?? null,
-        }),
-      );
+  async onboard(
+    dto: CreateOrganizationDto,
+    manager?: EntityManager,
+  ): Promise<OnboardingResult> {
+    if (manager) return this.onboardInner(dto, manager);
+    return this.dataSource.transaction((m) => this.onboardInner(dto, m));
+  }
 
-      const branch = await manager.save(
-        manager.create(BranchEntity, {
-          organizationId: organization.id,
-          name: dto.branchName ?? `${dto.name} Main`,
-          code: dto.branchCode ?? 'MAIN',
-          location: dto.branchLocation ?? null,
-          isMainBranch: true,
-          isActive: true,
-        }),
-      );
+  private async onboardInner(
+    dto: CreateOrganizationDto,
+    manager: EntityManager,
+  ): Promise<OnboardingResult> {
+    const organization = await manager.save(
+      manager.create(OrganizationEntity, {
+        name: dto.name,
+        legalName: dto.legalName ?? null,
+        tradeName: dto.tradeName ?? null,
+        email: dto.email,
+        phoneNumber: dto.phoneNumber,
+        panNumber: dto.panNumber,
+        vatNumber: dto.vatNumber ?? null,
+        logoUrl: dto.logoUrl ?? null,
+        address: dto.address ?? null,
+      }),
+    );
 
-      const subscription = await this.subscriptionService.startTrial(
-        organization.id,
-        dto.planCode ?? 'starter',
-        {
-          periodName: dto.periodName ?? 'Monthly',
-          manager,
-        },
-      );
+    const branch = await manager.save(
+      manager.create(BranchEntity, {
+        organizationId: organization.id,
+        name: dto.branchName ?? `${dto.name} Main`,
+        code: dto.branchCode ?? 'MAIN',
+        location: dto.branchLocation ?? null,
+        isMainBranch: true,
+        isActive: true,
+      }),
+    );
 
-      return { organization, branch, subscription };
-    });
+    const subscription = await this.subscriptionService.startTrial(
+      organization.id,
+      dto.planCode ?? 'starter',
+      {
+        periodName: dto.periodName ?? 'Monthly',
+        manager,
+      },
+    );
+
+    return { organization, branch, subscription };
   }
 
   findById(id: string): Promise<OrganizationEntity | null> {

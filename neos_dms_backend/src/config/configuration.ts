@@ -10,6 +10,11 @@ export interface AppConfig {
     password: string;
     database: string;
   };
+  jwt: {
+    secret: string;
+    accessTtl: string;
+    refreshTtlDays: number;
+  };
 }
 
 export function configuration(): AppConfig {
@@ -24,6 +29,11 @@ export function configuration(): AppConfig {
       username: env.DB_USER,
       password: env.DB_PASSWORD,
       database: env.DB_NAME,
+    },
+    jwt: {
+      secret: env.JWT_SECRET,
+      accessTtl: env.JWT_ACCESS_TTL,
+      refreshTtlDays: env.JWT_REFRESH_TTL_DAYS,
     },
   };
 }

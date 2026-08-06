@@ -21,7 +21,7 @@
 | 5 | `noImplicitAny` | Current: `false` | Prefer keeping false for now; revisit per-file |
 | 6 | Migrations | Never `synchronize: true` in prod; `migration:generate` from entities, review, commit | |
 | 7 | API versioning | `/api/v1` prefix | |
-| 8 | Auth | JWT (access + refresh), bcrypt, stateless | Built in Phase 2 |
+| 8 | Auth | JWT (access + refresh) + **DB-backed refresh sessions with rotation**, bcrypt | **Built in Phase 2** — opaque refresh token, only SHA-256 hash persisted; rotation revokes old session; one-org-per-user; per-org roles with per-request permission resolution (no stale JWTs) |
 | 9 | Frontend | Out of scope this round | |
 | 10 | Verticals | **Single vertical: General Trade** — drop `verticals` & `vertical_module_mappings`; price matrices not vertical-scoped | Simplifies subscription + tenant model |
 | 11 | Product scope | **FMCG distribution MVP** — implement a subset of the multi-vertical reference schema, tiered P0/P1/drop (see §3.1) | Reference was built for GT/retail/pharma/restro; FMCG only |
@@ -102,10 +102,10 @@ Convention: each module = `*.module.ts`, `*.controller.ts`, `*.service.ts`, `ent
 DB ordering note: migrations 2 & 3 reference `organizations`, `modules`, `branches` — these tenant tables come from migration 1, so the **schema baseline is created foundation-first** even though operational features land in later phases.
 
 ### 5.1 Tenant scaffolding (from migration 1, simplified)
-- [ ] Entities + migration: `modules`, `organizations`, `branches`
-- [ ] `verticals` / `vertical_module_mappings` not created (single vertical: General Trade)
-- [ ] Seeded modules (catalog for permission codes only — **not** a subscription gate): `trading`, `sales`, `purchase`, `inventory`, `accounting`, `reports`, `dispatch`
-- [ ] Org onboarding hook: creates org + main branch + **default trial subscription** (+ in Phase 3, default COA — backfilled idempotently for pre-existing orgs by seed)
+- [x] Entities + migration: `modules`, `organizations`, `branches`
+- [x] `verticals` / `vertical_module_mappings` not created (single vertical: General Trade)
+- [x] Seeded modules (catalog for permission codes only — **not** a subscription gate): `trading`, `sales`, `purchase`, `inventory`, `accounting`, `reports`, `dispatch` (+ `tenant`, `subscription`, `iam` added by the Phase 2 seed)
+- [x] Org onboarding hook: creates org + main branch + **default trial subscription** (+ in Phase 3, default COA — backfilled idempotently for pre-existing orgs by seed)
 
 ### 5.2 Subscription model — usage & seats, NOT module gating
 
@@ -121,45 +121,45 @@ DB ordering note: migrations 2 & 3 reference `organizations`, `modules`, `branch
 
 New limit dimension later = add a key to plan seeds + the code enum; **no schema change** — this is the anti-derail lever.
 
-- [ ] Entities + migration: `plans`, `billing_periods`, `price_matrices`, `subscriptions`, `organization_usages`, `subscription_transactions`, `subscription_history`
-- [ ] `plan_module_mappings` **not created** (replaced by `plans.limits` jsonb)
-- [ ] `plans.limits` jsonb — canonical limit profile, e.g.
+- [x] Entities + migration: `plans`, `billing_periods`, `price_matrices`, `subscriptions`, `organization_usages`, `subscription_transactions`, `subscription_history`
+- [x] `plan_module_mappings` **not created** (replaced by `plans.limits` jsonb)
+- [x] `plans.limits` jsonb — canonical limit profile, e.g.
       `{"users": 5, "branches": 1, "items": 500, "invoices_per_month": 1000, "orders_per_month": 1000, "purchase_receipts_per_month": 500, "multi_branch": false, "batch_tracking": false, "offline": false}`
-- [ ] `plans.code` (unique, stable slug: `starter`/`growth`/`enterprise`) for rename-safe system refs; seed base plan profiles (single General Trade vertical, price per billing period, no vertical dimension)
-- [ ] `price_matrices` — unique price point `(plan_id, billing_period_id)`; append-only/versioned (price history preserved)
-- [ ] `subscriptions` — partial unique index: at most one `trialing`/`active`/`past_due` per `organization_id`; price lock via `amount`/`currency`/`billing_period_id` snapshot; CHECK on `status` (`trialing|active|past_due|canceled`); store `grace_period_end` for past_due→canceled
-- [ ] `organization_usages` — `(organization_id, resource_code)` unique; holds periodic counters with `current_usage` + `last_reset_at`; seat limits NOT stored here (computed live)
-- [ ] `subscription_transactions` — `gateway_transaction_id` UNIQUE (eSewa/Khalti webhook idempotency), `paid_at`, CHECK on `status`
-- [ ] `subscription_history` — `changed_by` + `reason` (self-contained state timeline)
-- [ ] `SubscriptionService` — lifecycle `trial → active → past_due → canceled`, period rollover, grace scheduler
-- [ ] `PlanLimitService` — enforcement primitives:
-  - `assertSeat(orgId, code)` — `COUNT` vs `plans.limits` inside the caller's transaction
-  - `consumePeriodic(orgId, code)` — single atomic `UPDATE organization_usages SET current_usage = CASE WHEN last_reset_at < $periodStart THEN 1 ELSE current_usage + 1 END, last_reset_at = $periodStart WHERE organization_id = $1 AND resource_code = $2 AND (last_reset_at < $periodStart OR current_usage < $limit) RETURNING id` — **no row back = exceeded** (no scheduler, race-safe)
-  - `assertFeature(orgId, code)` — boolean check
-- [ ] `@PlanLimit(code)` method decorator (interceptor): reads tenant from CLS → asserts → runs → on success consumes; throws `PLAN_LIMIT_EXCEEDED` with `{ resource, limit, current }` (UI uses this to upsell)
-- [ ] Endpoints: plan catalog (public), org subscription (create/change/cancel), **usage snapshot** (current vs limit per resource), history, webhook hook point for billing
-- [ ] Adapters to consume limits at call sites (Phase 2+): user create → `users` seat; invoice/order/GRN create → periodic counters
+- [x] `plans.code` (unique, stable slug: `starter`/`growth`/`enterprise`) for rename-safe system refs; seed base plan profiles (single General Trade vertical, price per billing period, no vertical dimension)
+- [x] `price_matrices` — unique price point `(plan_id, billing_period_id)`; append-only/versioned (price history preserved)
+- [x] `subscriptions` — partial unique index: at most one `trialing`/`active`/`past_due` per `organization_id`; price lock via `amount`/`currency`/`billing_period_id` snapshot; CHECK on `status` (`trialing|active|past_due|canceled`); store `grace_period_end` for past_due→canceled
+- [x] `organization_usages` — `(organization_id, resource_code)` unique; holds periodic counters with `current_usage` + `last_reset_at`; seat limits NOT stored here (computed live)
+- [x] `subscription_transactions` — `gateway_transaction_id` UNIQUE (eSewa/Khalti webhook idempotency), `paid_at`, CHECK on `status`
+- [x] `subscription_history` — `changed_by` + `reason` (self-contained state timeline)
+- [x] `SubscriptionService` — lifecycle `trial → active → past_due → canceled`, period rollover, grace scheduler
+- [x] `PlanLimitService` — enforcement primitives:
+  - [x] `assertSeat(orgId, code)` — `COUNT` vs `plans.limits` inside the caller's transaction (also accepts an `EntityManager`)
+  - [x] `consumePeriodic(orgId, code)` — single atomic `UPDATE organization_usages SET current_usage = CASE WHEN last_reset_at < $periodStart THEN 1 ELSE current_usage + 1 END, last_reset_at = $periodStart WHERE organization_id = $1 AND resource_code = $2 AND (last_reset_at < $periodStart OR current_usage < $limit) RETURNING id` — **no row back = exceeded** (no scheduler, race-safe)
+  - [x] `assertFeature(orgId, code)` — boolean check
+- [x] `@PlanLimit(code)` method decorator (interceptor): reads tenant from CLS → asserts → runs → on success consumes; throws `PLAN_LIMIT_EXCEEDED` with `{ resource, limit, current }` (UI uses this to upsell)
+- [x] Endpoints: plan catalog (public), org subscription (create/change/cancel), **usage snapshot** (current vs limit per resource), history, webhook hook point for billing
+- [~] Adapters to consume limits at call sites: user create → `users` seat **done (Phase 2)**; invoice/order/GRN create → periodic counters land with those phases
 
 **Acceptance:** new org gets trial subscription; `users`/`invoices_per_month` etc. enforced at service layer with a structured `PLAN_LIMIT_EXCEEDED` error; counters reset on period rollover without a cron; org can never hold two active subscriptions; gateway callbacks are idempotent (replay-safe).
 
 ## 6. Phase 2 — User & Access Control (IAM + RBAC)
 
 ### 6.1 Tables (from migration 3)
-- [ ] Entities + migration: `roles`, `permissions`, `role_permission_mappings`, `users`, `audit_logs`
-- [ ] Permission codes as granular `Module.Action` (e.g. `accounting.journal-entry.create`), **not** hardcoded roles (spec requirement)
-- [ ] Seed base roles from spec: `ADMIN`, `ACCOUNTANT`, `SALESMAN`, `DRIVER`, `WAREHOUSE_MANAGER` + permission mappings
-- [ ] Seed `audit_logs` trigger points for every business event (spec requirement)
+- [x] Entities + migration: `roles`, `permissions`, `role_permission_mappings`, `users`, `audit_logs`
+- [x] Permission codes as granular `Module.Action` (e.g. `accounting.journal-entry.create`), **not** hardcoded roles (spec requirement) — `src/database/seeders/permissions.ts` (70 codes, 10 modules) seeded + idempotently ensured at runtime
+- [x] Seed base roles from spec: `ADMIN`, `ACCOUNTANT`, `SALESMAN`, `DRIVER`, `WAREHOUSE_MANAGER` + permission mappings (in-txn at onboarding + idempotent backfill seed for pre-existing orgs; `admin` is superuser by code)
+- [~] Seed `audit_logs` trigger points for every business event (spec requirement) — `AuditService` wired for auth/IAM flows; remaining business events land with their phases
 
 ### 6.2 Auth + RBAC plumbing
-- [ ] JWT auth (access + refresh), bcrypt, login/register, org onboarding + invite
-- [ ] `JwtAuthGuard` (global) + `PermissionsGuard` + `@RequirePermission(...)` decorator
-- [ ] `RolesGuard` only for coarse admin checks; fine-grained via permissions
-- [ ] Tenancy: org scoping helper (all queries auto-filtered by `organization_id`)
-- [ ] User create/enable enforces the `users` seat limit via `PlanLimitService.assertSeat` (inside the same transaction)
-- [ ] `AuditService` — records actor, action, entity, before/after, ip, occurred_at (BS/AD dual timestamp)
-- [ ] Endpoints: users CRUD, roles CRUD, permissions list, role-permission mapping, audit log query (paginated)
+- [x] JWT auth (access + refresh with rotation), bcrypt, login/register (org onboarding + owner ADMIN in one txn; no email invite — temp password → forced change)
+- [x] `JwtAuthGuard` (global) + `PermissionsGuard` + `@RequirePermission(...)` decorator; `@Public()` escape hatch
+- [x] Admin = `SUPERUSER_ROLE_CODE` bypass; fine-grained via per-request permission resolution (no stale JWTs); single-role-per-user MVP
+- [x] Tenancy: org scoping via CLS (`req.tenant` from the token) on every request
+- [x] User create/enable enforces the `users` seat limit via `PlanLimitService.assertSeat` (inside the same transaction)
+- [x] `AuditService` — records actor, action, entity, before/after, ip, occurred_at (BS/AD dual timestamp)
+- [x] Endpoints: users CRUD, roles CRUD, permissions list, role-permission mapping, audit log query (paginated)
 
-**Acceptance:** login issues JWT; role with `sales.*` perms can't hit `accounting.*`; every mutation is audited.
+**Acceptance:** login issues JWT; role with `sales.*` perms can't hit `accounting.*`; every mutation is audited. **Verified live:** register → login → `/auth/me` (admin + all 70 perms) → refresh rotation (old token → `REFRESH_TOKEN_REVOKED`) → audit query with BS dates → seat limit (`PLAN_LIMIT_EXCEEDED` at 5/5) → RBAC (`FORBIDDEN` for salesman on `/users`).
 
 ## 7. Phase 3 — Accounting Engine (FMCG subset, NPR-only)
 
@@ -280,12 +280,13 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 - [x] **Phase 0 complete** — env config + validation, TypeORM wiring + CLI data-source + migrations dir, global ValidationPipe, exception filter, CLS request-ID + response envelope, Swagger at `/api/v1/docs`, `src/common` building blocks (BaseEntity, pagination, decorators), versioned idempotent seed runner + permission-code catalog, unit (51) + e2e (8) green, `npm run lint`/`build`/`test` pass, backend README + `.env.example`. Boot smoke-tested; only DB connection is external.
 
 ### In Progress
-- [~] Tsconfig decision: `baseUrl` keep/remove (user)
+- [~] Phase 3 — Accounting engine (COA default for new orgs, fiscal years, posting engine)
 
 ### Next up
-- [ ] Commit Nepali date feature (awaiting user go-ahead)
-- [ ] **Plan revised** (2026-08-06): FMCG MVP scope (§3.1) + subscription re-scoped to usage/seat limits (§5.2) — decisions 11–17; cut-lines resolved: returns + expenses in MVP (18)
-- [ ] Phase 1 scaffolding — tenant tables + usage-based subscription per §5
+- [x] **Phase 1 complete** (committed `3ffc3ac`, pushed to `main`): tenant + subscription per §5 — migration `1785913601535-TenantAndSubscription.ts` applied; seeds v1–3 (modules, billing periods, plans) applied; `SubscriptionService`/`PlanLimitService`/`@PlanLimit` interceptor; controllers (plans public, subscription, usage snapshot, history, payments/webhook); 76 tests green, lint/build clean; live smoke-tested trial + seat/periodic/feature limits
+- [x] **Phase 2 complete** (committed + pushed): IAM + RBAC per §6 — migration `1786035687494-IamAndAuth.ts` applied; seeds v4–6 (IAM modules, 70 permission codes, base-role backfill) applied; DB-backed refresh sessions with rotation; `JwtAuthGuard` + `PermissionsGuard` + `@RequirePermission`/`@Public`; `AuditService` with dual AD/BS timestamps; one-org-per-user onboarding (owner = ADMIN, temp password → forced change); admin bypass via `SUPERUSER_ROLE_CODE`; `password_hash` excluded from API responses; 76 tests green, lint/build clean; live smoke-tested (see §6 acceptance)
+- [ ] Phase 3 — Accounting engine (FMCG subset, NPR-only) per §7
+- [ ] Phase 4+ — Trading masters, Inventory, Sales/AR, Purchase/AP, Reports per plan order
 
 ## 17. Reference Migration Inventory (for translation)
 

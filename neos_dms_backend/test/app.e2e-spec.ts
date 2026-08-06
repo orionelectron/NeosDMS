@@ -15,6 +15,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { configureApp } from './../src/app.setup';
 import { CommonModule } from './../src/common/common.module';
 import { clsModuleOptions } from './../src/common/request-context';
+import { Public } from './../src/iam/decorators/public.decorator';
 import { SkipEnvelope } from './../src/common/decorators/skip-envelope.decorator';
 import { PaginationQueryDto } from './../src/common/dto/pagination.dto';
 import { HealthModule } from './../src/health/health.module';
@@ -39,6 +40,7 @@ interface ApiError {
 }
 
 @Controller('test')
+@Public()
 class TestController {
   @Get('value')
   value(@Query() query: PaginationQueryDto): Record<string, unknown> {

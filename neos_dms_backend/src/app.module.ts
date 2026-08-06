@@ -6,6 +6,7 @@ import { AppConfig, configuration } from './config/configuration';
 import { CommonModule } from './common/common.module';
 import { clsModuleOptions } from './common/request-context';
 import { HealthModule } from './health/health.module';
+import { IamModule } from './iam/iam.module';
 import { NepaliDateModule } from './nepali-date/nepali-date.module';
 import { TenancyModule } from './tenancy/tenancy.module';
 
@@ -36,6 +37,7 @@ import { TenancyModule } from './tenancy/tenancy.module';
     HealthModule,
     NepaliDateModule,
     TenancyModule,
+    IamModule,
   ],
 })
 export class AppModule {}

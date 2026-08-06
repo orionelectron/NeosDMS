@@ -1,98 +1,90 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# NEOS DMS Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS 11 + TypeORM 1.x + PostgreSQL backend for NEOS DMS — a distribution
+management system built for Nepal (NPR, VAT/TDS, Nepali fiscal year, dual
+AD/BS dates).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Stack
 
-## Description
+- **Framework:** NestJS 11 (TypeScript, `nodenext`, `strictNullChecks`)
+- **ORM:** TypeORM 1.x with PostgreSQL (`jsonb`, partial unique indexes, CHECK constraints)
+- **Validation:** `class-validator` + `class-transformer` (global `ValidationPipe`)
+- **Config:** `@nestjs/config` with class-validator validation (fails fast on missing env vars)
+- **Docs:** Swagger/OpenAPI mounted at `/api/v1/docs`
+- **Cross-cutting:** CLS request IDs, structured response envelope, global exception filter
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+## Setup
 
 ```bash
-$ npm install
+npm install
+cp .env.example .env
+# create the database, e.g.:
+#   createdb neos_dms
 ```
 
-## Compile and run the project
+Required env vars (validated at boot): `DB_HOST`, `DB_PORT`, `DB_USER`,
+`DB_PASSWORD`, `DB_NAME`. Optional: `NODE_ENV`, `PORT`.
+
+## Run
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm run start:dev     # watch mode
+npm run start:prod    # build then node dist/main
 ```
 
-## Run tests
+The API listens on `http://localhost:3000/api/v1` (Swagger at `/api/v1/docs`).
+All responses are enveloped as `{ success, data, requestId }`; errors are
+`{ status, code, message, details?, requestId }`. Every response carries an
+`X-Request-Id` header (inbound value is honored).
+
+## Database
+
+`typeorm-ts-node-commonjs` is configured against `src/database/data-source.ts`
+via the `typeorm` npm script. Migrations live in `src/database/migrations/`.
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm run typeorm -- migration:run       # apply pending migrations
+npm run typeorm -- migration:show      # list applied/pending
+npm run typeorm -- migration:revert    # revert last migration
+npm run typeorm -- migration:generate  # generate from entity changes
 ```
 
-## Deployment
+`migration:generate` output is reviewed and committed; `synchronize` is never
+enabled in production.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### Seeds
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Seeders are versioned and idempotent: each seed runs exactly once inside a
+transaction and is recorded in the `seed_versions` table.
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run seed
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Phase 0 ships the seed mechanism plus the permission-code catalog
+(`src/database/seeders/permissions.ts`) as the single source of truth for
+granular `Module.Resource.Action` permission codes. Base-role seeding is
+added in Phase 2 when the IAM tables exist (`registry.ts`).
 
-## Resources
+## Test
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+npm run lint        # eslint + prettier (--fix)
+npm run test        # unit tests (no DB required)
+npm run test:e2e    # e2e against the foundation wiring (no DB required)
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Unit tests never touch a database. The e2e suite boots a lightweight module
+(CLS, envelope/filter wiring, health, validation) so it stays green on CI
+without Postgres.
 
-## Support
+## Conventions
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- Each feature module: `*.module.ts`, `*.controller.ts`, `*.service.ts`,
+  `entities/`, `dto/`, `*.spec.ts`. Entities colocated with features;
+  migrations centralized in `src/database/migrations/`.
+- DTOs everywhere; no `any` in new code; no inline comments unless they add
+  context a reviewer can't infer.
+- Commit message style: imperative, concise, prefixed by area
+  (e.g. `feat(foundation): global validation, envelope, and exception filter`).
+- Never commit `.env`; secrets only via environment.

@@ -49,16 +49,16 @@ Convention: each module = `*.module.ts`, `*.controller.ts`, `*.service.ts`, `ent
 
 ## 4. Cross-Cutting Foundation (Phase 0)
 
-- [ ] Typed env config with validation (`@nestjs/config` + class-validator), fails fast on missing vars
-- [ ] `TypeOrmModule.forRootAsync`, data-source for CLI, `src/database/migrations/`
-- [ ] Global `ValidationPipe` (whitelist, transform, forbidNonWhitelisted), DTOs everywhere
-- [ ] Global exception filter — structured `{ status, code, message, details, requestId }`
-- [ ] Request-ID + response envelope interceptor; structured logging (Pino optional)
-- [ ] Swagger/OpenAPI mounted at `/api/v1/docs`
-- [ ] `src/common/` building blocks: `BaseEntity` (id, timestamps, audit cols), pagination DTO, `CurrentUser`/`CurrentTenant` decorators
-- [ ] Base roles + permission codes seed strategy (seeds versioned, idempotent)
-- [ ] Unit + e2e test harness; `npm run lint` / `npm test` green on CI
-- [ ] README for backend (run, migrate, seed, test) + commit conventions
+- [x] Typed env config with validation (`@nestjs/config` + class-validator), fails fast on missing vars
+- [x] `TypeOrmModule.forRootAsync`, data-source for CLI, `src/database/migrations/`
+- [x] Global `ValidationPipe` (whitelist, transform, forbidNonWhitelisted), DTOs everywhere
+- [x] Global exception filter — structured `{ status, code, message, details, requestId }`
+- [x] Request-ID + response envelope interceptor; structured logging (Pino optional)
+- [x] Swagger/OpenAPI mounted at `/api/v1/docs`
+- [x] `src/common/` building blocks: `BaseEntity` (id, timestamps, audit cols), pagination DTO, `CurrentUser`/`CurrentTenant` decorators
+- [x] Base roles + permission codes seed strategy (seeds versioned, idempotent) — mechanism + permission-code catalog shipped; role data seeding lands in Phase 2 with the IAM tables
+- [x] Unit + e2e test harness; `npm run lint` / `npm test` green on CI
+- [x] README for backend (run, migrate, seed, test) + commit conventions
 
 ## 5. Phase 1 — Tenant & Subscription System
 
@@ -170,13 +170,14 @@ Translates migration 1's accounting tables. Reuses `nepali-date` for dual dates 
 - [x] Live smoke-tested: `ad-to-bs`, `bs-to-ad`, `bs-month`, invalid-date → 400
 - [x] Read all 8 reference migrations; extracted table inventory
 - [x] This plan written (decision log, phases, tracker)
+- [x] **Phase 0 complete** — env config + validation, TypeORM wiring + CLI data-source + migrations dir, global ValidationPipe, exception filter, CLS request-ID + response envelope, Swagger at `/api/v1/docs`, `src/common` building blocks (BaseEntity, pagination, decorators), versioned idempotent seed runner + permission-code catalog, unit (51) + e2e (8) green, `npm run lint`/`build`/`test` pass, backend README + `.env.example`. Boot smoke-tested; only DB connection is external.
 
 ### In Progress
 - [~] Tsconfig decision: `baseUrl` keep/remove (user)
 
 ### Next up
 - [ ] Commit Nepali date feature (awaiting user go-ahead)
-- [ ] Phase 0 scaffolding per section 4
+- [ ] Phase 1 scaffolding — tenant tables (migration 1) per section 5.1
 
 ## 12. Reference Migration Inventory (for translation)
 

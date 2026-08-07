@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
-import { NepaliDateConverter } from '../../nepali-date/nepali-date-converter';
-import { AuditLogEntity } from '../entities/audit-log.entity';
+import { NepaliDateConverter } from '../nepali-date/nepali-date-converter';
+import { AuditLogEntity } from './audit-log.entity';
 
 export interface AuditInput {
   organizationId: string;

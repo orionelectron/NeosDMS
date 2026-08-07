@@ -12,7 +12,7 @@ import {
   InvalidRefreshTokenException,
   RevokedRefreshTokenException,
 } from './auth.errors';
-import { AuditService } from './audit/audit.service';
+import { AuditService } from '../audit/audit.service';
 import { SUPERUSER_ROLE_CODE } from './auth.constants';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';

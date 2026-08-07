@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
+import { provisionAccounting } from '../accounting/provisioning.logic';
 import { SubscriptionEntity } from '../subscription/entities/subscription.entity';
 import { SubscriptionService } from '../subscription/subscription.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
@@ -26,9 +27,9 @@ export class TenancyService {
 
   /**
    * Org onboarding hook: creates the organization + main branch + default
-   * trial subscription in one transaction. Pass a `manager` to run inside the
-   * caller's transaction (Phase 2 registration adds base roles + owner user
-   * in the same txn). Phase 3 will add the default COA here.
+   * trial subscription + accounting setup (COA, fiscal year, tax codes) in
+   * one transaction. Pass a `manager` to run inside the caller's transaction
+   * (Phase 2 registration adds base roles + owner user in the same txn).
    */
   async onboard(
     dto: CreateOrganizationDto,
@@ -75,6 +76,8 @@ export class TenancyService {
         manager,
       },
     );
+
+    await provisionAccounting(manager, organization.id);
 
     return { organization, branch, subscription };
   }

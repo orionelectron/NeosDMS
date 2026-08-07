@@ -163,18 +163,21 @@ New limit dimension later = add a key to plan seeds + the code enum; **no schema
 
 ## 7. Phase 3 — Accounting Engine (FMCG subset, NPR-only)
 
-The posting engine that sales/purchase/inventory post into. Reuses `nepali-date` for dual dates + Nepali fiscal year (Shrawan start). Deferred to P1: `exchange_rates`, `attachments`, `transaction_tags`/`journal_entry_tags`.
+The posting engine that sales/purchase/inventory post into. Reuses `nepali-date` for dual dates + Nepali fiscal year (Baisakh 1 start, matching the Bikram Sambat calendar year). Deferred to P1: `exchange_rates`, `attachments`, `transaction_tags`/`journal_entry_tags`.
 
-- [ ] `fiscal_years`, `fiscal_periods` — one active FY per org (partial unique index), BS + AD date range
-- [ ] `currencies` — NPR base seed; `exchange_rates` NOT created in MVP
-- [ ] `payment_terms`, `payment_methods`
-- [ ] `accounts` — hierarchical chart of accounts, system-purpose accounts; **default COA seeded per org on creation** (idempotent backfill for existing orgs)
-- [ ] `parties`, `party_addresses` — customer/supplier (CHECK at-least-one-role), payment terms
-- [ ] `tax_types`, `tax_codes`, `tax_templates` — VAT (13% seed) / TDS, `math_sign IN (1,-1)` CHECK
-- [ ] `journal_entries` + `journal_lines` — balanced double-entry; debit/credit mutual-exclusion CHECK; posting in a transaction; `transaction_types` as seeded constants
-- [ ] `document_sequences` — fiscal-year-scoped, branch-safe sequential numbering (gov-compliant invoices) with prefix
-- [ ] Core reports foundation: trial balance, general ledger, P&L
-- [ ] Fiscal year open/close workflow
+- [x] `fiscal_years`, `fiscal_periods` — one active FY per org (partial unique index), BS + AD date range; open/close workflow with period lock + audit
+- [x] `currencies` — NPR base seed; `exchange_rates` NOT created in MVP
+- [x] `payment_terms`, `payment_methods`
+- [x] `accounts` — hierarchical chart of accounts (level/path), system-purpose accounts; **default COA seeded per org on creation** (idempotent backfill for existing orgs via versioned seed)
+- [x] `parties`, `party_addresses` — customer/supplier/lead (CHECK at-least-one-role), payment terms
+- [x] `tax_types`, `tax_codes`, `tax_templates` — VAT 13% / TDS seeds, `math_sign IN (1,-1)` CHECK
+- [x] `journal_entries` + `journal_lines` — balanced double-entry; debit/credit mutual-exclusion CHECK; posting in a transaction; `transaction_types` as seeded constants
+- [x] `document_sequences` — fiscal-year-scoped, branch-safe sequential numbering (gov-compliant invoices) with prefix, atomic upsert via `doc_seq_unique` ON CONFLICT
+- [ ] Core reports foundation: trial balance, general ledger, P&L (deferred to Phase 8)
+- [x] Fiscal year open/close workflow
+- [x] Tenancy onboarding provisions accounting in the same txn; `POST /api/v1/accounting/provision` for idempotent re-provision
+
+**Verified (2026-08-07):** migration `AccountingEngine1786070270761` applied against live Postgres; seeds 7–9 applied (tax types/templates, transaction types, per-org accounting backfill); both existing orgs have 31-account COA + active FY 2083/84 with 12 periods + VAT/exempt tax codes + global NPR currency; unit tests added for every accounting service (accounts, parties, fiscal years, document sequences, taxes, provisioning, journal posting, provisioning logic) — `npm run lint` clean, **151 unit tests pass**. Tax schema tightened with migration `TaxCodeUniqueness1786072881892` (unique `tax_codes (organization_id, name)` + unique `tax_templates (name)`), applied + duplicate-insert rejection verified against live Postgres.
 
 **Acceptance:** double-entry posting rejects unbalanced entries; invoice numbers unique per FY; default COA exists for every org; reports tie to journal lines.
 
@@ -280,12 +283,12 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 - [x] **Phase 0 complete** — env config + validation, TypeORM wiring + CLI data-source + migrations dir, global ValidationPipe, exception filter, CLS request-ID + response envelope, Swagger at `/api/v1/docs`, `src/common` building blocks (BaseEntity, pagination, decorators), versioned idempotent seed runner + permission-code catalog, unit (51) + e2e (8) green, `npm run lint`/`build`/`test` pass, backend README + `.env.example`. Boot smoke-tested; only DB connection is external.
 
 ### In Progress
-- [~] Phase 3 — Accounting engine (COA default for new orgs, fiscal years, posting engine)
+- [~] Phase 3 — Accounting engine (COA default for new orgs, fiscal years, posting engine) — implementation + DB verification done; reports foundation deferred to Phase 8
 
 ### Next up
 - [x] **Phase 1 complete** (committed `3ffc3ac`, pushed to `main`): tenant + subscription per §5 — migration `1785913601535-TenantAndSubscription.ts` applied; seeds v1–3 (modules, billing periods, plans) applied; `SubscriptionService`/`PlanLimitService`/`@PlanLimit` interceptor; controllers (plans public, subscription, usage snapshot, history, payments/webhook); 76 tests green, lint/build clean; live smoke-tested trial + seat/periodic/feature limits
 - [x] **Phase 2 complete** (committed + pushed): IAM + RBAC per §6 — migration `1786035687494-IamAndAuth.ts` applied; seeds v4–6 (IAM modules, 70 permission codes, base-role backfill) applied; DB-backed refresh sessions with rotation; `JwtAuthGuard` + `PermissionsGuard` + `@RequirePermission`/`@Public`; `AuditService` with dual AD/BS timestamps; one-org-per-user onboarding (owner = ADMIN, temp password → forced change); admin bypass via `SUPERUSER_ROLE_CODE`; `password_hash` excluded from API responses; 76 tests green, lint/build clean; live smoke-tested (see §6 acceptance)
-- [ ] Phase 3 — Accounting engine (FMCG subset, NPR-only) per §7
+- [~] Phase 3 — Accounting engine (FMCG subset, NPR-only) per §7 — implemented + verified live (migration, seeds, backfill, tax uniqueness migration, 151 tests); reports foundation left for Phase 8
 - [ ] Phase 4+ — Trading masters, Inventory, Sales/AR, Purchase/AP, Reports per plan order
 
 ## 17. Reference Migration Inventory (for translation)

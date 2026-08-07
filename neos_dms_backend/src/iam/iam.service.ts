@@ -9,7 +9,7 @@ import {
 } from '../database/seeders/permissions';
 import { BranchEntity } from '../tenancy/entities/branch.entity';
 import { ModuleEntity } from '../tenancy/entities/module.entity';
-import { AuditService } from './audit/audit.service';
+import { AuditService } from '../audit/audit.service';
 import { SUPERUSER_ROLE_CODE } from './auth.constants';
 import {
   EmailAlreadyUsedException,

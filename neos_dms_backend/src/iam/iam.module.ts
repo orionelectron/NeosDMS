@@ -4,13 +4,13 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import type { AppConfig } from '../config/configuration';
+import { AuditModule } from '../audit/audit.module';
+import { AuditService } from '../audit/audit.service';
 import { NepaliDateModule } from '../nepali-date/nepali-date.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { TenancyModule } from '../tenancy/tenancy.module';
-import { AuditService } from './audit/audit.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { AuditLogEntity } from './entities/audit-log.entity';
 import { PermissionEntity } from './entities/permission.entity';
 import { RefreshSessionEntity } from './entities/refresh-session.entity';
 import { RolePermissionMappingEntity } from './entities/role-permission-mapping.entity';
@@ -31,7 +31,6 @@ import { TokenService } from './token.service';
       PermissionEntity,
       RolePermissionMappingEntity,
       RefreshSessionEntity,
-      AuditLogEntity,
     ]),
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -39,6 +38,7 @@ import { TokenService } from './token.service';
         secret: config.get('jwt', { infer: true }).secret,
       }),
     }),
+    AuditModule,
     TenancyModule,
     SubscriptionModule,
     NepaliDateModule,

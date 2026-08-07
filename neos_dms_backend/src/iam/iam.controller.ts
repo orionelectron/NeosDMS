@@ -17,7 +17,7 @@ import type { TenantContext } from '../common/decorators/current-tenant.decorato
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../common/decorators/current-user.decorator';
 import { Paginated, paginate } from '../common/dto/pagination.dto';
-import { AuditService } from './audit/audit.service';
+import { AuditService } from '../audit/audit.service';
 import { RequirePermission } from './decorators/require-permission.decorator';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { AuditLogQueryDto, UserListQueryDto } from './dto/query.dto';

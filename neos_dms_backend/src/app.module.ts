@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { ClsModule } from 'nestjs-cls';
+import { AccountingModule } from './accounting/accounting.module';
+import { AuditModule } from './audit/audit.module';
 import { AppConfig, configuration } from './config/configuration';
 import { CommonModule } from './common/common.module';
 import { clsModuleOptions } from './common/request-context';
@@ -34,10 +36,12 @@ import { TenancyModule } from './tenancy/tenancy.module';
       },
     }),
     CommonModule,
+    AuditModule,
     HealthModule,
     NepaliDateModule,
     TenancyModule,
     IamModule,
+    AccountingModule,
   ],
 })
 export class AppModule {}

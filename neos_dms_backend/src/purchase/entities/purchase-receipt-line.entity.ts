@@ -63,4 +63,18 @@ export class PurchaseReceiptLineEntity extends BaseEntity {
     default: 0,
   })
   unitCost: string;
+
+  /**
+   * Base-unit quantity already claimed by posted purchase bills (decision 40
+   * single-move rule). A receipt line bills once, in full — a second bill
+   * referencing it is rejected at POST.
+   */
+  @Column({
+    name: 'billed_quantity',
+    type: 'decimal',
+    precision: 15,
+    scale: 3,
+    default: 0,
+  })
+  billedQuantity: string;
 }

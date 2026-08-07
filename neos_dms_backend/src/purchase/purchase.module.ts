@@ -13,8 +13,12 @@ import { SubscriptionModule } from '../subscription/subscription.module';
 import { ItemEntity } from '../trading/entities/item.entity';
 import { UomConversionEntity } from '../trading/entities/uom-conversion.entity';
 import { UomEntity } from '../trading/entities/uom.entity';
+import { PurchaseBillLineEntity } from './entities/purchase-bill-line.entity';
+import { PurchaseBillEntity } from './entities/purchase-bill.entity';
 import { PurchaseReceiptLineEntity } from './entities/purchase-receipt-line.entity';
 import { PurchaseReceiptEntity } from './entities/purchase-receipt.entity';
+import { PurchaseBillController } from './purchase-bill.controller';
+import { PurchaseBillService } from './purchase-bill.service';
 import { PurchaseReceiptController } from './purchase-receipt.controller';
 import { PurchaseReceiptService } from './purchase-receipt.service';
 
@@ -23,6 +27,8 @@ import { PurchaseReceiptService } from './purchase-receipt.service';
     TypeOrmModule.forFeature([
       PurchaseReceiptEntity,
       PurchaseReceiptLineEntity,
+      PurchaseBillEntity,
+      PurchaseBillLineEntity,
       PartyEntity,
       FiscalYearEntity,
       InventoryLocationEntity,
@@ -37,7 +43,11 @@ import { PurchaseReceiptService } from './purchase-receipt.service';
     InventoryModule,
     SubscriptionModule,
   ],
-  controllers: [PurchaseReceiptController],
-  providers: [PurchaseReceiptService, DocumentSequenceService],
+  controllers: [PurchaseReceiptController, PurchaseBillController],
+  providers: [
+    PurchaseReceiptService,
+    PurchaseBillService,
+    DocumentSequenceService,
+  ],
 })
 export class PurchaseModule {}

@@ -13,6 +13,7 @@ export const INVENTORY_TXN_TYPES = [
   'stock_transfer',
   'sales_invoice',
   'purchase_receipt',
+  'purchase_bill',
 ] as const;
 export type InventoryTransactionType = (typeof INVENTORY_TXN_TYPES)[number];
 

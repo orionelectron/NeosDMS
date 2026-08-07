@@ -34,6 +34,7 @@ export const LIMIT_RESOURCES = {
   INVOICES_PER_MONTH: 'invoices_per_month',
   ORDERS_PER_MONTH: 'orders_per_month',
   PURCHASE_RECEIPTS_PER_MONTH: 'purchase_receipts_per_month',
+  PURCHASE_BILLS_PER_MONTH: 'purchase_bills_per_month',
   MULTI_BRANCH: 'multi_branch',
   BATCH_TRACKING: 'batch_tracking',
   OFFLINE: 'offline',
@@ -70,6 +71,7 @@ export function getLimitKind(code: string): LimitKind {
     case LIMIT_RESOURCES.INVOICES_PER_MONTH:
     case LIMIT_RESOURCES.ORDERS_PER_MONTH:
     case LIMIT_RESOURCES.PURCHASE_RECEIPTS_PER_MONTH:
+    case LIMIT_RESOURCES.PURCHASE_BILLS_PER_MONTH:
       return LIMIT_KIND.PERIODIC;
     default:
       return LIMIT_KIND.SEAT;

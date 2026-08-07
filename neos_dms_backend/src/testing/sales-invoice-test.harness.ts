@@ -334,7 +334,11 @@ export async function seedSalesInvoiceBaseline(
       description: null,
       gracePeriodDays: 3,
       isActive: true,
-      limits: { invoices_per_month: 1000, purchase_receipts_per_month: 1000 },
+      limits: {
+        invoices_per_month: 1000,
+        purchase_receipts_per_month: 1000,
+        purchase_bills_per_month: 1000,
+      },
     },
     ['id'],
   );

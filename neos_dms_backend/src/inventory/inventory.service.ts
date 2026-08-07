@@ -469,6 +469,126 @@ export class InventoryService {
     return txn;
   }
 
+  /**
+   * Manager-scoped purchase-bill stock/value entry (decision 42/43). Runs
+   * inside the bill's own transaction so the document number, journal, and
+   * cost reweight all commit atomically.
+   *
+   * Per line, `stockIn` distinguishes the two bill flavors:
+   *  - direct lines (`stockIn: true`): goods land on this bill — a
+   *    `purchase_bill` IN transaction is recorded and the balance quantity
+   *    grows by `baseQuantity`;
+   *  - sourced lines (`stockIn: false`): goods are already on hand from the
+   *    posted GRN — no transaction, quantity unchanged.
+   *
+   * In both cases the balance's moving-average cost is reweighted with the
+   * line's `value` (gross, discount recognized separately on 5104):
+   * `new_avg = (qty × avg + value) / new_qty`. Returns the inventory
+   * transaction when at least one direct line exists, otherwise null.
+   */
+  async receiveForPurchaseBill(
+    manager: EntityManager,
+    organizationId: string,
+    input: {
+      locationId: string;
+      billId: string;
+      notes: string | null;
+      lines: Array<{
+        itemId: string;
+        uomId: string;
+        baseQuantity: number;
+        /** Gross (pre-discount) amount that enters inventory value. */
+        value: number;
+        stockIn: boolean;
+      }>;
+    },
+    actorId: string,
+  ): Promise<InventoryTransactionEntity | null> {
+    await this.requireLocation(manager, organizationId, input.locationId);
+
+    const stockInLines = input.lines.filter((line) => line.stockIn);
+    const prepared = await Promise.all(
+      input.lines.map(async (line) => {
+        if (line.stockIn) {
+          if (line.baseQuantity <= 0)
+            throw new InventoryZeroQuantityException();
+          const item = await this.requireTrackedItem(
+            manager,
+            organizationId,
+            line.itemId,
+          );
+          return { line, item };
+        }
+        return { line, item: null };
+      }),
+    );
+
+    let txn: InventoryTransactionEntity | null = null;
+    if (stockInLines.length > 0) {
+      txn = await this.saveTransaction(
+        manager,
+        organizationId,
+        {
+          locationId: input.locationId,
+          toLocationId: null,
+          type: 'purchase_bill',
+          notes: input.notes,
+          referenceType: 'purchase_bill',
+          referenceId: input.billId,
+        },
+        stockInLines.map((line) => ({
+          itemId: line.itemId,
+          uomId: line.uomId,
+          direction: 'IN',
+          quantity: line.baseQuantity,
+          unitCost: ROUND2(line.value / line.baseQuantity),
+        })),
+        actorId,
+      );
+    }
+
+    const balanceRepo = manager.getRepository(InventoryBalanceEntity);
+    for (const { line } of prepared) {
+      const balance = await this.lockBalance(
+        manager,
+        organizationId,
+        input.locationId,
+        line.itemId,
+      );
+      const currentQty = balance ? Number(balance.quantity) : 0;
+      const currentAvg = balance ? Number(balance.avgCost ?? 0) : 0;
+      const addQty = line.stockIn ? line.baseQuantity : 0;
+      const newQty = ROUND3(currentQty + addQty);
+      const newAvg =
+        newQty > 0
+          ? ROUND2((currentQty * currentAvg + line.value) / newQty)
+          : 0;
+
+      if (!balance) {
+        if (addQty <= 0) continue;
+        await balanceRepo.save(
+          balanceRepo.create({
+            organizationId,
+            locationId: input.locationId,
+            itemId: line.itemId,
+            quantity: newQty.toFixed(3),
+            avgCost: newAvg.toFixed(2),
+          }),
+        );
+      } else {
+        await balanceRepo.update(
+          { id: balance.id },
+          {
+            quantity: newQty.toFixed(3),
+            avgCost: newAvg.toFixed(2),
+          },
+        );
+      }
+    }
+
+    return txn;
+  }
+
   async listTransactions(
     organizationId: string,
     query: InventoryTransactionQueryDto,
@@ -744,7 +864,8 @@ export class InventoryService {
         | 'stock_adjustment'
         | 'stock_transfer'
         | 'sales_invoice'
-        | 'purchase_receipt';
+        | 'purchase_receipt'
+        | 'purchase_bill';
       notes: string | null;
       referenceType?: string | null;
       referenceId?: string | null;

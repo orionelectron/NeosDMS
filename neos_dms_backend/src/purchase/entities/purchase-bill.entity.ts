@@ -128,6 +128,20 @@ export class PurchaseBillEntity extends BaseEntity {
   @Column({ type: 'decimal', precision: 15, scale: 2 })
   total: string;
 
+  /**
+   * AP settled via supplier payments (Σ bill allocations). Initialized to 0
+   * at POST; bumped by payments under the bill's FOR UPDATE lock.
+   */
+  @Column({ name: 'paid_amount', type: 'decimal', precision: 15, scale: 2 })
+  paidAmount: string;
+
+  /**
+   * Outstanding AP = (total − tds_total) − paid − returned. Initialized at
+   * POST, decremented by payments and by bill-sourced returns.
+   */
+  @Column({ name: 'balance_amount', type: 'decimal', precision: 15, scale: 2 })
+  balanceAmount: string;
+
   @Column({ name: 'inventory_transaction_id', type: 'uuid', nullable: true })
   inventoryTransactionId: string | null;
 

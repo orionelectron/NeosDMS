@@ -19,12 +19,16 @@ import { PurchaseReceiptLineEntity } from './entities/purchase-receipt-line.enti
 import { PurchaseReceiptEntity } from './entities/purchase-receipt.entity';
 import { PurchaseReturnLineEntity } from './entities/purchase-return-line.entity';
 import { PurchaseReturnEntity } from './entities/purchase-return.entity';
+import { SupplierPaymentBillAllocationEntity } from './entities/supplier-payment-bill-allocation.entity';
+import { SupplierPaymentEntity } from './entities/supplier-payment.entity';
 import { PurchaseBillController } from './purchase-bill.controller';
 import { PurchaseBillService } from './purchase-bill.service';
 import { PurchaseReceiptController } from './purchase-receipt.controller';
 import { PurchaseReceiptService } from './purchase-receipt.service';
 import { PurchaseReturnController } from './purchase-return.controller';
 import { PurchaseReturnService } from './purchase-return.service';
+import { SupplierPaymentController } from './supplier-payment.controller';
+import { SupplierPaymentService } from './supplier-payment.service';
 
 @Module({
   imports: [
@@ -35,6 +39,8 @@ import { PurchaseReturnService } from './purchase-return.service';
       PurchaseBillLineEntity,
       PurchaseReturnEntity,
       PurchaseReturnLineEntity,
+      SupplierPaymentEntity,
+      SupplierPaymentBillAllocationEntity,
       PartyEntity,
       FiscalYearEntity,
       InventoryLocationEntity,
@@ -53,11 +59,13 @@ import { PurchaseReturnService } from './purchase-return.service';
     PurchaseReceiptController,
     PurchaseBillController,
     PurchaseReturnController,
+    SupplierPaymentController,
   ],
   providers: [
     PurchaseReceiptService,
     PurchaseBillService,
     PurchaseReturnService,
+    SupplierPaymentService,
     DocumentSequenceService,
   ],
 })

@@ -26,6 +26,7 @@ import {
   PurchaseReturnQueryDto,
   UpdatePurchaseReturnDto,
 } from './dto/purchase-return.dto';
+import { PurchaseBillEntity } from './entities/purchase-bill.entity';
 import { PurchaseBillLineEntity } from './entities/purchase-bill-line.entity';
 import { PurchaseReceiptLineEntity } from './entities/purchase-receipt-line.entity';
 import { PurchaseReturnLineEntity } from './entities/purchase-return-line.entity';
@@ -306,6 +307,8 @@ export class PurchaseReturnService {
         line: PurchaseReceiptLineEntity;
         baseQuantity: number;
       }> = [];
+      // Bill id → AP settled by this return (gross − TDS, per bill).
+      const billBalanceReductions = new Map<string, number>();
       for (const line of lines) {
         if (line.sourcePurchaseBillLineId) {
           const billLine = await this.lockBillLine(
@@ -344,6 +347,11 @@ export class PurchaseReturnService {
             line: billLine,
             baseQuantity: Number(line.baseQuantity),
           });
+          const net = ROUND2(Number(line.grossAmount) - Number(line.tdsAmount));
+          billBalanceReductions.set(
+            billLine.billId,
+            (billBalanceReductions.get(billLine.billId) ?? 0) + net,
+          );
         } else if (line.sourcePurchaseReceiptLineId) {
           const receiptLine = await this.lockReceiptLine(
             manager,
@@ -481,6 +489,20 @@ export class PurchaseReturnService {
             returnedQuantity: ROUND3(
               Number(stamp.line.returnedQuantity) + stamp.baseQuantity,
             ).toFixed(3),
+          },
+        );
+      }
+
+      // Decrement each affected bill's outstanding AP (balance_amount). The
+      // bill rows lock FOR UPDATE so a concurrent payment serializes on the
+      // same row and can never allocate against the returned amount.
+      const billRepo = manager.getRepository(PurchaseBillEntity);
+      for (const [billId, net] of billBalanceReductions) {
+        const bill = await this.lockBill(manager, organizationId, billId);
+        await billRepo.update(
+          { id: bill.id },
+          {
+            balanceAmount: ROUND2(Number(bill.balanceAmount) - net).toFixed(2),
           },
         );
       }
@@ -1090,6 +1112,22 @@ export class PurchaseReturnService {
       });
     if (!location) throw new PurchaseReturnLocationNotFoundException(id);
     return location;
+  }
+
+  private async lockBill(
+    manager: EntityManager,
+    organizationId: string,
+    id: string,
+  ): Promise<PurchaseBillEntity> {
+    const bill = await manager
+      .getRepository(PurchaseBillEntity)
+      .createQueryBuilder('bill')
+      .where('bill.organizationId = :organizationId', { organizationId })
+      .andWhere('bill.id = :id', { id })
+      .setLock('pessimistic_write')
+      .getOne();
+    if (!bill) throw new PurchaseReturnSourceBillLineNotFoundException(id);
+    return bill;
   }
 
   private async lockBillLine(

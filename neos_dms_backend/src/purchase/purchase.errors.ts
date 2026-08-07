@@ -569,3 +569,183 @@ export class PurchaseReturnNoRemainingException extends HttpException {
     );
   }
 }
+
+export class SupplierPaymentNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'SUPPLIER_PAYMENT_NOT_FOUND',
+        message: `Supplier payment '${id}' not found`,
+      },
+      HttpStatus.NOT_FOUND,
+    );
+  }
+}
+
+export class SupplierPaymentNotDraftException extends HttpException {
+  constructor(id: string, status: string, action: string) {
+    super(
+      {
+        code: 'SUPPLIER_PAYMENT_NOT_DRAFT',
+        message: `Supplier payment '${id}' is '${status}' and cannot be ${action}`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class SupplierPaymentSupplierNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'SUPPLIER_PAYMENT_SUPPLIER_NOT_FOUND',
+        message: `Party '${id}' is not an active supplier`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SupplierPaymentMethodNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'SUPPLIER_PAYMENT_METHOD_NOT_FOUND',
+        message: `Payment method '${id}' not found or inactive`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SupplierPaymentAccountNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'SUPPLIER_PAYMENT_ACCOUNT_NOT_FOUND',
+        message: `Payment account '${id}' not found or inactive`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SupplierPaymentAccountTypeException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'SUPPLIER_PAYMENT_ACCOUNT_TYPE',
+        message: `Payment account '${id}' must be an active asset account`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SupplierPaymentNoAllocationsException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'SUPPLIER_PAYMENT_NO_ALLOCATIONS',
+        message: 'A supplier payment needs at least one bill allocation',
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SupplierPaymentAllocationZeroException extends HttpException {
+  constructor(billId: string) {
+    super(
+      {
+        code: 'SUPPLIER_PAYMENT_ALLOCATION_ZERO',
+        message: `Allocation against bill '${billId}' must be greater than zero`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SupplierPaymentAllocationUnbalancedException extends HttpException {
+  constructor(paidAmount: string, allocated: string) {
+    super(
+      {
+        code: 'SUPPLIER_PAYMENT_ALLOCATION_UNBALANCED',
+        message: `Allocations (${allocated}) must fully consume the paid amount (${paidAmount})`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SupplierPaymentBillNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'SUPPLIER_PAYMENT_BILL_NOT_FOUND',
+        message: `Purchase bill '${id}' not found`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SupplierPaymentBillNotPostedException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'SUPPLIER_PAYMENT_BILL_NOT_POSTED',
+        message: `Purchase bill '${id}' is not posted; only posted bills can be paid`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class SupplierPaymentBillSupplierMismatchException extends HttpException {
+  constructor(billId: string) {
+    super(
+      {
+        code: 'SUPPLIER_PAYMENT_BILL_SUPPLIER_MISMATCH',
+        message: `Purchase bill '${billId}' belongs to a different supplier than the payment`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class SupplierPaymentAllocationExceedsBalanceException extends HttpException {
+  constructor(billId: string, balance: string) {
+    super(
+      {
+        code: 'SUPPLIER_PAYMENT_ALLOCATION_EXCEEDS_BALANCE',
+        message: `Purchase bill '${billId}' has only ${balance} outstanding to pay`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class SupplierPaymentFiscalYearMissingException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'SUPPLIER_PAYMENT_FISCAL_YEAR_MISSING',
+        message: 'No active, open fiscal year covers the payment date',
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class SupplierPaymentAccountMissingException extends HttpException {
+  constructor(purpose: string) {
+    super(
+      {
+        code: 'SUPPLIER_PAYMENT_ACCOUNT_MISSING',
+        message: `No active account resolves purpose '${purpose}'`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}

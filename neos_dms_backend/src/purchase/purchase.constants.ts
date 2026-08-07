@@ -33,6 +33,19 @@ export const PURCHASE_RETURN_DOCUMENT_TYPE = 'purchase_return';
 /** Debit note prefix — reserved at POST, drafts stay numberless. */
 export const PURCHASE_RETURN_NUMBER_PREFIX = 'DN-';
 
+export const SUPPLIER_PAYMENT_STATUSES = [
+  'DRAFT',
+  'POSTED',
+  'CANCELLED',
+] as const;
+export type SupplierPaymentStatus = (typeof SUPPLIER_PAYMENT_STATUSES)[number];
+
+/** document_sequences documentType used for payment voucher numbering. */
+export const SUPPLIER_PAYMENT_DOCUMENT_TYPE = 'supplier_payment';
+
+/** Payment voucher prefix — reserved at POST, drafts stay numberless. */
+export const SUPPLIER_PAYMENT_NUMBER_PREFIX = 'PMT-';
+
 export const PURCHASE_AUDIT_ACTIONS = {
   RECEIPT_CREATE: 'purchase.receipt.create',
   RECEIPT_UPDATE: 'purchase.receipt.update',
@@ -46,4 +59,8 @@ export const PURCHASE_AUDIT_ACTIONS = {
   RETURN_UPDATE: 'purchase.return.update',
   RETURN_POST: 'purchase.return.post',
   RETURN_VOID: 'purchase.return.void',
+  PAYMENT_CREATE: 'purchase.payment.create',
+  PAYMENT_UPDATE: 'purchase.payment.update',
+  PAYMENT_POST: 'purchase.payment.post',
+  PAYMENT_VOID: 'purchase.payment.void',
 } as const;

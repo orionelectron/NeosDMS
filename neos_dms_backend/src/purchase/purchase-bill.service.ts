@@ -151,6 +151,8 @@ export class PurchaseBillService {
           taxTotal: prepared.taxTotal.toFixed(2),
           tdsTotal: prepared.tdsTotal.toFixed(2),
           total: prepared.total.toFixed(2),
+          paidAmount: '0.00',
+          balanceAmount: ROUND2(prepared.total - prepared.tdsTotal).toFixed(2),
           notes: dto.notes ?? null,
         }),
       );
@@ -221,6 +223,9 @@ export class PurchaseBillService {
       bill.taxTotal = prepared.taxTotal.toFixed(2);
       bill.tdsTotal = prepared.tdsTotal.toFixed(2);
       bill.total = prepared.total.toFixed(2);
+      bill.balanceAmount = ROUND2(prepared.total - prepared.tdsTotal).toFixed(
+        2,
+      );
 
       const lineRepo = manager.getRepository(PurchaseBillLineEntity);
       await lineRepo.delete({ billId: bill.id });

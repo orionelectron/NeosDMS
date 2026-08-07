@@ -31,3 +31,13 @@ export type VisitStatus = (typeof VISIT_STATUS)[number];
 export const OFF_ROUTE_TOLERANCE_METERS = 200;
 
 export const EARTH_RADIUS_METERS = 6371000;
+
+export const SALES_TARGET_TYPE = ['PERSONAL', 'CATEGORY', 'BRAND'] as const;
+export type SalesTargetType = (typeof SALES_TARGET_TYPE)[number];
+
+export const SALES_TARGET_AUDIT_ACTION = [
+  'sales.target.create',
+  'sales.target.update',
+  'sales.target.delete',
+] as const;
+export type SalesTargetAuditAction = (typeof SALES_TARGET_AUDIT_ACTION)[number];

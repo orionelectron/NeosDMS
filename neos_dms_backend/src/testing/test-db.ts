@@ -6,6 +6,7 @@ import { DmsFieldSales1786091000000 } from '../database/migrations/1786091000000
 import { HrLeave1786100000000 } from '../database/migrations/1786100000000-HrLeave';
 import { HrTravel1786200000000 } from '../database/migrations/1786200000000-HrTravel';
 import { HrAttendance1786300000000 } from '../database/migrations/1786300000000-HrAttendance';
+import { SalesTarget1786400000000 } from '../database/migrations/1786400000000-SalesTarget';
 import { TradingMasters1786090000000 } from '../database/migrations/1786090000000-TradingMasters';
 import { IamAndAuth1786035687494 } from '../database/migrations/1786035687494-IamAndAuth';
 import { JournalEntrySourceUniqueness1786081000000 } from '../database/migrations/1786081000000-JournalEntrySourceUniqueness';
@@ -38,6 +39,7 @@ export const TEST_DB_OPTIONS: DataSourceOptions = {
     HrLeave1786100000000,
     HrTravel1786200000000,
     HrAttendance1786300000000,
+    SalesTarget1786400000000,
   ],
   synchronize: false,
   logging: false,

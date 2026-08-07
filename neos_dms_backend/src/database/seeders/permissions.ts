@@ -77,6 +77,11 @@ const PERMISSION_DEFS: readonly PermissionDef[] = [
     actions: ['create', 'read', 'update'],
   },
   {
+    module: 'sales',
+    resource: 'target',
+    actions: ['create', 'read', 'update', 'delete'],
+  },
+  {
     module: 'purchase',
     resource: 'bill',
     actions: ['create', 'read', 'update', 'void'],
@@ -169,6 +174,7 @@ export const BASE_ROLES: readonly RoleDefinition[] = [
       'sales.outlet.*',
       'sales.route.*',
       'sales.visit.*',
+      'sales.target.read',
       'trading.item.read',
       'accounting.party.read',
       'hr.leave.*',

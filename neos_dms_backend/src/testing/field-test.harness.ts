@@ -8,6 +8,10 @@ import { OutletRouteEntity } from '../field/entities/outlet-route.entity';
 import { OutletVisitEntity } from '../field/entities/outlet-visit.entity';
 import { RouteAssignmentEntity } from '../field/entities/route-assignment.entity';
 import { RouteEntity } from '../field/entities/route.entity';
+import { SalesTargetEntity } from '../field/entities/sales-target.entity';
+import { SalesTargetService } from '../field/sales-target.service';
+import { BrandEntity } from '../trading/entities/brand.entity';
+import { ItemCategoryEntity } from '../trading/entities/item-category.entity';
 import { OutletService } from '../field/outlet.service';
 import { OutletImportService } from '../field/outlet-import.service';
 import { OutletVisitService } from '../field/outlet-visit.service';
@@ -160,11 +164,16 @@ export async function createFieldTestingModule(
       repo(OutletRouteEntity),
       repo(RouteAssignmentEntity),
       repo(OutletVisitEntity),
+      repo(SalesTargetEntity),
+      repo(ItemCategoryEntity),
+      repo(BrandEntity),
+      repo(UserEntity),
       OutletService,
       OutletImportService,
       RouteService,
       RouteAssignmentService,
       OutletVisitService,
+      SalesTargetService,
     ],
   }).compile();
 }

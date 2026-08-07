@@ -155,3 +155,67 @@ export class InvalidVisitStatusTransitionException extends HttpException {
     );
   }
 }
+
+export class SalesTargetNotFoundException extends HttpException {
+  constructor() {
+    super(
+      { code: 'SALES_TARGET_NOT_FOUND', message: 'Sales target not found' },
+      HttpStatus.NOT_FOUND,
+    );
+  }
+}
+
+export class SalesTargetUserNotFoundException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'SALES_TARGET_USER_NOT_FOUND',
+        message: 'The salesperson does not exist in this organization',
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SalesTargetRefNotFoundException extends HttpException {
+  constructor(kind: 'category' | 'brand') {
+    super(
+      {
+        code: 'SALES_TARGET_REF_NOT_FOUND',
+        message: `The ${kind} does not exist in this organization`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SalesTargetTypeConflictException extends HttpException {
+  constructor(message: string) {
+    super({ code: 'SALES_TARGET_TYPE_CONFLICT', message }, HttpStatus.CONFLICT);
+  }
+}
+
+export class SalesTargetDuplicateException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'SALES_TARGET_DUPLICATE',
+        message:
+          'A target already exists for this salesperson, period and dimension',
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class SalesTargetInvalidAmountException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'SALES_TARGET_INVALID_AMOUNT',
+        message: 'Target amount must be a positive number',
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}

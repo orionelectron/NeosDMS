@@ -13,6 +13,7 @@ import { fieldPermissionsSeed } from './field-permissions.seed';
 import { hrPermissionsSeed } from './hr-permissions.seed';
 import { travelPermissionsSeed } from './travel-permissions.seed';
 import { attendancePermissionsSeed } from './attendance-permissions.seed';
+import { salesTargetPermissionsSeed } from './sales-target-permissions.seed';
 
 /**
  * Seed registry — ordered by ascending `version`; each runs exactly once
@@ -26,6 +27,7 @@ import { attendancePermissionsSeed } from './attendance-permissions.seed';
  * 13:  Phase C2 — travel + expense permission backfill (travel_request, expense).
  * 14:  Phase C2 — attendance permission backfill (hr.attendance).
  * 15:  Phase C2 — attendance permission backfill (corrected: salesman loses `adjust`).
+ * 16:  Phase 5e — sales target permission backfill (sales.target).
  */
 export const SEEDS: readonly Seed[] = [
   modulesSeed,
@@ -42,4 +44,5 @@ export const SEEDS: readonly Seed[] = [
   hrPermissionsSeed,
   travelPermissionsSeed,
   attendancePermissionsSeed,
+  salesTargetPermissionsSeed,
 ];

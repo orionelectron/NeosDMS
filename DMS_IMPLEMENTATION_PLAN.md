@@ -48,6 +48,7 @@
 | 32 | Travel request approval | **Manager-only, same hierarchy as leave** | Travel requests reuse `users.manager_id`; no multi-level chain. Only the expense claim gets the extra finance step (decision 31) (§16.3) |
 | 33 | Claim totals | **Always derived from items, never client-supplied** | `travel_expense_claims.total` is recomputed in-txn as the sum of item amounts on every item add/update/delete; at pay the accountant may adjust per-item `approved_amount`, and the total is re-derived (§16.3) |
 | 34 | Attendance model | **Single open record per user, BS-date reports** | `attendances` (org, user, `bs_date`, check-in/out times + optional GPS/remarks, `source DEVICE|MANUAL`, derived `duration_minutes`). One OPEN record per user enforced by a partial unique index; check-out optional and must be after check-in. Reports keyed by BS date; employee self-service, manager corrections via `hr.attendance.adjust` (service verifies the employee is a reportee) (§16.5) |
+| 35 | Sales targets | **Config now, achievement deferred to Phase 6** | `sales_targets` keyed to salesperson + BS month with `target_type PERSONAL|CATEGORY|BRAND`; category/brand are optional breakdown refs on top of the personal goal, uniqueness per (org, user, period, type, coalesced ref) via a functional unique index. Salesman read-only (`sales.target.read`); manager/admin create/adjust/delete (`sales.target.*`). Achievement % is not computed until sales invoice/order lines exist (Phase 6) and can be attributed to salesperson → category/brand (§9.4) |
 
 ## 3. Target Backend Structure
 
@@ -244,6 +245,12 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 
 **Acceptance:** salesman sees only their routes/outlets; check-in rejects off-route/unauthorized users; outlet create makes a usable customer party; every visit transition is audited. — **Verified**: live smoke (`neos_dms_backend/smoke.js`) covers the full chain incl. RBAC 403s and duplicate/off-route negatives; 49 real-DB integration tests in `src/field/*.service.spec.ts` (harness: `src/testing/` — real Postgres on :5433, per-test transaction rollback). Outlet bulk import verified via live curl smoke (xlsx + csv): valid rows import with auto-provisioned parties, in-file duplicates skipped, per-row validation errors reported with row numbers, `sales.outlet.import` audited — plus `dryRun=true` (previews without writes), `mode=update` (updates existing outlet + customer party in place), `format=csv` (downloadable error file), and semicolon/pipe CSV delimiter auto-detection all smoke-tested; 306 backend tests pass (12 import-focused).
 
+### 9.4 Sales targets (config; achievement = Phase 6)
+- [x] `sales_targets` CRUD → `sales.target.{create,read,update,delete}`; salesman granted only `sales.target.read` (own targets), manager/admin full
+- [x] Rows keyed to salesperson + BS year/month; `target_type` PERSONAL | CATEGORY | BRAND with optional `category_id`/`brand_id` refs; per-(org,user,period,type,ref) uniqueness via functional unique index
+- [x] Monthly BS report (scope `mine`/`team`/`all`, team via `manager_id`) grouping each user's personal target + category/brand breakdowns
+- [ ] Achievement % computed once sales invoices/orders exist (Phase 6) — attribute invoice lines to salesperson → item category/brand and compare against `sales_targets.amount` (decision 35)
+
 ## 10. Phase 5 — Inventory (quantity-based, no batches in MVP)
 
 - [ ] `inventory_locations` (godown / van / shop), `inventory_transactions`(+lines) with `transaction_type` (`purchase_receipt`, `sales_invoice`, `sales_return`, `purchase_return`, `stock_adjustment`), `inventory_balances` (per location × item)
@@ -320,6 +327,7 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 - [ ] Offline-friendly field ops: sync layer for DRIVER/WAREHOUSE_MANAGER mobile flows
 - [ ] Reporting dashboards + Nepali calendar UX in frontend
 - [ ] Balance sheet report
+- [ ] Sales target **achievement** (actual vs target %) — target configuration is done (decision 35, §9.4); computing achievement needs invoice/order lines attributed to salesperson → item category/brand, i.e. Phase 6 data
 
 ## 16. DMS Phase C — HR: Leave & Travel
 
@@ -422,6 +430,7 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 - [~] Phase 3 — Accounting engine (COA default for new orgs, fiscal years, posting engine) — implementation + DB verification done; reports foundation deferred to Phase 8; phase-3 review follow-ups applied (Shrawan FY basis + data-fix migration, journal source uniqueness index, minimal trial balance)
 - [x] **Phase 4 complete** — Trading masters per §8 — implemented + verified live (migration `1786090000000-TradingMasters.ts` applied; seeds v10 `trading-permissions-backfill` applied; smoke-tested UOM/brand/category/item/conversion CRUD, org-wide + per-item conversions, dup-code/self-uom/zero-factor rejection, warehouse_manager `trading.*` (20 perms) allowed, driver 403, seat-limit 403 at limit, soft-delete, audit rows; 213 tests green, lint/build clean). Also fixed pre-existing `IamModule` boot bug (`AuditService` duplicate provider without repo scope)
 - [x] **Phase C1 + C2 complete** — HR per §16: leave (types, annual BS-year balances, requests, manager approval via `users.manager_id`), travel (requests, expense claims + line items, manager approve → accountant pay), and attendance (check-in/out with optional GPS, single-open-record rule, manager manual entry/adjust, BS daily + monthly reports) — migrations `1786100000000-HrLeave.ts` + `1786200000000-HrTravel.ts` + `1786300000000-HrAttendance.ts` applied; seeds v12 `hr-permissions-backfill`, v13 `travel-permissions-backfill`, v14/15 `attendance-permissions-backfill` applied (hr module, `manager` role, travel/expense/attendance codes; salesman excluded from `hr.attendance.adjust`); `daysBetweenBs` in `nepali-date`; approval_events CHECK extended with `PAID`; 377 tests green, lint/build clean (decisions 28–34)
+- [x] **Sales targets (decision 35)** — `sales_targets` (org, user, BS month, `target_type PERSONAL|CATEGORY|BRAND`, optional category/brand refs, amount, is_active) — migration `1786400000000-SalesTarget.ts` + seed v16 `sales-target-permissions-backfill` applied; RBAC `sales.target.{create,read,update,delete}` (salesman read-only, manager/admin full); team scoping via `manager_id`; monthly BS report grouping personal + categories + brands; 391 tests green (31 suites), lint/build clean; smoke-verified CRUD, duplicate 409, 403 on salesman create, report output
 
 ### Next up
 - [x] **Phase 1 complete** (committed `3ffc3ac`, pushed to `main`): tenant + subscription per §5 — migration `1785913601535-TenantAndSubscription.ts` applied; seeds v1–3 (modules, billing periods, plans) applied; `SubscriptionService`/`PlanLimitService`/`@PlanLimit` interceptor; controllers (plans public, subscription, usage snapshot, history, payments/webhook); 76 tests green, lint/build clean; live smoke-tested trial + seat/periodic/feature limits

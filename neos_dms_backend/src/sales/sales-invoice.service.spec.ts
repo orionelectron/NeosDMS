@@ -28,6 +28,7 @@ import {
   TEAMMATE_USER_ID,
   TEST_LOCATION_ID,
   TEST_ORG_ID,
+  TDS_TAX_CODE_ID,
   VAT_PAYABLE_ACCOUNT_ID,
   VAT_TAX_CODE_ID,
   type TestTransaction,
@@ -41,6 +42,7 @@ import {
   SalesInvoiceNotDraftException,
   SalesInvoiceOrderNotConfirmableException,
   SalesInvoiceQuantityExceededException,
+  SalesInvoiceTdsWithholdingException,
   SalesInvoiceZeroQuantityException,
 } from './sales.errors';
 
@@ -247,6 +249,24 @@ describe('SalesInvoiceService', () => {
           lines: [invoiceLine(orderLineId, 11)],
         }),
       ).rejects.toThrow(SalesInvoiceQuantityExceededException);
+    });
+
+    it('rejects a TDS withholding tax code on a sales invoice line (decision 43)', async () => {
+      const orderId = await confirmedOrder();
+      const orderLineId = await orderLineIdOf(orderId);
+
+      await expect(
+        service.create(TEST_ORG_ID, salesman(), {
+          salesOrderId: orderId,
+          lines: [
+            {
+              orderLineId,
+              quantity: 10,
+              taxCodeId: TDS_TAX_CODE_ID,
+            },
+          ],
+        }),
+      ).rejects.toThrow(SalesInvoiceTdsWithholdingException);
     });
 
     it('blocks a non-manager from invoicing another salesperson order', async () => {

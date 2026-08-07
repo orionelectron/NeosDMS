@@ -11,6 +11,7 @@ import { MovingAverageCost1786900000000 } from '../database/migrations/178690000
 import { SalesInvoice1786700000000 } from '../database/migrations/1786700000000-SalesInvoice';
 import { SalesOrder1786600000000 } from '../database/migrations/1786600000000-SalesOrder';
 import { SalesTarget1786400000000 } from '../database/migrations/1786400000000-SalesTarget';
+import { TdsPayable1786950000000 } from '../database/migrations/1786950000000-TdsPayable';
 import { TradingMasters1786090000000 } from '../database/migrations/1786090000000-TradingMasters';
 import { IamAndAuth1786035687494 } from '../database/migrations/1786035687494-IamAndAuth';
 import { JournalEntrySourceUniqueness1786081000000 } from '../database/migrations/1786081000000-JournalEntrySourceUniqueness';
@@ -50,6 +51,7 @@ export const TEST_DB_OPTIONS: DataSourceOptions = {
     SalesInvoice1786700000000,
     PurchaseReceipt1786800000000,
     MovingAverageCost1786900000000,
+    TdsPayable1786950000000,
   ],
   synchronize: false,
   logging: false,

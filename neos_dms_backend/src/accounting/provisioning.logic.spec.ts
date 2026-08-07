@@ -10,6 +10,7 @@ import { FiscalYearEntity } from './entities/fiscal-year.entity';
 import { PaymentMethodEntity } from './entities/payment-method.entity';
 import { PaymentTermEntity } from './entities/payment-term.entity';
 import { TaxCodeEntity } from './entities/tax-code.entity';
+import { TaxTypeEntity } from './entities/tax-type.entity';
 import {
   buildFiscalYearPlan,
   provisionAccounting,
@@ -210,6 +211,13 @@ describe('provisionAccounting', () => {
       isLocked: false,
     });
 
+    const tdsPayable = byCode.get('2103') as AccountEntity;
+    expect(tdsPayable).toMatchObject({
+      systemPurpose: 'TDS_PAYABLE',
+      isSystemAccount: true,
+      isLocked: true,
+    });
+
     const insertedOrder = accounts.map((a) => a.code);
     expect(insertedOrder.indexOf('1000')).toBeLessThan(
       insertedOrder.indexOf('1100'),
@@ -254,6 +262,43 @@ describe('provisionAccounting', () => {
     ]);
 
     expect(store.get(TaxCodeEntity) ?? []).toHaveLength(0);
+  });
+
+  it('provisions per-org TDS withholding codes wired to the TDS Payable account (decision 43)', async () => {
+    const { manager, store, listFor } = createManager();
+    listFor(TaxTypeEntity).push({
+      id: 'tds-type',
+      name: 'TDS',
+      description: null,
+      mathSign: -1,
+      isSystem: true,
+    } as TaxTypeEntity);
+
+    await provisionAccounting(manager, orgId);
+
+    const accounts = store.get(AccountEntity) as AccountEntity[];
+    const tdsPayable = accounts.find(
+      (account) => account.systemPurpose === 'TDS_PAYABLE',
+    ) as AccountEntity;
+    expect(tdsPayable).toBeDefined();
+
+    const codes = store.get(TaxCodeEntity) as TaxCodeEntity[];
+    expect(codes).toHaveLength(4);
+    expect(codes.map((code) => code.name).sort()).toEqual(
+      [
+        'TDS 1.5% (Services)',
+        'TDS 10% (Interest)',
+        'TDS 15% (Professional)',
+        'TDS 5% (Rent)',
+      ].sort(),
+    );
+    for (const code of codes) {
+      expect(code.organizationId).toBe(orgId);
+      expect(code.irdCategory).toBe('TDS_WITHHOLDING');
+      expect(code.taxTypeId).toBe('tds-type');
+      expect(code.accountId).toBe(tdsPayable.id);
+      expect(code.isActive).toBe(true);
+    }
   });
 
   it('is idempotent when run again for the same organization', async () => {

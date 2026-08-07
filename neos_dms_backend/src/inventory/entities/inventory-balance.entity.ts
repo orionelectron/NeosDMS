@@ -44,6 +44,12 @@ export class InventoryBalanceEntity extends BaseEntity {
   quantity: string;
 
   /** Moving-average unit cost in the base currency (decision 42). */
-  @Column({ name: 'avg_cost', type: 'decimal', precision: 15, scale: 2, default: 0 })
+  @Column({
+    name: 'avg_cost',
+    type: 'decimal',
+    precision: 15,
+    scale: 2,
+    default: 0,
+  })
   avgCost: string;
 }

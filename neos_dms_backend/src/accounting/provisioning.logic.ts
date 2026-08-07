@@ -4,6 +4,7 @@ import {
   BASE_CURRENCY_CODE,
   DEFAULT_PAYMENT_METHODS,
   DEFAULT_PAYMENT_TERMS,
+  DEFAULT_TDS_CODES,
   GLOBAL_NPR_CURRENCY,
 } from './accounting.constants';
 import { DEFAULT_COA } from './default-coa';
@@ -15,6 +16,7 @@ import { PaymentMethodEntity } from './entities/payment-method.entity';
 import { PaymentTermEntity } from './entities/payment-term.entity';
 import { TaxCodeEntity } from './entities/tax-code.entity';
 import { TaxTemplateEntity } from './entities/tax-template.entity';
+import { TaxTypeEntity } from './entities/tax-type.entity';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -348,6 +350,12 @@ async function ensureDefaultTaxCodes(
   );
   const vatTypeId = vatTemplate?.taxTypeId ?? null;
   const exemptTypeId = exemptTemplate?.taxTypeId ?? null;
+  const tdsTypeId =
+    (
+      await manager.getRepository(TaxTypeEntity).findOne({
+        where: { name: 'TDS' },
+      })
+    )?.id ?? null;
 
   const today = new Date();
   const rows = [
@@ -372,6 +380,13 @@ async function ensureDefaultTaxCodes(
       irdCategory: 'EXEMPT' as const,
       rate: '0',
     },
+    ...DEFAULT_TDS_CODES.map((code) => ({
+      name: code.name,
+      taxTypeId: tdsTypeId,
+      accountId: accountByPurpose.get('TDS_PAYABLE') ?? null,
+      irdCategory: 'TDS_WITHHOLDING' as const,
+      rate: code.rate,
+    })),
   ].filter((row) => row.taxTypeId !== null);
 
   if (rows.length === 0) return;

@@ -88,6 +88,9 @@ export const TEST_BILLING_PERIOD_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeee14';
 export const TEST_SUBSCRIPTION_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeee15';
 export const COGS_ACCOUNT_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeee16';
 export const INVENTORY_ACCOUNT_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeee17';
+export const TDS_PAYABLE_ACCOUNT_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeee18';
+export const TDS_TAX_TYPE_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeee19';
+export const TDS_TAX_CODE_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeee1a';
 
 /**
  * Seeds the org-scoped accounting/subscription/tax rows the invoice POST path
@@ -235,19 +238,44 @@ export async function seedSalesInvoiceBaseline(
         level: 3,
         path: '5000/5101',
       },
+      {
+        id: TDS_PAYABLE_ACCOUNT_ID,
+        organizationId: TEST_ORG_ID,
+        parentAccountId: null,
+        name: 'TDS Payable',
+        code: '2103',
+        coaType: 'LIABILITY',
+        isGroup: false,
+        branchId: null,
+        isSystemAccount: true,
+        systemPurpose: 'TDS_PAYABLE',
+        isLocked: true,
+        isActive: true,
+        level: 3,
+        path: '2000/2100/2103',
+      },
     ],
     ['id'],
   );
 
   await manager.upsert(
     TaxTypeEntity,
-    {
-      id: TAX_TYPE_ID,
-      name: 'VAT',
-      description: null,
-      mathSign: 1,
-      isSystem: true,
-    },
+    [
+      {
+        id: TAX_TYPE_ID,
+        name: 'VAT',
+        description: null,
+        mathSign: 1,
+        isSystem: true,
+      },
+      {
+        id: TDS_TAX_TYPE_ID,
+        name: 'TDS',
+        description: null,
+        mathSign: -1,
+        isSystem: true,
+      },
+    ],
     ['id'],
   );
 
@@ -275,6 +303,19 @@ export async function seedSalesInvoiceBaseline(
         name: 'Exempt',
         irdCategory: 'EXEMPT',
         rate: '0.0000',
+        effectiveFrom: new Date('2024-01-01'),
+        effectiveTo: null,
+        isLocked: true,
+        isActive: true,
+      },
+      {
+        id: TDS_TAX_CODE_ID,
+        organizationId: TEST_ORG_ID,
+        taxTypeId: TDS_TAX_TYPE_ID,
+        accountId: TDS_PAYABLE_ACCOUNT_ID,
+        name: 'TDS 1.5% (Services)',
+        irdCategory: 'TDS_WITHHOLDING',
+        rate: '1.5000',
         effectiveFrom: new Date('2024-01-01'),
         effectiveTo: null,
         isLocked: true,

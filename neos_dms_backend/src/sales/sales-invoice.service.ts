@@ -52,6 +52,7 @@ import {
   SalesInvoiceNotFoundException,
   SalesInvoiceOrderNotConfirmableException,
   SalesInvoiceQuantityExceededException,
+  SalesInvoiceTdsWithholdingException,
   SalesInvoiceUomConversionNotFoundException,
   SalesInvoiceZeroQuantityException,
 } from './sales.errors';
@@ -818,6 +819,9 @@ export class SalesInvoiceService {
     }
     if (!code) {
       return { codeId: null, irdCategory: null, rate: 0 };
+    }
+    if (code.irdCategory === 'TDS_WITHHOLDING') {
+      throw new SalesInvoiceTdsWithholdingException(code.name);
     }
     return {
       codeId: code.id,

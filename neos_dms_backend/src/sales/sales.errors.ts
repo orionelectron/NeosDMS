@@ -256,3 +256,15 @@ export class SalesInvoiceUomConversionNotFoundException extends HttpException {
     );
   }
 }
+
+export class SalesInvoiceTdsWithholdingException extends HttpException {
+  constructor(codeName: string) {
+    super(
+      {
+        code: 'SALES_INVOICE_TDS_WITHHOLDING',
+        message: `Tax code '${codeName}' is a TDS withholding code — TDS applies to purchases, not sales invoices`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}

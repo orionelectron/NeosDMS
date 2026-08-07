@@ -120,6 +120,7 @@ export const DEFAULT_COA: readonly DefaultAccount[] = [
     name: 'TDS Payable',
     coaType: 'LIABILITY',
     parentCode: '2100',
+    systemPurpose: 'TDS_PAYABLE',
   },
   {
     code: '2200',

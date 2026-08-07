@@ -17,6 +17,7 @@ export const SYSTEM_PURPOSE = [
   'COST_OF_GOODS_SOLD',
   'TAX_PAYABLE',
   'TAX_RECEIVABLE',
+  'TDS_PAYABLE',
   'RETAINED_EARNINGS',
   'OPENING_BALANCE_EQUITY',
   'DISCOUNT_ALLOWED',
@@ -177,4 +178,21 @@ export const DEFAULT_PAYMENT_METHODS: ReadonlyArray<{
   { name: 'Cash', methodType: 'CASH' },
   { name: 'Bank Transfer', methodType: 'BANK' },
   { name: 'Card', methodType: 'CARD' },
+];
+
+/**
+ * Per-organization TDS tax codes provisioned at onboarding and backfilled by
+ * migration `TdsPayable1786950000000` for orgs created before decision 43.
+ * All are `TDS_WITHHOLDING` and wired to the org's 2103 TDS Payable account
+ * (system purpose `TDS_PAYABLE`). The rate is the withholding % applied to
+ * the VAT-exclusive base.
+ */
+export const DEFAULT_TDS_CODES: ReadonlyArray<{
+  name: string;
+  rate: string;
+}> = [
+  { name: 'TDS 1.5% (Services)', rate: '1.5' },
+  { name: 'TDS 15% (Professional)', rate: '15' },
+  { name: 'TDS 5% (Rent)', rate: '5' },
+  { name: 'TDS 10% (Interest)', rate: '10' },
 ];

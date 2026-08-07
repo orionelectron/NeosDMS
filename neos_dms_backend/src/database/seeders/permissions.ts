@@ -62,7 +62,7 @@ const PERMISSION_DEFS: readonly PermissionDef[] = [
   {
     module: 'sales',
     resource: 'invoice',
-    actions: ['create', 'read', 'update', 'void'],
+    actions: ['create', 'read', 'update', 'post', 'void'],
   },
   {
     module: 'sales',

@@ -74,6 +74,10 @@ import { TrialBalanceService } from './trial-balance.service';
     TaxService,
     TrialBalanceService,
   ],
-  exports: [AccountingProvisioningService],
+  exports: [
+    AccountingProvisioningService,
+    DocumentSequenceService,
+    JournalService,
+  ],
 })
 export class AccountingModule {}

@@ -90,77 +90,91 @@ export class JournalService {
     input: CreateJournalEntryInput,
     actorId: string,
   ): Promise<JournalEntryEntity> {
-    return this.dataSource.transaction(async (manager) => {
-      const entryDate = parseLocalDate(input.entryDate);
-      const { totalDebit, totalCredit } = await this.validateLines(
-        manager,
-        organizationId,
-        input.lines,
+    return this.dataSource.transaction(async (manager) =>
+      this.createDraftIn(manager, organizationId, input, actorId),
+    );
+  }
+
+  /**
+   * Manager-scoped createDraft for callers that post inside their own
+   * transaction (e.g. sales invoices). All persistence uses the passed
+   * manager so the entry participates in the caller's transaction.
+   */
+  async createDraftIn(
+    manager: EntityManager,
+    organizationId: string,
+    input: CreateJournalEntryInput,
+    actorId: string,
+  ): Promise<JournalEntryEntity> {
+    const entryDate = parseLocalDate(input.entryDate);
+    const { totalDebit, totalCredit } = await this.validateLines(
+      manager,
+      organizationId,
+      input.lines,
+    );
+    if (round4(totalDebit) !== round4(totalCredit)) {
+      throw new UnbalancedJournalException(
+        round4(totalDebit),
+        round4(totalCredit),
       );
-      if (round4(totalDebit) !== round4(totalCredit)) {
-        throw new UnbalancedJournalException(
-          round4(totalDebit),
-          round4(totalCredit),
-        );
-      }
-      const { fiscalYear, period } = await this.resolveFiscalContext(
-        manager,
+    }
+    const { fiscalYear, period } = await this.resolveFiscalContext(
+      manager,
+      organizationId,
+      entryDate,
+    );
+
+    const entryRepo = manager.getRepository(JournalEntryEntity);
+    const entry = await entryRepo.save(
+      entryRepo.create({
         organizationId,
+        branchId: input.branchId,
+        fiscalYearId: fiscalYear.id,
+        fiscalPeriodId: period.id,
+        currencyId: null,
+        exchangeRate: '1.000000',
         entryDate,
-      );
+        entryDateBs: this.toBs(entryDate),
+        description: input.description ?? null,
+        referenceNumber: null,
+        status: 'DRAFT',
+        sourceType: null,
+        sourceId: null,
+      }),
+    );
 
-      const entryRepo = manager.getRepository(JournalEntryEntity);
-      const entry = await entryRepo.save(
-        entryRepo.create({
+    const lineRepo = manager.getRepository(JournalLineEntity);
+    await lineRepo.save(
+      input.lines.map((line) =>
+        lineRepo.create({
           organizationId,
           branchId: input.branchId,
-          fiscalYearId: fiscalYear.id,
-          fiscalPeriodId: period.id,
-          currencyId: null,
-          exchangeRate: '1.000000',
-          entryDate,
-          entryDateBs: this.toBs(entryDate),
-          description: input.description ?? null,
-          referenceNumber: null,
-          status: 'DRAFT',
-          sourceType: null,
-          sourceId: null,
+          journalEntryId: entry.id,
+          accountId: line.accountId,
+          partyId: line.partyId ?? null,
+          debitAmount: String(round4(Number(line.debit ?? 0))),
+          creditAmount: String(round4(Number(line.credit ?? 0))),
+          description: line.description ?? null,
+          isReconciled: false,
+          reconciledDate: null,
         }),
-      );
+      ),
+    );
 
-      const lineRepo = manager.getRepository(JournalLineEntity);
-      await lineRepo.save(
-        input.lines.map((line) =>
-          lineRepo.create({
-            organizationId,
-            branchId: input.branchId,
-            journalEntryId: entry.id,
-            accountId: line.accountId,
-            partyId: line.partyId ?? null,
-            debitAmount: String(round4(Number(line.debit ?? 0))),
-            creditAmount: String(round4(Number(line.credit ?? 0))),
-            description: line.description ?? null,
-            isReconciled: false,
-            reconciledDate: null,
-          }),
-        ),
-      );
+    await this.auditService.record(
+      {
+        organizationId,
+        branchId: input.branchId,
+        userId: actorId,
+        action: 'accounting.journal-entry.create',
+        entityType: 'journal-entry',
+        entityId: entry.id,
+        newData: { entryDate: input.entryDate, status: 'DRAFT' },
+      },
+      manager,
+    );
 
-      await this.auditService.record(
-        {
-          organizationId,
-          branchId: input.branchId,
-          userId: actorId,
-          action: 'accounting.journal-entry.create',
-          entityType: 'journal-entry',
-          entityId: entry.id,
-          newData: { entryDate: input.entryDate, status: 'DRAFT' },
-        },
-        manager,
-      );
-
-      return this.get(organizationId, entry.id);
-    });
+    return this.getIn(manager, organizationId, entry.id);
   }
 
   async post(
@@ -168,70 +182,88 @@ export class JournalService {
     entryId: string,
     actorId: string,
   ): Promise<JournalEntryEntity> {
-    return this.dataSource.transaction(async (manager) => {
-      const entryRepo = manager.getRepository(JournalEntryEntity);
-      const entry = await entryRepo.findOne({
-        where: { id: entryId, organizationId },
-        relations: { lines: true },
-      });
-      if (!entry) throw new JournalEntryNotFoundException(entryId);
-      if (entry.status === 'POSTED')
-        throw new JournalAlreadyPostedException(entryId);
-      if (entry.status !== 'DRAFT')
-        throw new JournalNotDraftException(entryId, entry.status);
+    return this.dataSource.transaction(async (manager) =>
+      this.postIn(manager, organizationId, entryId, actorId),
+    );
+  }
 
-      const { totalDebit, totalCredit } = await this.validateLines(
-        manager,
-        organizationId,
-        entry.lines,
-      );
-      if (round4(totalDebit) !== round4(totalCredit)) {
-        throw new UnbalancedJournalException(
-          round4(totalDebit),
-          round4(totalCredit),
-        );
-      }
-
-      const { fiscalYear, period } = await this.resolveFiscalContext(
-        manager,
-        organizationId,
-        entry.entryDate,
-      );
-
-      const referenceNumber = await this.documentSequenceService.nextNumber(
-        {
-          organizationId,
-          branchId: entry.branchId,
-          fiscalYearId: fiscalYear.id,
-          documentType: DOCUMENT_TYPES.JOURNAL_ENTRY,
-          prefix: 'JE-',
-        },
-        manager,
-      );
-
-      entry.status = 'POSTED';
-      entry.referenceNumber = referenceNumber;
-      entry.fiscalYearId = fiscalYear.id;
-      entry.fiscalPeriodId = period.id;
-      entry.entryDateBs = this.toBs(entry.entryDate);
-      entry.updatedBy = actorId;
-      await entryRepo.save(entry);
-
-      await this.auditService.record(
-        {
-          organizationId,
-          branchId: entry.branchId,
-          userId: actorId,
-          action: 'accounting.journal-entry.post',
-          entityType: 'journal-entry',
-          entityId: entry.id,
-          newData: { referenceNumber, status: 'POSTED' },
-        },
-        manager,
-      );
-
-      return this.get(organizationId, entry.id);
+  /**
+   * Manager-scoped post for callers that post inside their own transaction.
+   * Assigns the JE reference number via the shared document sequence so the
+   * caller's transaction commits the number atomically.
+   */
+  async postIn(
+    manager: EntityManager,
+    organizationId: string,
+    entryId: string,
+    actorId: string,
+  ): Promise<JournalEntryEntity> {
+    const entryRepo = manager.getRepository(JournalEntryEntity);
+    const entry = await entryRepo.findOne({
+      where: { id: entryId, organizationId },
+      relations: { lines: true },
     });
+    if (!entry) throw new JournalEntryNotFoundException(entryId);
+    if (entry.status === 'POSTED')
+      throw new JournalAlreadyPostedException(entryId);
+    if (entry.status !== 'DRAFT')
+      throw new JournalNotDraftException(entryId, entry.status);
+
+    const { totalDebit, totalCredit } = await this.validateLines(
+      manager,
+      organizationId,
+      entry.lines,
+    );
+    if (round4(totalDebit) !== round4(totalCredit)) {
+      throw new UnbalancedJournalException(
+        round4(totalDebit),
+        round4(totalCredit),
+      );
+    }
+
+    const { fiscalYear, period } = await this.resolveFiscalContext(
+      manager,
+      organizationId,
+      entry.entryDate,
+    );
+    const entryDate =
+      typeof entry.entryDate === 'string'
+        ? parseLocalDate(entry.entryDate)
+        : entry.entryDate;
+
+    const referenceNumber = await this.documentSequenceService.nextNumber(
+      {
+        organizationId,
+        branchId: entry.branchId,
+        fiscalYearId: fiscalYear.id,
+        documentType: DOCUMENT_TYPES.JOURNAL_ENTRY,
+        prefix: 'JE-',
+      },
+      manager,
+    );
+
+    entry.status = 'POSTED';
+    entry.referenceNumber = referenceNumber;
+    entry.fiscalYearId = fiscalYear.id;
+    entry.fiscalPeriodId = period.id;
+    entry.entryDateBs = this.toBs(entryDate);
+    entry.updatedBy = actorId;
+    await entryRepo.save(entry);
+
+    await this.auditService.record(
+      {
+        organizationId,
+        branchId: entry.branchId,
+        userId: actorId,
+        action: 'accounting.journal-entry.post',
+        entityType: 'journal-entry',
+        entityId: entry.id,
+        newData: { referenceNumber, status: 'POSTED' },
+      },
+      manager,
+    );
+
+    return this.getIn(manager, organizationId, entry.id);
   }
 
   async cancel(
@@ -310,6 +342,25 @@ export class JournalService {
     entryId: string,
   ): Promise<JournalEntryEntity> {
     const entry = await this.entryRepo.findOne({
+      where: { id: entryId, organizationId },
+      relations: {
+        lines: { account: true, party: true },
+        fiscalYear: true,
+        fiscalPeriod: true,
+      },
+    });
+    if (!entry) throw new JournalEntryNotFoundException(entryId);
+    return entry;
+  }
+
+  /** Manager-scoped get for use inside a caller's open transaction. */
+  async getIn(
+    manager: EntityManager,
+    organizationId: string,
+    entryId: string,
+  ): Promise<JournalEntryEntity> {
+    const entryRepo = manager.getRepository(JournalEntryEntity);
+    const entry = await entryRepo.findOne({
       where: { id: entryId, organizationId },
       relations: {
         lines: { account: true, party: true },

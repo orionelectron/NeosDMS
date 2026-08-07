@@ -21,6 +21,10 @@ import { SalesOrderEntity } from './sales-order.entity';
   'discount_percent >= 0 AND discount_percent <= 100',
 )
 @Check('chk_sales_order_lines_total', 'line_total >= 0')
+@Check(
+  'chk_sales_order_lines_invoiced',
+  'invoiced_quantity >= 0 AND invoiced_quantity <= quantity',
+)
 export class SalesOrderLineEntity extends BaseEntity {
   @Column({ name: 'organization_id', type: 'uuid' })
   organizationId: string;
@@ -84,4 +88,14 @@ export class SalesOrderLineEntity extends BaseEntity {
 
   @Column({ name: 'line_total', type: 'decimal', precision: 15, scale: 2 })
   lineTotal: string;
+
+  /** Billed sell-uom quantity across posted invoices; remainder is billable. */
+  @Column({
+    name: 'invoiced_quantity',
+    type: 'decimal',
+    precision: 15,
+    scale: 3,
+    default: 0,
+  })
+  invoicedQuantity: string;
 }

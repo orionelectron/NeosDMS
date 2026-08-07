@@ -16,6 +16,7 @@ import { attendancePermissionsSeed } from './attendance-permissions.seed';
 import { inventoryPermissionsSeed } from './inventory-permissions.seed';
 import { salesOrderPermissionsSeed } from './sales-order-permissions.seed';
 import { salesTargetPermissionsSeed } from './sales-target-permissions.seed';
+import { salesInvoicePermissionsSeed } from './sales-invoice-permissions.seed';
 
 /**
  * Seed registry — ordered by ascending `version`; each runs exactly once
@@ -32,6 +33,7 @@ import { salesTargetPermissionsSeed } from './sales-target-permissions.seed';
  * 16:  Phase 5e — sales target permission backfill (sales.target).
  * 17:  Phase 5f — inventory permission backfill (inventory.location, inventory.balance).
  * 18:  Phase 6a — sales order permission backfill (sales.order.*).
+ * 19:  Phase 6b — sales invoice permission backfill (sales.invoice.post).
  */
 export const SEEDS: readonly Seed[] = [
   modulesSeed,
@@ -51,4 +53,5 @@ export const SEEDS: readonly Seed[] = [
   salesTargetPermissionsSeed,
   inventoryPermissionsSeed,
   salesOrderPermissionsSeed,
+  salesInvoicePermissionsSeed,
 ];

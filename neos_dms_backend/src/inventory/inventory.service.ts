@@ -286,6 +286,76 @@ export class InventoryService {
     });
   }
 
+  /**
+   * Manager-scoped stock issue for a posted sales invoice. Runs inside the
+   * invoice's own transaction so the document number, journal, and stock all
+   * commit atomically. Draws (quantity + free) base units from the location.
+   */
+  async issueForSalesInvoice(
+    manager: EntityManager,
+    organizationId: string,
+    input: {
+      locationId: string;
+      invoiceId: string;
+      notes: string | null;
+      lines: Array<{
+        itemId: string;
+        uomId: string;
+        baseQuantity: number;
+        unitCost: number;
+      }>;
+    },
+    actorId: string,
+  ): Promise<InventoryTransactionEntity> {
+    await this.requireLocation(manager, organizationId, input.locationId);
+
+    const prepared = await Promise.all(
+      input.lines.map(async (line) => {
+        if (line.baseQuantity <= 0) throw new InventoryZeroQuantityException();
+        const item = await this.requireTrackedItem(
+          manager,
+          organizationId,
+          line.itemId,
+        );
+        return { line, item };
+      }),
+    );
+
+    const txn = await this.saveTransaction(
+      manager,
+      organizationId,
+      {
+        locationId: input.locationId,
+        toLocationId: null,
+        type: 'sales_invoice',
+        notes: input.notes,
+        referenceType: 'sales_invoice',
+        referenceId: input.invoiceId,
+      },
+      prepared.map(({ line, item }) => ({
+        itemId: item.id,
+        uomId: line.uomId,
+        direction: 'OUT',
+        quantity: line.baseQuantity,
+        unitCost: line.unitCost,
+      })),
+      actorId,
+    );
+
+    for (const { line, item } of prepared) {
+      await this.applyDelta(
+        manager,
+        organizationId,
+        input.locationId,
+        item.id,
+        -line.baseQuantity,
+        item.allowNegativeStock,
+      );
+    }
+
+    return txn;
+  }
+
   async listTransactions(
     organizationId: string,
     query: InventoryTransactionQueryDto,
@@ -556,8 +626,14 @@ export class InventoryService {
     input: {
       locationId: string;
       toLocationId: string | null;
-      type: 'opening_stock' | 'stock_adjustment' | 'stock_transfer';
+      type:
+        | 'opening_stock'
+        | 'stock_adjustment'
+        | 'stock_transfer'
+        | 'sales_invoice';
       notes: string | null;
+      referenceType?: string | null;
+      referenceId?: string | null;
     },
     lines: Array<{
       itemId: string;
@@ -591,8 +667,8 @@ export class InventoryService {
         toLocationId: input.toLocationId,
         transactionNumber,
         transactionType: input.type,
-        referenceType: null,
-        referenceId: null,
+        referenceType: input.referenceType ?? null,
+        referenceId: input.referenceId ?? null,
         status: 'POSTED',
         bsDate,
         occurredAt: new Date(),

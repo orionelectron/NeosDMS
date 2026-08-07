@@ -37,5 +37,6 @@ import { InventoryService } from './inventory.service';
     InventoryService,
     DocumentSequenceService,
   ],
+  exports: [InventoryService],
 })
 export class InventoryModule {}

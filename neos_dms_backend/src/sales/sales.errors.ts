@@ -108,3 +108,151 @@ export class SalesOrderZeroQuantityException extends HttpException {
     );
   }
 }
+
+// ── Sales invoices ─────────────────────────────────────────────────────────
+
+export class SalesInvoiceNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'SALES_INVOICE_NOT_FOUND',
+        message: `Sales invoice '${id}' not found`,
+      },
+      HttpStatus.NOT_FOUND,
+    );
+  }
+}
+
+export class SalesInvoiceNotDraftException extends HttpException {
+  constructor(id: string, status: string, action: string) {
+    super(
+      {
+        code: 'SALES_INVOICE_NOT_DRAFT',
+        message: `Cannot ${action} a ${status} sales invoice`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class SalesInvoiceOrderNotConfirmableException extends HttpException {
+  constructor(orderId: string, status: string) {
+    super(
+      {
+        code: 'SALES_INVOICE_ORDER_NOT_CONFIRMABLE',
+        message: `Sales order '${orderId}' is ${status}; only CONFIRMED/COMPLETED orders can be invoiced`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SalesInvoiceLineOrderMismatchException extends HttpException {
+  constructor(lineId: string, orderId: string) {
+    super(
+      {
+        code: 'SALES_INVOICE_LINE_ORDER_MISMATCH',
+        message: `Sales order line '${lineId}' does not belong to order '${orderId}'`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SalesInvoiceDuplicateOrderLineException extends HttpException {
+  constructor(lineId: string) {
+    super(
+      {
+        code: 'SALES_INVOICE_DUPLICATE_ORDER_LINE',
+        message: `Sales order line '${lineId}' appears more than once in the invoice`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SalesInvoiceQuantityExceededException extends HttpException {
+  constructor(lineId: string, requested: number, remaining: number) {
+    super(
+      {
+        code: 'SALES_INVOICE_QUANTITY_EXCEEDED',
+        message: `Cannot invoice ${requested} of sales order line '${lineId}' — only ${remaining} remain`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SalesInvoiceZeroQuantityException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'SALES_INVOICE_ZERO_QUANTITY',
+        message: 'Each invoiced line needs a quantity greater than zero',
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SalesInvoiceAccessDeniedException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'SALES_INVOICE_ACCESS_DENIED',
+        message:
+          'You can only manage invoices of your own orders (or your team’s)',
+      },
+      HttpStatus.FORBIDDEN,
+    );
+  }
+}
+
+export class SalesInvoiceLocationRequiredException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'SALES_INVOICE_LOCATION_REQUIRED',
+        message:
+          'Posting an invoice requires an inventory location to ship from',
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SalesInvoiceAccountMissingException extends HttpException {
+  constructor(purpose: string) {
+    super(
+      {
+        code: 'SALES_INVOICE_ACCOUNT_MISSING',
+        message: `Organization has no active '${purpose}' account — run accounting provisioning first`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class SalesInvoiceFiscalYearMissingException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'SALES_INVOICE_FISCAL_YEAR_MISSING',
+        message: 'No active, open fiscal year covers the invoice date',
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class SalesInvoiceUomConversionNotFoundException extends HttpException {
+  constructor(uomId: string, baseUomId: string, itemId: string) {
+    super(
+      {
+        code: 'SALES_INVOICE_UOM_CONVERSION_NOT_FOUND',
+        message: `No UOM conversion from '${uomId}' to '${baseUomId}' for item '${itemId}'`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}

@@ -6,11 +6,12 @@ export const INVENTORY_LOCATION_TYPES = [
 ] as const;
 export type InventoryLocationType = (typeof INVENTORY_LOCATION_TYPES)[number];
 
-/** MVP movement types; sales_invoice/sales_return/purchase_receipt/purchase_return are added via migration when those phases wire stock moves. */
+/** Movement types. sales_invoice (OUT) is wired by the Phase 6b migration; purchase/sales return flows extend this when those phases land. */
 export const INVENTORY_TXN_TYPES = [
   'opening_stock',
   'stock_adjustment',
   'stock_transfer',
+  'sales_invoice',
 ] as const;
 export type InventoryTransactionType = (typeof INVENTORY_TXN_TYPES)[number];
 

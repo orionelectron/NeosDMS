@@ -31,6 +31,7 @@ import { ProvisioningController } from './provisioning.controller';
 import { AccountingProvisioningService } from './provisioning.service';
 import { TaxController } from './tax.controller';
 import { TaxService } from './tax.service';
+import { TrialBalanceService } from './trial-balance.service';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { TaxService } from './tax.service';
     JournalService,
     PartyService,
     TaxService,
+    TrialBalanceService,
   ],
   exports: [AccountingProvisioningService],
 })

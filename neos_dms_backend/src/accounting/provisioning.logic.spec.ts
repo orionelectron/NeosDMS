@@ -110,21 +110,26 @@ function createManager() {
 describe('buildFiscalYearPlan', () => {
   const converter = new NepaliDateConverter();
 
-  it('builds a 12-period plan starting on Baisakh 1', () => {
+  it('builds a 12-period plan starting on Shrawan 1 (statutory FY start)', () => {
     const plan = buildFiscalYearPlan(2083, converter);
 
     expect(plan.name).toBe('2083/84');
     expect(plan.startDate.getFullYear()).toBe(2026);
+    expect(plan.startDate.getMonth()).toBe(6);
+    expect(plan.startDate.getDate()).toBe(17);
+    expect(plan.endDate.getFullYear()).toBe(2027);
+    expect(plan.endDate.getMonth()).toBe(6);
+    expect(plan.endDate.getDate()).toBe(16);
     expect(plan.periods).toHaveLength(12);
     expect(plan.periods[0]).toMatchObject({
       sequence: 1,
-      name: 'Baishakh',
-      startDateBs: '2083-01-01',
+      name: 'Shrawan',
+      startDateBs: '2083-04-01',
     });
     expect(plan.periods[11]).toMatchObject({
       sequence: 12,
-      name: 'Chaitra',
-      startDateBs: '2083-12-01',
+      name: 'Ashadh',
+      startDateBs: '2084-03-01',
     });
   });
 
@@ -149,10 +154,15 @@ describe('buildFiscalYearPlan', () => {
     const plan = buildFiscalYearPlan(2083, converter);
 
     plan.periods.forEach((period, index) => {
+      const month = ((4 - 1 + index) % 12) + 1;
+      const year = month < 4 ? 2084 : 2083;
+      expect(period.startDateBs).toBe(
+        `${year}-${String(month).padStart(2, '0')}-01`,
+      );
       expect(period.endDateBs).toBe(
-        `2083-${String(index + 1).padStart(2, '0')}-${converter.getDaysInBsMonth(
-          2083,
-          index + 1,
+        `${year}-${String(month).padStart(2, '0')}-${converter.getDaysInBsMonth(
+          year,
+          month,
         )}`,
       );
     });
@@ -235,10 +245,10 @@ describe('provisionAccounting', () => {
     expect(periods[0]).toMatchObject({
       fiscalYearId: fiscalYears[0].id,
       sequence: 1,
-      name: 'Baishakh',
+      name: 'Shrawan',
       isLocked: false,
     });
-    expect(periods[0].startDateBs).toMatch(/^2083-01-01$/);
+    expect(periods[0].startDateBs).toMatch(/^2083-04-01$/);
     expect(periods.map((p) => p.sequence)).toEqual([
       1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
     ]);

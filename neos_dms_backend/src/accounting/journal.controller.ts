@@ -18,13 +18,31 @@ import {
   CreateJournalEntryDto,
   JournalListQueryDto,
 } from './dto/journal-entry.dto';
+import { TrialBalanceQueryDto } from './dto/trial-balance.dto';
 import { JournalService } from './journal.service';
+import { TrialBalanceService } from './trial-balance.service';
 
 @ApiBearerAuth()
 @ApiTags('accounting')
 @Controller()
 export class JournalController {
-  constructor(private readonly journalService: JournalService) {}
+  constructor(
+    private readonly journalService: JournalService,
+    private readonly trialBalanceService: TrialBalanceService,
+  ) {}
+
+  @RequirePermission('accounting.journal-entry.read')
+  @Get('trial-balance')
+  @ApiOperation({
+    summary:
+      'Trial balance of POSTED entries (opening, activity, closing per account)',
+  })
+  trialBalance(
+    @CurrentTenant() tenant: TenantContext,
+    @Query() query: TrialBalanceQueryDto,
+  ) {
+    return this.trialBalanceService.trialBalance(tenant.id, query);
+  }
 
   @RequirePermission('accounting.journal-entry.read')
   @Get('journal-entries')

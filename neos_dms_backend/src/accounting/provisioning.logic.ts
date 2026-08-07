@@ -46,47 +46,70 @@ export interface FiscalYearPlan {
   }>;
 }
 
+/** BS month the statutory (IRD) Nepali fiscal year starts on: Shrawan. */
+export const FISCAL_YEAR_START_MONTH = 4;
+
+/** BS month the fiscal year ends on: Ashadh (the month before Shrawan). */
+export const FISCAL_YEAR_END_MONTH = 3;
+
 /**
  * Build the fiscal-year plan (FY + 12 BS months) for a given Bikram Sambat
- * year. Baisakh 1 is the fiscal year start. Framework-free so both the Nest
+ * label year. The statutory Nepali fiscal year starts on Shrawan 1 of the
+ * label year (mid-July) and runs through Ashadh end of the following BS
+ * year; the 12 periods therefore span months Shrawan→Chaitra of `bsYear`
+ * then Baisakh→Ashadh of `bsYear + 1`. Framework-free so both the Nest
  * provisioning service and the versioned backfill seed reuse it.
  */
 export function buildFiscalYearPlan(
   bsYear: number,
   converter: NepaliDateConverter,
 ): FiscalYearPlan {
-  const firstOfYear = converter.bsToAd(bsYear, 1, 1);
-  const firstOfNext = converter.bsToAd(bsYear + 1, 1, 1);
-  const startDate = localDate(
-    firstOfYear.adYear,
-    firstOfYear.adMonth,
-    firstOfYear.adDay,
+  const startOfYear = converter.bsToAd(bsYear, FISCAL_YEAR_START_MONTH, 1);
+  const daysInEndMonth = converter.getDaysInBsMonth(
+    bsYear + 1,
+    FISCAL_YEAR_END_MONTH,
   );
-  const endDate = addDaysLocal(
-    localDate(firstOfNext.adYear, firstOfNext.adMonth, firstOfNext.adDay),
-    -1,
+  const endOfYear = converter.bsToAd(
+    bsYear + 1,
+    FISCAL_YEAR_END_MONTH,
+    daysInEndMonth,
+  );
+  const startDate = localDate(
+    startOfYear.adYear,
+    startOfYear.adMonth,
+    startOfYear.adDay,
+  );
+  const endDate = localDate(
+    endOfYear.adYear,
+    endOfYear.adMonth,
+    endOfYear.adDay,
   );
 
   const periods: FiscalYearPlan['periods'] = [];
-  for (let month = 1; month <= 12; month++) {
-    const daysInMonth = converter.getDaysInBsMonth(bsYear, month);
-    const monthStart = converter.bsToAd(bsYear, month, 1);
+  for (let i = 0; i < 12; i++) {
+    const month = ((FISCAL_YEAR_START_MONTH - 1 + i) % 12) + 1;
+    const year = month < FISCAL_YEAR_START_MONTH ? bsYear + 1 : bsYear;
+    const daysInMonth = converter.getDaysInBsMonth(year, month);
+    const monthStart = converter.bsToAd(year, month, 1);
+
     const monthEnd =
-      month < 12
-        ? addDaysLocal(
+      i === 11
+        ? endDate
+        : addDaysLocal(
             (() => {
-              const next = converter.bsToAd(bsYear, month + 1, 1);
+              const nextMonth = month === 12 ? 1 : month + 1;
+              const nextYear = nextMonth === 1 ? year + 1 : year;
+              const next = converter.bsToAd(nextYear, nextMonth, 1);
               return localDate(next.adYear, next.adMonth, next.adDay);
             })(),
             -1,
-          )
-        : endDate;
+          );
 
     periods.push({
       name: converter.getBsMonthName(month, 'en'),
-      sequence: month,
-      startDateBs: `${bsYear}-${pad(month)}-01`,
-      endDateBs: `${bsYear}-${pad(month)}-${daysInMonth}`,
+      sequence: i + 1,
+      startDateBs: `${year}-${pad(month)}-01`,
+      endDateBs: `${year}-${pad(month)}-${daysInMonth}`,
       startDate: localDate(
         monthStart.adYear,
         monthStart.adMonth,
@@ -260,7 +283,9 @@ async function ensureFiscalYear(
     today.getMonth() + 1,
     today.getDate(),
   );
-  const plan = buildFiscalYearPlan(bs.bsYear, converter);
+  const fyStartYear =
+    bs.bsMonth >= FISCAL_YEAR_START_MONTH ? bs.bsYear : bs.bsYear - 1;
+  const plan = buildFiscalYearPlan(fyStartYear, converter);
 
   const fiscalYear = await yearRepo.save(
     yearRepo.create({

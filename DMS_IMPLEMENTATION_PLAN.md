@@ -32,6 +32,9 @@
 | 16 | Inventory | Batches/expiry = P1, **serials dropped** (electronics vertical); MVP tracks locations, transactions, balances | FMCG expiry is real but P1; serials not needed |
 | 17 | Trading masters | `variant_attributes` deferred to P1; FMCG SKUs stay simple (item + brand + category + UOM) | |
 | 18 | MVP includes | **Sales-return credit-note flow + expenses are in MVP** (damage/expiry returns and petty cash are daily FMCG); resolved the §3.1 cut-lines | |
+| 19 | Fiscal year basis | **Revised: Shrawan 1 (statutory)** | §7 originally said Baisakh 1 (BS calendar year) while §14 said Shrawan — a real contradiction. Resolved to Nepal's statutory IRD fiscal year: FY `2083/84` = 2026-07-17 → 2027-07-16, 12 periods Shrawan→Chaitra of `bsYear` then Baisakh→Ashadh of `bsYear+1`. `buildFiscalYearPlan` + provisioning updated; migration `FixFiscalYearShrawanBasis1786080000000` rebuilds existing orgs' FYs (label year parsed from the FY name, so it is deterministic and preserves FY ids/names) |
+| 20 | Journal source idempotency | **Added** | Partial unique index `uq_journal_entries_source (organization_id, source_type, source_id) WHERE source_type IS NOT NULL AND source_id IS NOT NULL` (migration `JournalEntrySourceUniqueness1786081000000`) so a retried invoice/bill creation can never double-post its journal entry; the existing org+source index stays as the plain lookup index |
+| 21 | Trial balance in Phase 3 | **Added** | Minimal read-only `GET /trial-balance` (per-account opening/activity/closing + `balanced` flag over POSTED entries) landed now to validate the posting engine and surface journal_lines schema gaps cheaply; pretty GL/P&L reports remain Phase 8 |
 
 ## 3. Target Backend Structure
 
@@ -163,7 +166,7 @@ New limit dimension later = add a key to plan seeds + the code enum; **no schema
 
 ## 7. Phase 3 — Accounting Engine (FMCG subset, NPR-only)
 
-The posting engine that sales/purchase/inventory post into. Reuses `nepali-date` for dual dates + Nepali fiscal year (Baisakh 1 start, matching the Bikram Sambat calendar year). Deferred to P1: `exchange_rates`, `attachments`, `transaction_tags`/`journal_entry_tags`.
+The posting engine that sales/purchase/inventory post into. Reuses `nepali-date` for dual dates + Nepali fiscal year (Shrawan 1 start — the statutory IRD fiscal year; the 12 periods run Shrawan→Chaitra of `bsYear` then Baisakh→Ashadh of `bsYear+1`). Deferred to P1: `exchange_rates`, `attachments`, `transaction_tags`/`journal_entry_tags`.
 
 - [x] `fiscal_years`, `fiscal_periods` — one active FY per org (partial unique index), BS + AD date range; open/close workflow with period lock + audit
 - [x] `currencies` — NPR base seed; `exchange_rates` NOT created in MVP
@@ -173,11 +176,14 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 - [x] `tax_types`, `tax_codes`, `tax_templates` — VAT 13% / TDS seeds, `math_sign IN (1,-1)` CHECK
 - [x] `journal_entries` + `journal_lines` — balanced double-entry; debit/credit mutual-exclusion CHECK; posting in a transaction; `transaction_types` as seeded constants
 - [x] `document_sequences` — fiscal-year-scoped, branch-safe sequential numbering (gov-compliant invoices) with prefix, atomic upsert via `doc_seq_unique` ON CONFLICT
-- [ ] Core reports foundation: trial balance, general ledger, P&L (deferred to Phase 8)
+- [x] Minimal trial-balance read (POSTED entries; per-account opening/activity/closing + `balanced` flag) — Phase 3
+- [ ] Core reports foundation: general ledger, P&L (deferred to Phase 8)
 - [x] Fiscal year open/close workflow
 - [x] Tenancy onboarding provisions accounting in the same txn; `POST /api/v1/accounting/provision` for idempotent re-provision
 
 **Verified (2026-08-07):** migration `AccountingEngine1786070270761` applied against live Postgres; seeds 7–9 applied (tax types/templates, transaction types, per-org accounting backfill); both existing orgs have 31-account COA + active FY 2083/84 with 12 periods + VAT/exempt tax codes + global NPR currency; unit tests added for every accounting service (accounts, parties, fiscal years, document sequences, taxes, provisioning, journal posting, provisioning logic) — `npm run lint` clean, **151 unit tests pass**. Tax schema tightened with migration `TaxCodeUniqueness1786072881892` (unique `tax_codes (organization_id, name)` + unique `tax_templates (name)`), applied + duplicate-insert rejection verified against live Postgres.
+
+**Phase 3 review follow-ups (2026-08-07):** fiscal-year basis corrected from Baisakh 1 to the statutory **Shrawan 1** (decision 19) with `FixFiscalYearShrawanBasis1786080000000` rebuilding existing orgs' FYs (FY `2083/84` now = 2026-07-17 → 2027-07-16); partial unique index `uq_journal_entries_source` added (decision 20, migration `JournalEntrySourceUniqueness1786081000000`) to make double posting impossible; minimal trial-balance read landed (decision 21, `GET /trial-balance`, guarded by `accounting.journal-entry.read`). **158 unit tests pass**, lint + build clean, both new migrations applied + verified against live Postgres.
 
 **Acceptance:** double-entry posting rejects unbalanced entries; invoice numbers unique per FY; default COA exists for every org; reports tie to journal lines.
 
@@ -267,6 +273,10 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 | New limit dimensions needed later | Limits live in `plans.limits` jsonb + one code enum; no schema change |
 | Module-gating assumptions leak back in | `modules` is a catalog only; no `plan_module_mappings`; guards reference `PlanLimitService` |
 | FMCG scope creep from reference schema | §3.1 P0/P1/Drop is the contract; any new table must be tagged P0 or moved to P1 |
+| Fiscal-year boundary ambiguity (Baisakh vs Shrawan) | **Resolved: statutory Shrawan 1 basis** (decision 19) — §7/§14 contradiction closed, `buildFiscalYearPlan` is the single source of truth, `FixFiscalYearShrawanBasis` data-fix applied; provisioning picks the current statutory FY (month-aware) |
+| Double-posting from retried document creation | Partial unique `uq_journal_entries_source (organization_id, source_type, source_id)` (decision 20); document services must stamp `source_type`/`source_id` when posting |
+| Cross-module txn coordination (invoice → stock → journal in one txn) | Phase 6/7 post inside one `EntityManager` transaction — `provisionAccounting`/`AuditService` already accept an injected manager; add DB integration tests for the orchestrated flows |
+| Posting-engine correctness until Phase 8 reports | Minimal Phase 3 trial balance (decision 21) returns a `balanced` flag so the engine is validated end-to-end now, not months later |
 
 ## 16. Progress Tracker
 
@@ -283,7 +293,7 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 - [x] **Phase 0 complete** — env config + validation, TypeORM wiring + CLI data-source + migrations dir, global ValidationPipe, exception filter, CLS request-ID + response envelope, Swagger at `/api/v1/docs`, `src/common` building blocks (BaseEntity, pagination, decorators), versioned idempotent seed runner + permission-code catalog, unit (51) + e2e (8) green, `npm run lint`/`build`/`test` pass, backend README + `.env.example`. Boot smoke-tested; only DB connection is external.
 
 ### In Progress
-- [~] Phase 3 — Accounting engine (COA default for new orgs, fiscal years, posting engine) — implementation + DB verification done; reports foundation deferred to Phase 8
+- [~] Phase 3 — Accounting engine (COA default for new orgs, fiscal years, posting engine) — implementation + DB verification done; reports foundation deferred to Phase 8; phase-3 review follow-ups applied (Shrawan FY basis + data-fix migration, journal source uniqueness index, minimal trial balance)
 
 ### Next up
 - [x] **Phase 1 complete** (committed `3ffc3ac`, pushed to `main`): tenant + subscription per §5 — migration `1785913601535-TenantAndSubscription.ts` applied; seeds v1–3 (modules, billing periods, plans) applied; `SubscriptionService`/`PlanLimitService`/`@PlanLimit` interceptor; controllers (plans public, subscription, usage snapshot, history, payments/webhook); 76 tests green, lint/build clean; live smoke-tested trial + seat/periodic/feature limits

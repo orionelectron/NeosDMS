@@ -23,6 +23,14 @@ import { JournalLineEntity } from './journal-line.entity';
   'sourceType',
   'sourceId',
 ])
+@Index(
+  'uq_journal_entries_source',
+  ['organizationId', 'sourceType', 'sourceId'],
+  {
+    unique: true,
+    where: 'source_type IS NOT NULL AND source_id IS NOT NULL',
+  },
+)
 @Check(
   'chk_journal_entries_status',
   "status IN ('DRAFT', 'POSTED', 'CANCELLED')",

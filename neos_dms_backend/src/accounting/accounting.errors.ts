@@ -302,3 +302,15 @@ export class DocumentSequenceNotFoundException extends HttpException {
     );
   }
 }
+
+export class InvalidReportRangeException extends HttpException {
+  constructor(from: string, to: string) {
+    super(
+      {
+        code: 'INVALID_REPORT_RANGE',
+        message: `Report range '${from}' to '${to}' is invalid (from must not be after to)`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}

@@ -144,9 +144,10 @@ describe('FiscalYearService', () => {
       expect(periods[0]).toMatchObject({
         fiscalYearId: fy.id,
         sequence: 1,
-        name: 'Baishakh',
+        name: 'Shrawan',
         isLocked: false,
       });
+      expect(periods[0].startDateBs).toMatch(/^2083-04-01$/);
       expect(periods.map((period) => period.sequence)).toEqual([
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
       ]);

@@ -9,6 +9,7 @@ import { plansSeed } from './plans.seed';
 import { taxCatalogSeed } from './tax-catalog.seed';
 import { tradingPermissionsSeed } from './trading-permissions.seed';
 import { transactionTypesSeed } from './transaction-types.seed';
+import { fieldPermissionsSeed } from './field-permissions.seed';
 
 /**
  * Seed registry — ordered by ascending `version`; each runs exactly once
@@ -16,6 +17,8 @@ import { transactionTypesSeed } from './transaction-types.seed';
  * 1-3: Phase 1 tenant + subscription catalogs.
  * 4-6: Phase 2 — IAM modules, permission catalog, base roles backfill.
  * 7-9: Phase 3 — tax catalog, transaction types, accounting backfill.
+ * 10:  Phase 4 — trading permission backfill (item-category/brand/uom-conversion).
+ * 11:  Phase 5d — field-sales permission backfill (outlet/route/visit).
  */
 export const SEEDS: readonly Seed[] = [
   modulesSeed,
@@ -28,4 +31,5 @@ export const SEEDS: readonly Seed[] = [
   transactionTypesSeed,
   accountingBackfillSeed,
   tradingPermissionsSeed,
+  fieldPermissionsSeed,
 ];

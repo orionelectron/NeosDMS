@@ -7,6 +7,7 @@ import { AuditModule } from './audit/audit.module';
 import { AppConfig, configuration } from './config/configuration';
 import { CommonModule } from './common/common.module';
 import { clsModuleOptions } from './common/request-context';
+import { FieldModule } from './field/field.module';
 import { HealthModule } from './health/health.module';
 import { IamModule } from './iam/iam.module';
 import { NepaliDateModule } from './nepali-date/nepali-date.module';
@@ -44,6 +45,7 @@ import { TradingModule } from './trading/trading.module';
     IamModule,
     AccountingModule,
     TradingModule,
+    FieldModule,
   ],
 })
 export class AppModule {}

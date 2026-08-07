@@ -60,6 +60,7 @@ export interface FakeRepo<T extends AnyEntity = AnyEntity> {
   findOne: jest.Mock;
   count: jest.Mock;
   update: jest.Mock;
+  delete: jest.Mock;
   softDelete: jest.Mock;
   createQueryBuilder: jest.Mock;
 }
@@ -151,6 +152,11 @@ function createRepo<T extends AnyEntity>(rows: T[]): FakeRepo<T> {
       },
     ),
     softDelete: jest.fn((criteria: Record<string, unknown>) => {
+      const index = rows.findIndex((item) => matchesWhere(item, criteria));
+      if (index !== -1) rows.splice(index, 1);
+      return { affected: index !== -1 ? 1 : 0 };
+    }),
+    delete: jest.fn((criteria: Record<string, unknown>) => {
       const index = rows.findIndex((item) => matchesWhere(item, criteria));
       if (index !== -1) rows.splice(index, 1);
       return { affected: index !== -1 ? 1 : 0 };

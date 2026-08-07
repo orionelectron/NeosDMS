@@ -1,0 +1,45 @@
+import 'reflect-metadata';
+import { DataSource, DataSourceOptions } from 'typeorm';
+import { AccountingEngine1786070270761 } from '../database/migrations/1786070270761-AccountingEngine';
+import { FixFiscalYearShrawanBasis1786080000000 } from '../database/migrations/1786080000000-FixFiscalYearShrawanBasis';
+import { DmsFieldSales1786091000000 } from '../database/migrations/1786091000000-DmsFieldSales';
+import { TradingMasters1786090000000 } from '../database/migrations/1786090000000-TradingMasters';
+import { IamAndAuth1786035687494 } from '../database/migrations/1786035687494-IamAndAuth';
+import { JournalEntrySourceUniqueness1786081000000 } from '../database/migrations/1786081000000-JournalEntrySourceUniqueness';
+import { TaxCodeUniqueness1786072881892 } from '../database/migrations/1786072881892-TaxCodeUniqueness';
+import { TenantAndSubscription1786033873511 } from '../database/migrations/1786033873511-tenant-and-subscription';
+
+/**
+ * Disposable PostgreSQL for jest integration tests (TestingHandBook §3.2/§3.3).
+ * Run it with the `db-test` compose service on port 5433:
+ *
+ *   docker compose up -d db-test
+ */
+export const TEST_DB_OPTIONS: DataSourceOptions = {
+  type: 'postgres',
+  host: process.env.TEST_DB_HOST ?? 'localhost',
+  port: Number(process.env.TEST_DB_PORT ?? 5433),
+  username: process.env.TEST_DB_USER ?? 'neos',
+  password: process.env.TEST_DB_PASSWORD ?? 'neos',
+  database: process.env.TEST_DB_NAME ?? 'neos_dms_test',
+  entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+  migrations: [
+    TenantAndSubscription1786033873511,
+    IamAndAuth1786035687494,
+    AccountingEngine1786070270761,
+    TaxCodeUniqueness1786072881892,
+    FixFiscalYearShrawanBasis1786080000000,
+    JournalEntrySourceUniqueness1786081000000,
+    TradingMasters1786090000000,
+    DmsFieldSales1786091000000,
+  ],
+  synchronize: false,
+  logging: false,
+};
+
+export async function createTestDataSource(): Promise<DataSource> {
+  const dataSource = new DataSource(TEST_DB_OPTIONS);
+  await dataSource.initialize();
+  await dataSource.runMigrations();
+  return dataSource;
+}

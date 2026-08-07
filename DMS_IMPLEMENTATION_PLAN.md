@@ -213,28 +213,28 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 
 ### 9.1 Tables (from `dms_routes_outlets_reference`)
 
-- [ ] `outlets` — org-scoped; `party_id` FK → `parties` (customer party, created in-txn when not provided); fields: `name`, `owner_name`, `email`, `phone`, `address`, `province`, `district`, `latitude`, `longitude`, `photo_key`, `description`, `channel` (`general_trade|modern_trade|horeca|institution`), `category`, `status` (`active|inactive`)
-- [ ] `routes` — org-scoped; `name`, `code` (unique per org), `description`, `province`, `district`, `status`
-- [ ] `outlet_routes` — junction (org, outlet_id, route_id); one outlet can sit on multiple routes, one route has many outlets
-- [ ] `route_assignments` — (org, user_id, route_id) a **salesman** (user) owns a route for a set of `weekdays[]` (e.g. `[1,3,5]`); partial unique to keep one active assignment per route
-- [ ] `outlet_visits` — (org, user_id, route_id, outlet_id); `visit_type` (`planned|unplanned`), `status` (`scheduled|checked_in|checked_out|completed|cancelled`), `checked_in_at`/`checked_out_at`, check-in/out lat/long, `distance_from_outlet_meters`, `is_off_route`, `remarks`, `photo_key`
+- [x] `outlets` — org-scoped; `party_id` FK → `parties` (customer party, created in-txn when not provided); fields: `name`, `owner_name`, `email`, `phone`, `address`, `province`, `district`, `latitude`, `longitude`, `photo_key`, `description`, `channel` (`general_trade|modern_trade|horeca|institution`), `category`, `status` (`active|inactive`)
+- [x] `routes` — org-scoped; `name`, `code` (unique per org), `description`, `province`, `district`, `status`
+- [x] `outlet_routes` — junction (org, outlet_id, route_id); one outlet can sit on multiple routes, one route has many outlets
+- [x] `route_assignments` — (org, user_id, route_id) a **salesman** (user) owns a route for a set of `weekdays[]` (e.g. `[1,3,5]`); partial unique to keep one active assignment per route
+- [x] `outlet_visits` — (org, user_id, route_id, outlet_id); `visit_type` (`planned|unplanned`), `status` (`scheduled|checked_in|checked_out|completed|cancelled`), `checked_in_at`/`checked_out_at`, check-in/out lat/long, `distance_from_outlet_meters`, `is_off_route`, `remarks`, `photo_key`
 
 ### 9.2 Key behaviors
-- [ ] Outlet create auto-provisions a customer `party` (same txn, `is_customer = true`) unless `party_id` supplied — single source of truth for receivables stays in accounting
-- [ ] Visit check-in validates: user is assigned to the route (`route_assignments`), outlet is on the route (`outlet_routes`); computes haversine `distance_from_outlet_meters` + `is_off_route` (> configurable tolerance, e.g. 200 m)
-- [ ] Check-out finalizes visit; visit completed on check-out; audit every check-in/check-out (`AuditService`)
+- [x] Outlet create auto-provisions a customer `party` (same txn, `is_customer = true`) unless `party_id` supplied — single source of truth for receivables stays in accounting
+- [x] Visit check-in validates: user is assigned to the route (`route_assignments`), outlet is on the route (`outlet_routes`); computes haversine `distance_from_outlet_meters` + `is_off_route` (> configurable tolerance, e.g. 200 m)
+- [x] Check-out finalizes visit; visit completed on check-out; audit every check-in/check-out (`AuditService`)
 - [ ] Photo upload: store `photo_key` (S3/disk key) only; binary upload endpoint returns a key (P1 async upload)
-- [ ] `GET /outlets/mine` + `GET /routes/mine` — salesman sees only their assigned routes + outlets (RBAC-scoped reads)
+- [x] `GET /outlets/mine` + `GET /routes/mine` — salesman sees only their assigned routes + outlets (RBAC-scoped reads)
 
 ### 9.3 API + permissions
-- [ ] `outlets` CRUD → `sales.outlet.{create,read,update,delete}` (resource under module `sales`)
-- [ ] `routes` CRUD → `sales.route.{create,read,update,delete}`
-- [ ] `outlet_routes` assign/remove → `sales.route.update`
-- [ ] `route_assignments` assign/remove salesman+weekdays → `iam.user.update`
-- [ ] `visits` check-in/check-out/list → `sales.visit.{create,read,update}`; salesman can write their own, managers/all
-- [ ] Seed: add the new permission codes (bump seed version) + extend `salesman` role with `sales.outlet.*`, `sales.route.*`, `sales.visit.*`; `warehouse_manager`/`admin` get read
+- [x] `outlets` CRUD → `sales.outlet.{create,read,update,delete}` (resource under module `sales`)
+- [x] `routes` CRUD → `sales.route.{create,read,update,delete}`
+- [x] `outlet_routes` assign/remove → `sales.route.update`
+- [x] `route_assignments` assign/remove salesman+weekdays → `iam.user.update`
+- [x] `visits` check-in/check-out/list → `sales.visit.{create,read,update}`; salesman can write their own, managers/all
+- [x] Seed: add the new permission codes (bump seed version) + extend `salesman` role with `sales.outlet.*`, `sales.route.*`, `sales.visit.*`; `warehouse_manager`/`admin` get read
 
-**Acceptance:** salesman sees only their routes/outlets; check-in rejects off-route/unauthorized users; outlet create makes a usable customer party; every visit transition is audited.
+**Acceptance:** salesman sees only their routes/outlets; check-in rejects off-route/unauthorized users; outlet create makes a usable customer party; every visit transition is audited. — **Verified**: live smoke (`neos_dms_backend/smoke.js`) covers the full chain incl. RBAC 403s and duplicate/off-route negatives; 49 real-DB integration tests in `src/field/*.service.spec.ts` (harness: `src/testing/` — real Postgres on :5433, per-test transaction rollback).
 
 ## 10. Phase 5 — Inventory (quantity-based, no batches in MVP)
 

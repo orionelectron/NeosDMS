@@ -63,6 +63,18 @@ const PERMISSION_DEFS: readonly PermissionDef[] = [
     resource: 'invoice',
     actions: ['create', 'read', 'update', 'void'],
   },
+  { module: 'sales', resource: 'outlet', actions: CRUD_ACTIONS },
+  { module: 'sales', resource: 'route', actions: CRUD_ACTIONS },
+  {
+    module: 'sales',
+    resource: 'route_assignment',
+    actions: CRUD_ACTIONS,
+  },
+  {
+    module: 'sales',
+    resource: 'visit',
+    actions: ['create', 'read', 'update'],
+  },
   {
     module: 'purchase',
     resource: 'bill',
@@ -115,6 +127,9 @@ export const BASE_ROLES: readonly RoleDefinition[] = [
     name: 'Salesman',
     permissions: [
       'sales.invoice.*',
+      'sales.outlet.*',
+      'sales.route.*',
+      'sales.visit.*',
       'trading.item.read',
       'accounting.party.read',
       'reports.report.read',
@@ -128,7 +143,15 @@ export const BASE_ROLES: readonly RoleDefinition[] = [
   {
     code: 'warehouse_manager',
     name: 'Warehouse Manager',
-    permissions: ['inventory.*', 'trading.*', 'dispatch.dispatch.read'],
+    permissions: [
+      'inventory.*',
+      'trading.*',
+      'sales.outlet.read',
+      'sales.route.read',
+      'sales.route_assignment.*',
+      'sales.visit.read',
+      'dispatch.dispatch.read',
+    ],
   },
 ];
 

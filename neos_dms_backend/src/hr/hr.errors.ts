@@ -96,3 +96,79 @@ export class LeaveStatusTransitionException extends HttpException {
     super({ code: 'LEAVE_STATUS_TRANSITION', message }, HttpStatus.CONFLICT);
   }
 }
+
+export class InvalidBsRangeException extends HttpException {
+  constructor(message: string) {
+    super({ code: 'INVALID_BS_RANGE', message }, HttpStatus.BAD_REQUEST);
+  }
+}
+
+export class TravelRequestNotFoundException extends HttpException {
+  constructor() {
+    super(
+      { code: 'TRAVEL_REQUEST_NOT_FOUND', message: 'Travel request not found' },
+      HttpStatus.NOT_FOUND,
+    );
+  }
+}
+
+export class TravelStatusTransitionException extends HttpException {
+  constructor(message: string) {
+    super({ code: 'TRAVEL_STATUS_TRANSITION', message }, HttpStatus.CONFLICT);
+  }
+}
+
+export class TravelRequestMismatchException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'TRAVEL_REQUEST_MISMATCH',
+        message:
+          'The travel request does not belong to this user or organization',
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class ExpenseClaimNotFoundException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'EXPENSE_CLAIM_NOT_FOUND',
+        message: 'Expense claim not found',
+      },
+      HttpStatus.NOT_FOUND,
+    );
+  }
+}
+
+export class ExpenseClaimStatusTransitionException extends HttpException {
+  constructor(message: string) {
+    super(
+      { code: 'EXPENSE_CLAIM_STATUS_TRANSITION', message },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class ExpenseItemNotFoundException extends HttpException {
+  constructor() {
+    super(
+      { code: 'EXPENSE_ITEM_NOT_FOUND', message: 'Expense item not found' },
+      HttpStatus.NOT_FOUND,
+    );
+  }
+}
+
+export class InvalidExpenseAmountException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'INVALID_EXPENSE_AMOUNT',
+        message: 'Amount must be a positive number',
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}

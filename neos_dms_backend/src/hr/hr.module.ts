@@ -7,8 +7,13 @@ import { ApprovalEventEntity } from './entities/approval-event.entity';
 import { LeaveBalanceEntity } from './entities/leave-balance.entity';
 import { LeaveRequestEntity } from './entities/leave-request.entity';
 import { LeaveTypeEntity } from './entities/leave-type.entity';
+import { TravelExpenseClaimEntity } from './entities/travel-expense-claim.entity';
+import { TravelExpenseItemEntity } from './entities/travel-expense-item.entity';
+import { TravelRequestEntity } from './entities/travel-request.entity';
 import { LeaveController } from './leave.controller';
 import { LeaveService } from './leave.service';
+import { TravelController } from './travel.controller';
+import { TravelService } from './travel.service';
 
 @Module({
   imports: [
@@ -16,13 +21,16 @@ import { LeaveService } from './leave.service';
       LeaveTypeEntity,
       LeaveBalanceEntity,
       LeaveRequestEntity,
+      TravelRequestEntity,
+      TravelExpenseClaimEntity,
+      TravelExpenseItemEntity,
       ApprovalEventEntity,
       UserEntity,
     ]),
     AuditModule,
     NepaliDateModule,
   ],
-  controllers: [LeaveController],
-  providers: [LeaveService],
+  controllers: [LeaveController, TravelController],
+  providers: [LeaveService, TravelService],
 })
 export class HrModule {}

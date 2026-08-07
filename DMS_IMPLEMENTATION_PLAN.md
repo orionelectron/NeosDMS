@@ -44,6 +44,9 @@
 | 28 | HR approval hierarchy | **`users.manager_id` self-FK** | A manager is the requester's `manager_id`, verified in the service; the `manager` base role grants the permission. No org-chart table in MVP (§16) |
 | 29 | Leave balance model | **Annual BS-calendar-year grant** | `leave_balances` keyed by `bs_year` (Baisakh–Chaitra), not the statutory accounting FY; no monthly accrual, no holiday calendar in MVP. Approval consumes balance; reject/cancel never does (§16.2) |
 | 30 | Expense → accounting order | **Posting is Phase C3, last** | Approved travel expense claims post an expense journal (per-category COA expense accounts, credit employee AP/petty cash) via Phase 3 machinery, after the workflows exist (§16.4) |
+| 31 | Expense claim approval chain | **Manager approves, accountant pays** | Manager (claimant's `manager_id`) approves/rejects the claim (`hr.expense.approve`); the accountant performs the final review + reimbursement with `hr.expense.pay`, transitioning `APPROVED → PAID`. Both steps recorded in `approval_events` (§16.3) |
+| 32 | Travel request approval | **Manager-only, same hierarchy as leave** | Travel requests reuse `users.manager_id`; no multi-level chain. Only the expense claim gets the extra finance step (decision 31) (§16.3) |
+| 33 | Claim totals | **Always derived from items, never client-supplied** | `travel_expense_claims.total` is recomputed in-txn as the sum of item amounts on every item add/update/delete; at pay the accountant may adjust per-item `approved_amount`, and the total is re-derived (§16.3) |
 
 ## 3. Target Backend Structure
 
@@ -342,10 +345,10 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 - [x] Scoping: users see own leaves/balance; managers see their reportees; admin all
 
 ### 16.3 Travel (Phase C2 — next)
-- [ ] `travel_requests` — (org, user, purpose, from/to, BS dates, transport_mode, estimated_cost, status + approval)
-- [ ] `travel_expense_claims` — (org, user, optional `travel_request_id`, claim period BS, total, status `pending → approved/rejected → paid`)
-- [ ] `travel_expense_items` — line items (BS date, category `HOTEL|FOOD|FUEL|TRANSPORT|TOLL|MISC`, description, amount, approved_amount, receipt_key)
-- [ ] Approval: manager; claims additionally reviewed by `finance_manager`/`accountant` (`hr.expense.approve`)
+- [x] `travel_requests` — (org, user, purpose, from/to, BS dates, transport_mode, estimated_cost, status + approval)
+- [x] `travel_expense_claims` — (org, user, optional `travel_request_id`, claim period BS, total, status `pending → approved/rejected → paid`)
+- [x] `travel_expense_items` — line items (BS date, category `HOTEL|FOOD|FUEL|TRANSPORT|TOLL|MISC`, description, amount, approved_amount, receipt_key)
+- [x] Approval: manager; claims additionally reviewed by `finance_manager`/`accountant` (`hr.expense.approve` → `hr.expense.pay`)
 
 ### 16.4 Accounting tie-in (Phase C3 — after C2)
 - [ ] Approved claim posts expense journal (per-category expense accounts from COA, credit employee AP) in one transaction
@@ -407,6 +410,7 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 ### In Progress
 - [~] Phase 3 — Accounting engine (COA default for new orgs, fiscal years, posting engine) — implementation + DB verification done; reports foundation deferred to Phase 8; phase-3 review follow-ups applied (Shrawan FY basis + data-fix migration, journal source uniqueness index, minimal trial balance)
 - [x] **Phase 4 complete** — Trading masters per §8 — implemented + verified live (migration `1786090000000-TradingMasters.ts` applied; seeds v10 `trading-permissions-backfill` applied; smoke-tested UOM/brand/category/item/conversion CRUD, org-wide + per-item conversions, dup-code/self-uom/zero-factor rejection, warehouse_manager `trading.*` (20 perms) allowed, driver 403, seat-limit 403 at limit, soft-delete, audit rows; 213 tests green, lint/build clean). Also fixed pre-existing `IamModule` boot bug (`AuditService` duplicate provider without repo scope)
+- [x] **Phase C1 + C2 complete** — HR per §16: leave (types, annual BS-year balances, requests, manager approval via `users.manager_id`) and travel (requests, expense claims + line items, manager approve → accountant pay) — migrations `1786100000000-HrLeave.ts` + `1786200000000-HrTravel.ts` applied; seeds v12 `hr-permissions-backfill` + v13 `travel-permissions-backfill` applied (hr module, `manager` role, travel/expense codes); `daysBetweenBs` in `nepali-date`; approval_events CHECK extended with `PAID`; 358 tests green, lint/build clean (decisions 28–33)
 
 ### Next up
 - [x] **Phase 1 complete** (committed `3ffc3ac`, pushed to `main`): tenant + subscription per §5 — migration `1785913601535-TenantAndSubscription.ts` applied; seeds v1–3 (modules, billing periods, plans) applied; `SubscriptionService`/`PlanLimitService`/`@PlanLimit` interceptor; controllers (plans public, subscription, usage snapshot, history, payments/webhook); 76 tests green, lint/build clean; live smoke-tested trial + seat/periodic/feature limits

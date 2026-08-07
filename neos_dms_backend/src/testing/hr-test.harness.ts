@@ -7,7 +7,11 @@ import { ApprovalEventEntity } from '../hr/entities/approval-event.entity';
 import { LeaveBalanceEntity } from '../hr/entities/leave-balance.entity';
 import { LeaveRequestEntity } from '../hr/entities/leave-request.entity';
 import { LeaveTypeEntity } from '../hr/entities/leave-type.entity';
+import { TravelExpenseClaimEntity } from '../hr/entities/travel-expense-claim.entity';
+import { TravelExpenseItemEntity } from '../hr/entities/travel-expense-item.entity';
+import { TravelRequestEntity } from '../hr/entities/travel-request.entity';
 import { LeaveService } from '../hr/leave.service';
+import { TravelService } from '../hr/travel.service';
 import { UserEntity } from '../iam/entities/user.entity';
 import { NepaliDateConverter } from '../nepali-date/nepali-date-converter';
 import {
@@ -27,9 +31,9 @@ export {
   TEST_ORG_ID,
 };
 export type { TestTransaction };
-
 export const MANAGER_USER_ID = '55555555-5555-4555-8555-555555555555';
 export const TEAMMATE_USER_ID = '66666666-6666-4666-8666-666666666666';
+export const ACCOUNTANT_USER_ID = '77777777-7777-4777-8777-777777777777';
 
 /**
  * Baseline + the HR users: MANAGER_USER_ID is manager of both SALESMAN and
@@ -70,6 +74,20 @@ export async function seedHrBaseline(dataSource: DataSource): Promise<void> {
         lastLoginAt: null,
         managerId: MANAGER_USER_ID,
       },
+      {
+        id: ACCOUNTANT_USER_ID,
+        organizationId: TEST_ORG_ID,
+        branchId: TEST_BRANCH_ID,
+        roleId: null,
+        fullName: 'Accountant Guy',
+        username: null,
+        email: 'accountant@test.local',
+        passwordHash: 'not-a-real-hash',
+        isOwner: false,
+        isActive: true,
+        mustChangePassword: false,
+        lastLoginAt: null,
+      },
     ],
     ['id'],
   );
@@ -105,8 +123,12 @@ export async function createHrTestingModule(
       repo(LeaveTypeEntity),
       repo(LeaveBalanceEntity),
       repo(LeaveRequestEntity),
+      repo(TravelRequestEntity),
+      repo(TravelExpenseClaimEntity),
+      repo(TravelExpenseItemEntity),
       repo(ApprovalEventEntity),
       LeaveService,
+      TravelService,
     ],
   }).compile();
 }

@@ -111,6 +111,16 @@ const PERMISSION_DEFS: readonly PermissionDef[] = [
     resource: 'approval',
     actions: ['read'],
   },
+  {
+    module: 'hr',
+    resource: 'travel_request',
+    actions: ['create', 'read', 'update', 'approve'],
+  },
+  {
+    module: 'hr',
+    resource: 'expense',
+    actions: ['create', 'read', 'update', 'approve', 'pay'],
+  },
   { module: 'reports', resource: 'report', actions: ['read'] },
 ];
 
@@ -141,6 +151,9 @@ export const BASE_ROLES: readonly RoleDefinition[] = [
       'iam.audit-log.read',
       'sales.invoice.read',
       'purchase.bill.read',
+      'hr.expense.read',
+      'hr.expense.pay',
+      'hr.travel_request.read',
     ],
   },
   {
@@ -156,6 +169,10 @@ export const BASE_ROLES: readonly RoleDefinition[] = [
       'hr.leave.*',
       'hr.leave_balance.read',
       'hr.approval.read',
+      'hr.travel_request.*',
+      'hr.expense.create',
+      'hr.expense.read',
+      'hr.expense.update',
       'reports.report.read',
     ],
   },

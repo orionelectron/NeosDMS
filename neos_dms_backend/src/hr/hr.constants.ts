@@ -6,18 +6,57 @@ export const LEAVE_REQUEST_STATUS = [
 ] as const;
 export type LeaveRequestStatus = (typeof LEAVE_REQUEST_STATUS)[number];
 
+export const TRAVEL_REQUEST_STATUS = [
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+  'CANCELLED',
+] as const;
+export type TravelRequestStatus = (typeof TRAVEL_REQUEST_STATUS)[number];
+
+export const EXPENSE_CLAIM_STATUS = [
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+  'PAID',
+  'CANCELLED',
+] as const;
+export type ExpenseClaimStatus = (typeof EXPENSE_CLAIM_STATUS)[number];
+
+export const TRANSPORT_MODE = [
+  'AIR',
+  'BUS',
+  'TAXI',
+  'TRAIN',
+  'PRIVATE_CAR',
+  'OTHER',
+] as const;
+export type TransportMode = (typeof TRANSPORT_MODE)[number];
+
+export const EXPENSE_CATEGORY = [
+  'HOTEL',
+  'FOOD',
+  'FUEL',
+  'TRANSPORT',
+  'TOLL',
+  'MISC',
+] as const;
+export type ExpenseCategory = (typeof EXPENSE_CATEGORY)[number];
+
 export const APPROVAL_ACTION = [
   'SUBMIT',
   'APPROVE',
   'REJECT',
   'CANCEL',
   'UPDATE',
+  'PAID',
 ] as const;
 export type ApprovalAction = (typeof APPROVAL_ACTION)[number];
 
 export const APPROVAL_ENTITY_TYPE = [
   'leave_request',
   'travel_request',
+  'expense_claim',
 ] as const;
 export type ApprovalEntityType = (typeof APPROVAL_ENTITY_TYPE)[number];
 

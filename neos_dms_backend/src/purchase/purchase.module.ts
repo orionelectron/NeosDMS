@@ -21,6 +21,10 @@ import { PurchaseReturnLineEntity } from './entities/purchase-return-line.entity
 import { PurchaseReturnEntity } from './entities/purchase-return.entity';
 import { SupplierPaymentBillAllocationEntity } from './entities/supplier-payment-bill-allocation.entity';
 import { SupplierPaymentEntity } from './entities/supplier-payment.entity';
+import { ExpenseLineEntity } from './entities/expense-line.entity';
+import { ExpenseEntity } from './entities/expense.entity';
+import { ExpenseController } from './expense.controller';
+import { ExpenseService } from './expense.service';
 import { PurchaseBillController } from './purchase-bill.controller';
 import { PurchaseBillService } from './purchase-bill.service';
 import { PurchaseReceiptController } from './purchase-receipt.controller';
@@ -41,6 +45,8 @@ import { SupplierPaymentService } from './supplier-payment.service';
       PurchaseReturnLineEntity,
       SupplierPaymentEntity,
       SupplierPaymentBillAllocationEntity,
+      ExpenseEntity,
+      ExpenseLineEntity,
       PartyEntity,
       FiscalYearEntity,
       InventoryLocationEntity,
@@ -60,12 +66,14 @@ import { SupplierPaymentService } from './supplier-payment.service';
     PurchaseBillController,
     PurchaseReturnController,
     SupplierPaymentController,
+    ExpenseController,
   ],
   providers: [
     PurchaseReceiptService,
     PurchaseBillService,
     PurchaseReturnService,
     SupplierPaymentService,
+    ExpenseService,
     DocumentSequenceService,
   ],
 })

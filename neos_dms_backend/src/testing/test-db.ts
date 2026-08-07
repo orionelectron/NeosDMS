@@ -20,6 +20,7 @@ import { JournalEntrySourceUniqueness1786081000000 } from '../database/migration
 import { PurchaseReceipt1786800000000 } from '../database/migrations/1786800000000-PurchaseReceipt';
 import { SalesReturn1787300000000 } from '../database/migrations/1787300000000-SalesReturn';
 import { CustomerReceipt1787400000000 } from '../database/migrations/1787400000000-CustomerReceipt';
+import { Expense1787500000000 } from '../database/migrations/1787500000000-Expense';
 import { SupplierPayment1787200000000 } from '../database/migrations/1787200000000-SupplierPayment';
 import { TaxCodeUniqueness1786072881892 } from '../database/migrations/1786072881892-TaxCodeUniqueness';
 import { TenantAndSubscription1786033873511 } from '../database/migrations/1786033873511-tenant-and-subscription';
@@ -62,6 +63,7 @@ export const TEST_DB_OPTIONS: DataSourceOptions = {
     SupplierPayment1787200000000,
     SalesReturn1787300000000,
     CustomerReceipt1787400000000,
+    Expense1787500000000,
   ],
   synchronize: false,
   logging: false,

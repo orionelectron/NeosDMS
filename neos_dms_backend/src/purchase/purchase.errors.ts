@@ -749,3 +749,198 @@ export class SupplierPaymentAccountMissingException extends HttpException {
     );
   }
 }
+
+// ── Expenses (vouchers) ─────────────────────────────────────────────────────
+
+export class ExpenseNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'EXPENSE_NOT_FOUND',
+        message: `Expense voucher '${id}' not found`,
+      },
+      HttpStatus.NOT_FOUND,
+    );
+  }
+}
+
+export class ExpenseNotDraftException extends HttpException {
+  constructor(id: string, status: string, action: string) {
+    super(
+      {
+        code: 'EXPENSE_NOT_DRAFT',
+        message: `Cannot ${action} a ${status} expense voucher`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class ExpenseAccountMissingException extends HttpException {
+  constructor(purpose: string) {
+    super(
+      {
+        code: 'EXPENSE_ACCOUNT_MISSING',
+        message: `No active account resolves purpose '${purpose}'`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class ExpenseFiscalYearMissingException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'EXPENSE_FISCAL_YEAR_MISSING',
+        message: 'No active, open fiscal year covers the expense date',
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class ExpensePartyNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'EXPENSE_PARTY_NOT_FOUND',
+        message: `Party '${id}' not found or inactive`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class ExpenseModePartyRequiredException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'EXPENSE_MODE_PARTY_REQUIRED',
+        message: 'A partyId is required when the expense is paid on credit',
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class ExpensePaymentAccountMissingException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'EXPENSE_PAYMENT_ACCOUNT_MISSING',
+        message:
+          'A paymentAccountId is required when the expense is paid in cash',
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class ExpensePaymentAccountNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'EXPENSE_PAYMENT_ACCOUNT_NOT_FOUND',
+        message: `Payment account '${id}' not found or inactive`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class ExpensePaymentMethodNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'EXPENSE_PAYMENT_METHOD_NOT_FOUND',
+        message: `Payment method '${id}' not found or inactive`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class ExpensePaymentAccountTypeException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'EXPENSE_PAYMENT_ACCOUNT_TYPE',
+        message: `Payment account '${id}' must be an active non-group asset account`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class ExpenseAccountTypeException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'EXPENSE_ACCOUNT_TYPE',
+        message: `Expense account '${id}' must be an active non-group expense account`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class ExpenseLineIncompleteException extends HttpException {
+  constructor(index: number) {
+    super(
+      {
+        code: 'EXPENSE_LINE_INCOMPLETE',
+        message: `Expense line ${index + 1} needs an expenseAccountId and a description`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class ExpenseZeroQuantityException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'EXPENSE_ZERO_QUANTITY',
+        message: 'Each expense line needs a quantity greater than zero',
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class ExpenseZeroAmountException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'EXPENSE_ZERO_AMOUNT',
+        message: 'The expense must have a net amount greater than zero',
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class ExpenseTdsWithholdingException extends HttpException {
+  constructor(name: string) {
+    super(
+      {
+        code: 'EXPENSE_TDS_WITHHOLDING',
+        message: `Tax code '${name}' is a TDS withholding code; specify it via tdsTaxCodeId`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class ExpenseTdsCodeInvalidException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'EXPENSE_TDS_CODE_INVALID',
+        message: `TDS tax code '${id}' not found or not a TDS_WITHHOLDING code`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}

@@ -21,6 +21,7 @@ import { purchaseReceiptPermissionsSeed } from './purchase-receipt-permissions.s
 import { purchaseBillPermissionsSeed } from './purchase-bill-permissions.seed';
 import { purchaseReturnPermissionsSeed } from './purchase-return-permissions.seed';
 import { salesReturnReceiptPermissionsSeed } from './sales-return-receipt-permissions.seed';
+import { expensePermissionsSeed } from './expense-permissions.seed';
 
 /**
  * Seed registry — ordered by ascending `version`; each runs exactly once
@@ -42,6 +43,7 @@ import { salesReturnReceiptPermissionsSeed } from './sales-return-receipt-permis
  * 21:  Phase 7a — purchase bill permission backfill (purchase.bill.*).
  * 22:  Phase 7a — purchase return permission backfill (purchase.return.*).
  * 23:  Phase 6d — sales return + customer receipt permission backfill (sales.return.*, sales.receipt.*).
+ * 24:  Phase 7 — expense voucher permission backfill (purchase.expense.*).
  */
 export const SEEDS: readonly Seed[] = [
   modulesSeed,
@@ -66,4 +68,5 @@ export const SEEDS: readonly Seed[] = [
   purchaseBillPermissionsSeed,
   purchaseReturnPermissionsSeed,
   salesReturnReceiptPermissionsSeed,
+  expensePermissionsSeed,
 ];

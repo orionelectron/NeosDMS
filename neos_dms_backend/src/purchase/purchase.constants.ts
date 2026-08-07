@@ -46,6 +46,33 @@ export const SUPPLIER_PAYMENT_DOCUMENT_TYPE = 'supplier_payment';
 /** Payment voucher prefix — reserved at POST, drafts stay numberless. */
 export const SUPPLIER_PAYMENT_NUMBER_PREFIX = 'PMT-';
 
+export const EXPENSE_STATUSES = ['DRAFT', 'POSTED', 'CANCELLED'] as const;
+export type ExpenseStatus = (typeof EXPENSE_STATUSES)[number];
+
+/** Expense settlement modes — `CASH` (CR the payment account) or `CREDIT` (CR AP 2101 with the vendor party). */
+export const EXPENSE_MODES = ['CASH', 'CREDIT'] as const;
+export type ExpenseMode = (typeof EXPENSE_MODES)[number];
+
+/** document_sequences documentType used for expense voucher numbering. */
+export const EXPENSE_DOCUMENT_TYPE = 'expense';
+
+/** Expense voucher prefix — reserved at POST, drafts stay numberless. */
+export const EXPENSE_NUMBER_PREFIX = 'EXP-';
+
+/** Account purposes resolved at POST (mirror the purchase-bill journal). */
+export const EXPENSE_JOURNAL_PURPOSES = {
+  VAT_RECEIVABLE: 'vat_receivable',
+  ACCOUNT_PAYABLE: 'account_payable',
+  TDS_PAYABLE: 'tds_payable',
+} as const;
+
+export const EXPENSE_AUDIT_ACTIONS = {
+  CREATE: 'purchase.expense.create',
+  UPDATE: 'purchase.expense.update',
+  POST: 'purchase.expense.post',
+  VOID: 'purchase.expense.void',
+} as const;
+
 export const PURCHASE_AUDIT_ACTIONS = {
   RECEIPT_CREATE: 'purchase.receipt.create',
   RECEIPT_UPDATE: 'purchase.receipt.update',

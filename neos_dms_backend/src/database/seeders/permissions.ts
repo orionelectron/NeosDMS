@@ -92,6 +92,16 @@ const PERMISSION_DEFS: readonly PermissionDef[] = [
     actions: ['create', 'read', 'adjust'],
   },
   {
+    module: 'inventory',
+    resource: 'location',
+    actions: CRUD_ACTIONS,
+  },
+  {
+    module: 'inventory',
+    resource: 'balance',
+    actions: ['read'],
+  },
+  {
     module: 'dispatch',
     resource: 'dispatch',
     actions: ['create', 'read', 'update', 'complete'],
@@ -217,6 +227,9 @@ export const BASE_ROLES: readonly RoleDefinition[] = [
       'iam.user.read',
       'sales.*',
       'purchase.bill.read',
+      'inventory.location.read',
+      'inventory.transaction.read',
+      'inventory.balance.read',
     ],
   },
 ];

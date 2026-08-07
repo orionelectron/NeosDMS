@@ -49,6 +49,7 @@
 | 33 | Claim totals | **Always derived from items, never client-supplied** | `travel_expense_claims.total` is recomputed in-txn as the sum of item amounts on every item add/update/delete; at pay the accountant may adjust per-item `approved_amount`, and the total is re-derived (§16.3) |
 | 34 | Attendance model | **Single open record per user, BS-date reports** | `attendances` (org, user, `bs_date`, check-in/out times + optional GPS/remarks, `source DEVICE|MANUAL`, derived `duration_minutes`). One OPEN record per user enforced by a partial unique index; check-out optional and must be after check-in. Reports keyed by BS date; employee self-service, manager corrections via `hr.attendance.adjust` (service verifies the employee is a reportee) (§16.5) |
 | 35 | Sales targets | **Config now, achievement deferred to Phase 6** | `sales_targets` keyed to salesperson + BS month with `target_type PERSONAL|CATEGORY|BRAND`; category/brand are optional breakdown refs on top of the personal goal, uniqueness per (org, user, period, type, coalesced ref) via a functional unique index. Salesman read-only (`sales.target.read`); manager/admin create/adjust/delete (`sales.target.*`). Achievement % is not computed until sales invoice/order lines exist (Phase 6) and can be attributed to salesperson → category/brand (§9.4) |
+| 36 | Inventory MVP scope | **Quantity-only, GRN/invoice flows deferred** | `inventory_locations` (godown/van/shop), `inventory_transactions`(+lines) and `inventory_balances` with `transaction_type` restricted to `opening_stock | stock_adjustment | stock_transfer` for now — purchase-receipt/sales flows get wired when those phases land (engine accepts any `reference_type` later). No batches/FIFO (P1, `batch_tracking`). Unit cost stored per line, no stock valuation. Transfers are atomic source/dest moves; opening stock is once-per-item-and-location; balances never go negative unless `items.allow_negative_stock`; low-stock report (per item/location incl. unstocked reorder items) is read-only for `manager`/`warehouse_manager` (§10) |
 
 ## 3. Target Backend Structure
 
@@ -253,12 +254,16 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 
 ## 10. Phase 5 — Inventory (quantity-based, no batches in MVP)
 
-- [ ] `inventory_locations` (godown / van / shop), `inventory_transactions`(+lines) with `transaction_type` (`purchase_receipt`, `sales_invoice`, `sales_return`, `purchase_return`, `stock_adjustment`), `inventory_balances` (per location × item)
-- [ ] Stock moves inside the same DB transaction as the source document (GRN, invoice, return)
-- [ ] Balance constraint: selling/deleting below available stock rejected; balance never goes negative
-- [ ] `batch_tracking` feature flag gates future P1 batch columns (no schema churn now)
+> **Implemented (decision 36):** quantity-only MVP. `inventory_locations` (godown/van/shop), `inventory_transactions`(+lines) and `inventory_balances` land now; GRN/invoice wiring is deferred — the engine accepts any `reference_type` when purchase/sales phases land.
 
-**Acceptance:** every stock in/out is an `inventory_transaction`; balance is derived & consistent; negative stock impossible.
+- [x] `inventory_locations` (godown / van / shop, default per org), `inventory_transactions`(+lines) with `transaction_type` (`opening_stock | stock_adjustment | stock_transfer`), `inventory_balances` (per location × item, materialized with `FOR UPDATE` locking)
+- [x] Flows: **opening stock** (once per item × location), **stock adjustment** (IN default / OUT), **stock transfer** (atomic ±source/dest in one DB txn); all moves post a transaction number via `document_sequences` (`opening_stock`-scoped) and an audit row
+- [x] Balance constraint: OUT below available stock rejected unless `items.allow_negative_stock`; balances never go negative for normal items
+- [x] UOM conversion on moves: base-quantity derived through `uom_conversions` (org-wide then per-item, `NULLS LAST`); opening/transfer/adjust all convert to base UOM
+- [x] Low-stock report `GET /inventory/balances/low-stock` — per item × location where on-hand ≤ reorder (includes unstocked active reorder items at 0); read-only for `manager`/`warehouse_manager`; balances readable only by those roles (no salesman/driver read)
+- [x] `batch_tracking` feature flag gates future P1 batch columns (no schema churn now); unit cost per line, no stock valuation; purchase/sales-reference flows wired in Phases 6/7
+
+**Acceptance:** every stock in/out is an `inventory_transaction`; balance is derived & consistent; negative stock impossible except flagged items; low-stock report correct with parenthesized OR guard (SQL precedence fix in service).
 
 ## 11. Phase 6 — Sales & AR
 
@@ -431,6 +436,7 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 - [x] **Phase 4 complete** — Trading masters per §8 — implemented + verified live (migration `1786090000000-TradingMasters.ts` applied; seeds v10 `trading-permissions-backfill` applied; smoke-tested UOM/brand/category/item/conversion CRUD, org-wide + per-item conversions, dup-code/self-uom/zero-factor rejection, warehouse_manager `trading.*` (20 perms) allowed, driver 403, seat-limit 403 at limit, soft-delete, audit rows; 213 tests green, lint/build clean). Also fixed pre-existing `IamModule` boot bug (`AuditService` duplicate provider without repo scope)
 - [x] **Phase C1 + C2 complete** — HR per §16: leave (types, annual BS-year balances, requests, manager approval via `users.manager_id`), travel (requests, expense claims + line items, manager approve → accountant pay), and attendance (check-in/out with optional GPS, single-open-record rule, manager manual entry/adjust, BS daily + monthly reports) — migrations `1786100000000-HrLeave.ts` + `1786200000000-HrTravel.ts` + `1786300000000-HrAttendance.ts` applied; seeds v12 `hr-permissions-backfill`, v13 `travel-permissions-backfill`, v14/15 `attendance-permissions-backfill` applied (hr module, `manager` role, travel/expense/attendance codes; salesman excluded from `hr.attendance.adjust`); `daysBetweenBs` in `nepali-date`; approval_events CHECK extended with `PAID`; 377 tests green, lint/build clean (decisions 28–34)
 - [x] **Sales targets (decision 35)** — `sales_targets` (org, user, BS month, `target_type PERSONAL|CATEGORY|BRAND`, optional category/brand refs, amount, is_active) — migration `1786400000000-SalesTarget.ts` + seed v16 `sales-target-permissions-backfill` applied; RBAC `sales.target.{create,read,update,delete}` (salesman read-only, manager/admin full); team scoping via `manager_id`; monthly BS report grouping personal + categories + brands; 391 tests green (31 suites), lint/build clean; smoke-verified CRUD, duplicate 409, 403 on salesman create, report output
+- [x] **Inventory (decision 36)** — `inventory_locations`/`inventory_transactions`(+lines)/`inventory_balances` — migration `1786500000000-Inventory.ts` + seed v17 `inventory-permissions-backfill` applied (`inventory.location.{create,read,update,delete}`, `inventory.transaction.{create,adjust,read}`, `inventory.balance.read`; manager read-only, warehouse_manager full via `inventory.*` glob, salesman/driver excluded); opening stock (once per item/location), stock adjustment (IN/OUT with negative guard + `allow_negative_stock` escape), stock transfer (atomic ±source/dest), base-uom conversion (org-wide then per-item, `NULLS LAST`), low-stock report incl. unstocked reorder items (parenthesized OR guard fixes SQL-precedence leak of reorder-0 rows); 417 tests green (33 suites), lint/build clean; smoke-verified opening/adjust/transfer/negative-guard/409-insufficient/403-salesman; smoke data cleaned
 
 ### Next up
 - [x] **Phase 1 complete** (committed `3ffc3ac`, pushed to `main`): tenant + subscription per §5 — migration `1785913601535-TenantAndSubscription.ts` applied; seeds v1–3 (modules, billing periods, plans) applied; `SubscriptionService`/`PlanLimitService`/`@PlanLimit` interceptor; controllers (plans public, subscription, usage snapshot, history, payments/webhook); 76 tests green, lint/build clean; live smoke-tested trial + seat/periodic/feature limits
@@ -439,7 +445,7 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 - [x] **Phase 4 complete** — Trading masters per §8 — implemented + verified live (see In Progress above)
 - [ ] **DMS Phase A (new §9)** — Field sales: outlets, routes, outlet_routes, route_assignments, outlet_visits from `dms_routes_outlets_reference`; salesman-scoped reads; check-in/out with haversine distance + off-route flag; outlet create auto-provisions customer party. No dependency on inventory/orders — build immediately.
 - [ ] **DMS Phase B (new §12)** — Dispatch & delivery: vehicles, dispatches, dispatch_stops, pick/loading-sheet reads; per-stop deliver/partial/fail with POD; invoice finalization from delivered quantities; driver-scoped view.
-- [ ] **Phase 5+** — Inventory, Sales/AR, DMS Dispatch, Purchase/AP, Reports per plan order (§10–14)
+- [ ] **Phase 5+** — Sales/AR, DMS Dispatch, Purchase/AP, Reports per plan order (§11–14)
 
 ## 20. Reference Migration Inventory (for translation)
 

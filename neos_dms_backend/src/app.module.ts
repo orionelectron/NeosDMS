@@ -11,6 +11,7 @@ import { FieldModule } from './field/field.module';
 import { HealthModule } from './health/health.module';
 import { HrModule } from './hr/hr.module';
 import { IamModule } from './iam/iam.module';
+import { InventoryModule } from './inventory/inventory.module';
 import { NepaliDateModule } from './nepali-date/nepali-date.module';
 import { TenancyModule } from './tenancy/tenancy.module';
 import { TradingModule } from './trading/trading.module';
@@ -48,6 +49,7 @@ import { TradingModule } from './trading/trading.module';
     TradingModule,
     FieldModule,
     HrModule,
+    InventoryModule,
   ],
 })
 export class AppModule {}

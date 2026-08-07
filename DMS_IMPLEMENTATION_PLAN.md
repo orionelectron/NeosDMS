@@ -16,7 +16,7 @@
 |---|----------|--------|-------|
 | 1 | DB = PostgreSQL | Confirmed | Reference schema uses `jsonb`, partial unique indexes, CHECK constraints |
 | 2 | ORM = TypeORM (1.x) + `@nestjs/typeorm` | Confirmed | Decorator entities, supports PG constraints via `@Index({where})`, `@Check`, `jsonb` |
-| 3 | Feature focus order | **Revised** | Tenant+Subscription → IAM → Accounting engine → Trading → Inventory → Sales/AR → Purchase/AP → Reports (FMCG priority, see §8–12) |
+| 3 | Feature focus order | **Revised (DMS pivot)** | Tenant+Subscription → IAM → Accounting engine → Trading → **DMS field sales (routes/outlets/visits)** → Inventory → Sales/AR → **Dispatch & Delivery** → Purchase/AP → Reports (FMCG priority; see §9–14) |
 | 4 | `tsconfig` `baseUrl` | **Resolved: removed** | Deprecated; no imports rely on it (all relative paths) |
 | 5 | `noImplicitAny` | Current: `false` | Prefer keeping false for now; revisit per-file |
 | 6 | Migrations | Never `synchronize: true` in prod; `migration:generate` from entities, review, commit | |
@@ -32,9 +32,15 @@
 | 16 | Inventory | Batches/expiry = P1, **serials dropped** (electronics vertical); MVP tracks locations, transactions, balances | FMCG expiry is real but P1; serials not needed |
 | 17 | Trading masters | `variant_attributes` deferred to P1; FMCG SKUs stay simple (item + brand + category + UOM) | |
 | 18 | MVP includes | **Sales-return credit-note flow + expenses are in MVP** (damage/expiry returns and petty cash are daily FMCG); resolved the §3.1 cut-lines | |
-| 19 | Fiscal year basis | **Revised: Shrawan 1 (statutory)** | §7 originally said Baisakh 1 (BS calendar year) while §14 said Shrawan — a real contradiction. Resolved to Nepal's statutory IRD fiscal year: FY `2083/84` = 2026-07-17 → 2027-07-16, 12 periods Shrawan→Chaitra of `bsYear` then Baisakh→Ashadh of `bsYear+1`. `buildFiscalYearPlan` + provisioning updated; migration `FixFiscalYearShrawanBasis1786080000000` rebuilds existing orgs' FYs (label year parsed from the FY name, so it is deterministic and preserves FY ids/names) |
+| 19 | Fiscal year basis | **Revised: Shrawan 1 (statutory)** | §7 originally said Baisakh 1 (BS calendar year) while §16 said Shrawan — a real contradiction. Resolved to Nepal's statutory IRD fiscal year: FY `2083/84` = 2026-07-17 → 2027-07-16, 12 periods Shrawan→Chaitra of `bsYear` then Baisakh→Ashadh of `bsYear+1`. `buildFiscalYearPlan` + provisioning updated; migration `FixFiscalYearShrawanBasis1786080000000` rebuilds existing orgs' FYs (label year parsed from the FY name, so it is deterministic and preserves FY ids/names) |
 | 20 | Journal source idempotency | **Added** | Partial unique index `uq_journal_entries_source (organization_id, source_type, source_id) WHERE source_type IS NOT NULL AND source_id IS NOT NULL` (migration `JournalEntrySourceUniqueness1786081000000`) so a retried invoice/bill creation can never double-post its journal entry; the existing org+source index stays as the plain lookup index |
 | 21 | Trial balance in Phase 3 | **Added** | Minimal read-only `GET /trial-balance` (per-account opening/activity/closing + `balanced` flag over POSTED entries) landed now to validate the posting engine and surface journal_lines schema gaps cheaply; pretty GL/P&L reports remain Phase 8 |
+| 22 | DMS field-sales source | **Added** | Root file `dms_routes_outlets_reference` is the canonical source for the DMS field-sales layer: `outlets`, `routes`, `outlet_routes`, `route_assignments`, `outlet_visits`. These land as a dedicated DMS phase (§9) ahead of generic inventory/sales — they have no dependency on orders/invoices and are the DMS's differentiator |
+| 23 | Outlet vs Party | **Separate `outlets` table** | An outlet is the customer-facing (field-sales) view; `parties` (accounting) remains the financial record. `outlets.party_id` links to a customer `party` (created automatically on outlet create when not provided). Keeps field GPS/channel/category data off the accounting core |
+| 24 | DMS phase ordering | **Dispatch is order-fulfillment, not vehicle tracking** | Per spec's biggest recommendation: Orders → Allocation → Picking → Packing → Loading → Delivery → POD → Returns. Dispatch groups multiple allocated orders into one delivery run (vehicle + driver + stops); it is NOT live vehicle tracking. Live GPS tracking stays P1 |
+| 25 | Dispatch sequence | **`dispatch_number` via `document_sequences`** | Each dispatch run gets a gov-compliant sequential number (FY + branch scoped), reusing the Phase 3 document-sequence engine like invoices |
+| 26 | POD & offline-first design | **Field ops built offline-friendly from the start** | Check-in/out, delivery confirmation, POD (signature/photo/GPS/notes) are captured on-device first, synced later. Server accepts bulk/queued POSTs; `photo_key`/`photo_url` fields store references so photos can upload async. Live tracking deferred |
+| 27 | Visit geometry | **Haversine distance + `is_off_route`** | Check-in computes `distance_from_outlet_meters` via haversine; `is_off_route` flag when outside a configurable tolerance. Enables honest salesman performance later without live tracking |
 
 ## 3. Target Backend Structure
 
@@ -50,6 +56,8 @@ neos_dms_backend/src/
                      subscriptions, organization_usages, subscription_transactions, subscription_history
     iam/             users, roles, permissions, role_permission_mappings, audit_logs, auth
     trading/         items, item_categories, uoms, uom_conversions, brands
+    field/           outlets, routes, outlet_routes, route_assignments, outlet_visits (DMS §9)
+    dispatch/        vehicles, dispatches, dispatch_stops, dispatch_documents (DMS §12)
     inventory/       locations, inventory_transactions, inventory_balances
     sales/           sales_orders, sales_invoices, sales_returns, customer_receipts
     purchase/        purchase_orders, purchase_receipts (GRN), purchase_bills, purchase_returns,
@@ -73,6 +81,8 @@ Convention: each module = `*.module.ts`, `*.controller.ts`, `*.service.ts`, `ent
 - Subscription: `plans` (+`limits`), `billing_periods`, `price_matrices`, `subscriptions`, `organization_usages`, `subscription_transactions`, `subscription_history`
 - IAM: `roles`, `permissions`, `role_permission_mappings`, `users`, `audit_logs` + auth
 - Trading masters: `item_categories`, `uoms`, `brands`, `items`, `uom_conversions` (case↔piece is core FMCG)
+- **DMS field sales (new, §9):** `outlets`, `routes`, `outlet_routes`, `route_assignments`, `outlet_visits` (source: root `dms_routes_outlets_reference`)
+- **DMS dispatch (new, §12):** `vehicles`, `dispatches`, `dispatch_stops`, dispatch documents (pick list / loading sheet / POD) — order-fulfillment run, not live GPS
 - Inventory: `inventory_locations`, `inventory_transactions`, `inventory_balances` (quantity only)
 - Sales/AR: `sales_orders`(+lines), `sales_invoices`(+lines), `sales_returns`(+lines) credit-note flow, `customer_receipts`(+lines + invoice allocations)
 - Purchase/AP: `purchase_orders`(+lines), `purchase_receipts`/GRN(+lines), `purchase_bills`(+lines), `purchase_returns`(+lines), `supplier_payments`(+lines + bill allocations), `expenses`(+lines)
@@ -81,6 +91,7 @@ Convention: each module = `*.module.ts`, `*.controller.ts`, `*.service.ts`, `ent
 
 **P1 — quick follow-on (same fiscal cycle, out of MVP):**
 - `sales_quotations`(+lines), `inventory_batches`(+balances) for expiry, `variant_attributes`, `exchange_rates`, `attachments`, `transaction_tags`/`journal_entry_tags`, `cheques`, `landed_cost_*`, dedicated GRN merge, offline sync layer, dashboards
+- DMS P1: live GPS vehicle tracking, route optimization (TSP/visits), retailer mobile app push/SMS, salesman performance & incentive calc
 
 **Drop (not FMCG):**
 - `verticals`, `vertical_module_mappings` (already), `inventory_serials` (+ batch/serial junction tables — electronics), restro/pharma/retail features
@@ -196,7 +207,36 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 
 **Acceptance:** an item can be sold/invoiced in cases and stocked in pieces; conversions are unit-safe.
 
-## 9. Phase 5 — Inventory (quantity-based, no batches in MVP)
+## 9. DMS Phase A — Field Sales: Outlets, Routes & Visits
+
+> **Source:** root file `dms_routes_outlets_reference` (canonical column list). This is the DMS differentiator and has **no dependency** on inventory/orders — it can be built immediately on top of trading masters + IAM users + accounting parties.
+
+### 9.1 Tables (from `dms_routes_outlets_reference`)
+
+- [ ] `outlets` — org-scoped; `party_id` FK → `parties` (customer party, created in-txn when not provided); fields: `name`, `owner_name`, `email`, `phone`, `address`, `province`, `district`, `latitude`, `longitude`, `photo_key`, `description`, `channel` (`general_trade|modern_trade|horeca|institution`), `category`, `status` (`active|inactive`)
+- [ ] `routes` — org-scoped; `name`, `code` (unique per org), `description`, `province`, `district`, `status`
+- [ ] `outlet_routes` — junction (org, outlet_id, route_id); one outlet can sit on multiple routes, one route has many outlets
+- [ ] `route_assignments` — (org, user_id, route_id) a **salesman** (user) owns a route for a set of `weekdays[]` (e.g. `[1,3,5]`); partial unique to keep one active assignment per route
+- [ ] `outlet_visits` — (org, user_id, route_id, outlet_id); `visit_type` (`planned|unplanned`), `status` (`scheduled|checked_in|checked_out|completed|cancelled`), `checked_in_at`/`checked_out_at`, check-in/out lat/long, `distance_from_outlet_meters`, `is_off_route`, `remarks`, `photo_key`
+
+### 9.2 Key behaviors
+- [ ] Outlet create auto-provisions a customer `party` (same txn, `is_customer = true`) unless `party_id` supplied — single source of truth for receivables stays in accounting
+- [ ] Visit check-in validates: user is assigned to the route (`route_assignments`), outlet is on the route (`outlet_routes`); computes haversine `distance_from_outlet_meters` + `is_off_route` (> configurable tolerance, e.g. 200 m)
+- [ ] Check-out finalizes visit; visit completed on check-out; audit every check-in/check-out (`AuditService`)
+- [ ] Photo upload: store `photo_key` (S3/disk key) only; binary upload endpoint returns a key (P1 async upload)
+- [ ] `GET /outlets/mine` + `GET /routes/mine` — salesman sees only their assigned routes + outlets (RBAC-scoped reads)
+
+### 9.3 API + permissions
+- [ ] `outlets` CRUD → `sales.outlet.{create,read,update,delete}` (resource under module `sales`)
+- [ ] `routes` CRUD → `sales.route.{create,read,update,delete}`
+- [ ] `outlet_routes` assign/remove → `sales.route.update`
+- [ ] `route_assignments` assign/remove salesman+weekdays → `iam.user.update`
+- [ ] `visits` check-in/check-out/list → `sales.visit.{create,read,update}`; salesman can write their own, managers/all
+- [ ] Seed: add the new permission codes (bump seed version) + extend `salesman` role with `sales.outlet.*`, `sales.route.*`, `sales.visit.*`; `warehouse_manager`/`admin` get read
+
+**Acceptance:** salesman sees only their routes/outlets; check-in rejects off-route/unauthorized users; outlet create makes a usable customer party; every visit transition is audited.
+
+## 10. Phase 5 — Inventory (quantity-based, no batches in MVP)
 
 - [ ] `inventory_locations` (godown / van / shop), `inventory_transactions`(+lines) with `transaction_type` (`purchase_receipt`, `sales_invoice`, `sales_return`, `purchase_return`, `stock_adjustment`), `inventory_balances` (per location × item)
 - [ ] Stock moves inside the same DB transaction as the source document (GRN, invoice, return)
@@ -205,7 +245,7 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 
 **Acceptance:** every stock in/out is an `inventory_transaction`; balance is derived & consistent; negative stock impossible.
 
-## 10. Phase 6 — Sales & AR
+## 11. Phase 6 — Sales & AR
 
 - [ ] `sales_orders`(+lines) — order by SALESMAN, status flow (draft → confirmed → invoiced → completed / canceled)
 - [ ] `sales_invoices`(+lines) — creates journal entry (AR ↔ Sales Income + VAT) + stock out + doc sequence number, all in one transaction; `orders_per_month`/`invoices_per_month` limits consumed via `@PlanLimit`
@@ -215,7 +255,35 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 
 **Acceptance:** invoicing posts balanced journals, decrements stock, consumes invoice quota atomically; partial payments allocate correctly; invoice number unique per FY.
 
-## 11. Phase 7 — Purchase & AP
+## 12. DMS Phase B — Dispatch & Delivery (order fulfillment)
+
+> **Design (decision 24):** dispatch is the **orchestration layer** between sales and delivery — it fulfills **allocated orders**, it is not vehicle tracking. One dispatch = one delivery run (vehicle + driver) carrying several allocated orders as stops. Depends on Phase 5 (inventory) + Phase 6 (orders/invoices). Live GPS tracking deferred to P1.
+
+### 12.1 Tables
+
+- [ ] `vehicles` — org-scoped; `name`, `registration_number` (unique per org), `vehicle_type` (`van|truck|pickup|motorbike`), `capacity_weight_kg`, `capacity_volume_cbm`, `is_active`, `current_driver_id` (nullable FK → users, reassigned per dispatch)
+- [ ] `dispatches` — org-scoped; `dispatch_number` (via `document_sequences`, decision 25), `vehicle_id`, `driver_id`, `route_id` (nullable), `status` (`allocated → picking → packed → loaded → in_transit → delivered / cancelled`), `planned_departure_at`, `departed_at`, `completed_at`, `notes`
+- [ ] `dispatch_stops` — (dispatch_id, order_id) one stop per order; `stop_sequence`, `status` (`pending|delivered|partial|failed`), `delivered_at`, `failure_reason` (`customer_unavailable|rejected|wrong_address|damaged`), `pod_receiver_name`, `pod_signature_photo_key`, `pod_gps_latitude/longitude`, `pod_notes`
+- [ ] `dispatch_documents` — generated reads/PDFs: pick list, loading sheet, delivery challan, POD (P1: printable). MVP: computed endpoints (`GET /dispatches/:id/pick-list`, `/loading-sheet`)
+
+### 12.2 Lifecycle (state machine, no invalid jumps)
+- [ ] `allocate` orders to a dispatch (from confirmed orders, same route/area) → status `allocated`
+- [ ] `assign` vehicle + driver + planned departure
+- [ ] `pick`/`pack` — warehouse picks per pick-list; stock moves warehouse → vehicle location (inventory txns, same txn as Phase 5)
+- [ ] `depart` → `in_transit`; per stop: `deliver` (full/partial with actual quantities → drives invoice finalization), `fail` (reason)
+- [ ] `complete` → goods received (POD captured) → **invoice finalization** links dispatch stop actuals to the Phase 6 invoice (partial = partial invoice)
+- [ ] returns: over/short/damaged at delivery → `sales_returns` credit note flow (reuses Phase 6) + stock back in (Phase 5 txn)
+
+### 12.3 API + permissions
+- [ ] `vehicles` CRUD → `dispatch.vehicle.{create,read,update,delete}`
+- [ ] `dispatches` create/read/update + lifecycle transitions → `dispatch.dispatch.{create,read,update,complete}` (already in catalog)
+- [ ] `stops` deliver/fail → `dispatch.dispatch.update`
+- [ ] Driver role: `dispatch.dispatch.read/update` only (existing); warehouse_manager: full
+- [ ] Seed: bump version to add `dispatch.vehicle.*` + module row for `dispatch` already present (line ~110)
+
+**Acceptance:** allocated orders → one run with pick list + loading sheet; stock moves with the dispatch txn; per-stop partial/full/fail with POD; invoice finalizes from delivered quantities; driver sees only their dispatch; no invalid status jumps.
+
+## 13. Phase 7 — Purchase & AP
 
 - [ ] `purchase_orders`(+lines) — supplier PO, status flow
 - [ ] `purchase_receipts`(+lines) — GRN (merge reference `goods_received_notes`); stock in + `purchase_receipts_per_month` limit consumed
@@ -226,14 +294,14 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 
 **Acceptance:** GRN increases stock; bills post balanced journals; partial supplier payments allocate.
 
-## 12. Phase 8 — MVP Reports
+## 14. Phase 8 — MVP Reports
 
 - [ ] Sales report (by item / by party / by salesman / by branch, AD+BS date filters)
 - [ ] Stock report (on-hand + movement), AR aging, supplier/payable summary
 - [ ] Trial balance + P&L (from journal lines), fiscal-year scoped
 - [ ] Dashboard endpoints for subscription usage vs limits
 
-## 13. Post-MVP (P1) — tracked, not in current scope
+## 15. Post-MVP (P1) — tracked, not in current scope
 
 - [ ] `sales_quotations`(+lines)
 - [ ] `inventory_batches`(+balances) — expiry tracking (gate behind `batch_tracking` feature flag)
@@ -245,7 +313,7 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 - [ ] Reporting dashboards + Nepali calendar UX in frontend
 - [ ] Balance sheet report
 
-## 14. Nepal-Specific Requirements Mapping
+## 16. Nepal-Specific Requirements Mapping
 
 | Requirement | Where it lands |
 |---|---|
@@ -257,7 +325,7 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 | Full auditability | `audit_logs` + `AuditService` |
 | Offline-friendly | future sync layer |
 
-## 15. Risk Register
+## 17. Risk Register
 
 | Risk | Mitigation |
 |---|---|
@@ -273,12 +341,16 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 | New limit dimensions needed later | Limits live in `plans.limits` jsonb + one code enum; no schema change |
 | Module-gating assumptions leak back in | `modules` is a catalog only; no `plan_module_mappings`; guards reference `PlanLimitService` |
 | FMCG scope creep from reference schema | §3.1 P0/P1/Drop is the contract; any new table must be tagged P0 or moved to P1 |
-| Fiscal-year boundary ambiguity (Baisakh vs Shrawan) | **Resolved: statutory Shrawan 1 basis** (decision 19) — §7/§14 contradiction closed, `buildFiscalYearPlan` is the single source of truth, `FixFiscalYearShrawanBasis` data-fix applied; provisioning picks the current statutory FY (month-aware) |
+| Fiscal-year boundary ambiguity (Baisakh vs Shrawan) | **Resolved: statutory Shrawan 1 basis** (decision 19) — §7/§16 contradiction closed, `buildFiscalYearPlan` is the single source of truth, `FixFiscalYearShrawanBasis` data-fix applied; provisioning picks the current statutory FY (month-aware) |
 | Double-posting from retried document creation | Partial unique `uq_journal_entries_source (organization_id, source_type, source_id)` (decision 20); document services must stamp `source_type`/`source_id` when posting |
 | Cross-module txn coordination (invoice → stock → journal in one txn) | Phase 6/7 post inside one `EntityManager` transaction — `provisionAccounting`/`AuditService` already accept an injected manager; add DB integration tests for the orchestrated flows |
 | Posting-engine correctness until Phase 8 reports | Minimal Phase 3 trial balance (decision 21) returns a `balanced` flag so the engine is validated end-to-end now, not months later |
+| DMS scope creep (live GPS, vehicle maintenance, fuel) | Spec explicitly defers these (§12 note); P1 list in §15 is the boundary — no live-tracking tables in MVP |
+| Outlet/route data quality (dup outlets, bad GPS) | Unique names per org + validation; haversine off-route tolerance configurable; dedupe check on outlet create |
+| Dispatch status drift (invalid jumps, lost deliveries) | State machine per §12.2 with server-enforced transitions; every transition audited |
+| Photo/POD uploads blocking field ops offline | Store `photo_key` reference only; binary upload is async-capable (decision 26); field app queues and syncs later |
 
-## 16. Progress Tracker
+## 18. Progress Tracker
 
 **Legend:** `[x]` done & verified · `[~]` in progress · `[ ]` pending
 
@@ -301,9 +373,11 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 - [x] **Phase 2 complete** (committed + pushed): IAM + RBAC per §6 — migration `1786035687494-IamAndAuth.ts` applied; seeds v4–6 (IAM modules, 70 permission codes, base-role backfill) applied; DB-backed refresh sessions with rotation; `JwtAuthGuard` + `PermissionsGuard` + `@RequirePermission`/`@Public`; `AuditService` with dual AD/BS timestamps; one-org-per-user onboarding (owner = ADMIN, temp password → forced change); admin bypass via `SUPERUSER_ROLE_CODE`; `password_hash` excluded from API responses; 76 tests green, lint/build clean; live smoke-tested (see §6 acceptance)
 - [~] Phase 3 — Accounting engine (FMCG subset, NPR-only) per §7 — implemented + verified live (migration, seeds, backfill, tax uniqueness migration, 151 tests); reports foundation left for Phase 8
 - [x] **Phase 4 complete** — Trading masters per §8 — implemented + verified live (see In Progress above)
-- [ ] Phase 5+ — Inventory, Sales/AR, Purchase/AP, Reports per plan order
+- [ ] **DMS Phase A (new §9)** — Field sales: outlets, routes, outlet_routes, route_assignments, outlet_visits from `dms_routes_outlets_reference`; salesman-scoped reads; check-in/out with haversine distance + off-route flag; outlet create auto-provisions customer party. No dependency on inventory/orders — build immediately.
+- [ ] **DMS Phase B (new §12)** — Dispatch & delivery: vehicles, dispatches, dispatch_stops, pick/loading-sheet reads; per-stop deliver/partial/fail with POD; invoice finalization from delivered quantities; driver-scoped view.
+- [ ] **Phase 5+** — Inventory, Sales/AR, DMS Dispatch, Purchase/AP, Reports per plan order (§10–14)
 
-## 17. Reference Migration Inventory (for translation)
+## 19. Reference Migration Inventory (for translation)
 
 > **Applied simplifications:** single vertical (General Trade) — `verticals`/`vertical_module_mappings` dropped; `price_matrices` loses the vertical dimension; **`plan_module_mappings` dropped** (limits live in `plans.limits`); allocation chains collapsed to direct FKs (2 allocation tables kept); P1 items (`exchange_rates`, `attachments`, tags, `variant_attributes`, batches, `cheques`, `landed_cost_*`) and dropped items (`inventory_serials`) per §3.1.
 
@@ -316,3 +390,5 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 - **7_gt_inventory_extension.js** — inventory_locations, inventory_transactions (+lines), inventory_balances → P0; inventory_batches → P1; inventory_serials → dropped
 - **8_payment_schema.js** — customer_receipts (+lines + invoice allocations), supplier_payments (+lines + bill allocations) → P0; supplier_payment_expense_allocations → P1 (with expenses)
 - **8_payment_schema.js** — customer_receipts, supplier_payments (+lines + allocations), expense allocations
+
+> **DMS-specific (not in the 8 reference migrations):** root file `dms_routes_outlets_reference` → `outlets`, `routes`, `outlet_routes`, `route_assignments`, `outlet_visits` (§9). Dispatch/vehicles (§12) are new — `vehicles`, `dispatches`, `dispatch_stops`, with dispatch numbers via the Phase 3 `document_sequences` engine (decision 25).

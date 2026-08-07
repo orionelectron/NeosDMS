@@ -13,6 +13,7 @@ import { HrModule } from './hr/hr.module';
 import { IamModule } from './iam/iam.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { NepaliDateModule } from './nepali-date/nepali-date.module';
+import { PurchaseModule } from './purchase/purchase.module';
 import { SalesModule } from './sales/sales.module';
 import { TenancyModule } from './tenancy/tenancy.module';
 import { TradingModule } from './trading/trading.module';
@@ -52,6 +53,7 @@ import { TradingModule } from './trading/trading.module';
     HrModule,
     InventoryModule,
     SalesModule,
+    PurchaseModule,
   ],
 })
 export class AppModule {}

@@ -13,6 +13,7 @@ import { SalesTarget1786400000000 } from '../database/migrations/1786400000000-S
 import { TradingMasters1786090000000 } from '../database/migrations/1786090000000-TradingMasters';
 import { IamAndAuth1786035687494 } from '../database/migrations/1786035687494-IamAndAuth';
 import { JournalEntrySourceUniqueness1786081000000 } from '../database/migrations/1786081000000-JournalEntrySourceUniqueness';
+import { PurchaseReceipt1786800000000 } from '../database/migrations/1786800000000-PurchaseReceipt';
 import { TaxCodeUniqueness1786072881892 } from '../database/migrations/1786072881892-TaxCodeUniqueness';
 import { TenantAndSubscription1786033873511 } from '../database/migrations/1786033873511-tenant-and-subscription';
 
@@ -46,6 +47,7 @@ export const TEST_DB_OPTIONS: DataSourceOptions = {
     Inventory1786500000000,
     SalesOrder1786600000000,
     SalesInvoice1786700000000,
+    PurchaseReceipt1786800000000,
   ],
   synchronize: false,
   logging: false,

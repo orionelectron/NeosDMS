@@ -6,12 +6,13 @@ export const INVENTORY_LOCATION_TYPES = [
 ] as const;
 export type InventoryLocationType = (typeof INVENTORY_LOCATION_TYPES)[number];
 
-/** Movement types. sales_invoice (OUT) is wired by the Phase 6b migration; purchase/sales return flows extend this when those phases land. */
+/** Movement types. sales_invoice (OUT) wired by Phase 6b; purchase_receipt (IN) wired by Phase 7a (GRN); purchase/sales return flows extend this when those phases land. */
 export const INVENTORY_TXN_TYPES = [
   'opening_stock',
   'stock_adjustment',
   'stock_transfer',
   'sales_invoice',
+  'purchase_receipt',
 ] as const;
 export type InventoryTransactionType = (typeof INVENTORY_TXN_TYPES)[number];
 

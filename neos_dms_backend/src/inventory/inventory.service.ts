@@ -356,6 +356,78 @@ export class InventoryService {
     return txn;
   }
 
+  /**
+   * Manager-scoped stock receipt for a posted goods receipt note (GRN). Runs
+   * inside the receipt's own transaction so the document number and stock
+   * commit atomically. Adds `baseQuantity` base units to the location.
+   * Quantity-only — inventory value/avg_cost is never touched here (decision
+   * 42); `unitCost` seeds the later purchase bill.
+   */
+  async receiveForPurchaseReceipt(
+    manager: EntityManager,
+    organizationId: string,
+    input: {
+      locationId: string;
+      receiptId: string;
+      notes: string | null;
+      lines: Array<{
+        itemId: string;
+        uomId: string;
+        baseQuantity: number;
+        unitCost: number;
+      }>;
+    },
+    actorId: string,
+  ): Promise<InventoryTransactionEntity> {
+    await this.requireLocation(manager, organizationId, input.locationId);
+
+    const prepared = await Promise.all(
+      input.lines.map(async (line) => {
+        if (line.baseQuantity <= 0) throw new InventoryZeroQuantityException();
+        const item = await this.requireTrackedItem(
+          manager,
+          organizationId,
+          line.itemId,
+        );
+        return { line, item };
+      }),
+    );
+
+    const txn = await this.saveTransaction(
+      manager,
+      organizationId,
+      {
+        locationId: input.locationId,
+        toLocationId: null,
+        type: 'purchase_receipt',
+        notes: input.notes,
+        referenceType: 'purchase_receipt',
+        referenceId: input.receiptId,
+      },
+      prepared.map(({ line, item }) => ({
+        itemId: item.id,
+        uomId: line.uomId,
+        direction: 'IN',
+        quantity: line.baseQuantity,
+        unitCost: line.unitCost,
+      })),
+      actorId,
+    );
+
+    for (const { line, item } of prepared) {
+      await this.applyDelta(
+        manager,
+        organizationId,
+        input.locationId,
+        item.id,
+        line.baseQuantity,
+        item.allowNegativeStock,
+      );
+    }
+
+    return txn;
+  }
+
   async listTransactions(
     organizationId: string,
     query: InventoryTransactionQueryDto,
@@ -630,7 +702,8 @@ export class InventoryService {
         | 'opening_stock'
         | 'stock_adjustment'
         | 'stock_transfer'
-        | 'sales_invoice';
+        | 'sales_invoice'
+        | 'purchase_receipt';
       notes: string | null;
       referenceType?: string | null;
       referenceId?: string | null;

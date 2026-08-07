@@ -71,6 +71,7 @@ export const DOCUMENT_TYPES = {
   CUSTOMER_RECEIPT: 'customer_receipt',
   PURCHASE_BILL: 'purchase_bill',
   PURCHASE_RETURN: 'purchase_return',
+  PURCHASE_RECEIPT: 'purchase_receipt',
   SUPPLIER_PAYMENT: 'supplier_payment',
   EXPENSE: 'expense',
   JOURNAL_ENTRY: 'journal_entry',

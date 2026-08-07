@@ -53,6 +53,20 @@ export const APPROVAL_ACTION = [
 ] as const;
 export type ApprovalAction = (typeof APPROVAL_ACTION)[number];
 
+export const ATTENDANCE_STATUS = ['OPEN', 'CLOSED'] as const;
+export type AttendanceStatus = (typeof ATTENDANCE_STATUS)[number];
+
+export const ATTENDANCE_SOURCE = ['DEVICE', 'MANUAL'] as const;
+export type AttendanceSource = (typeof ATTENDANCE_SOURCE)[number];
+
+export const ATTENDANCE_AUDIT_ACTION = [
+  'hr.attendance.checkin',
+  'hr.attendance.checkout',
+  'hr.attendance.manual',
+  'hr.attendance.adjust',
+] as const;
+export type AttendanceAuditAction = (typeof ATTENDANCE_AUDIT_ACTION)[number];
+
 export const APPROVAL_ENTITY_TYPE = [
   'leave_request',
   'travel_request',

@@ -47,6 +47,7 @@
 | 31 | Expense claim approval chain | **Manager approves, accountant pays** | Manager (claimant's `manager_id`) approves/rejects the claim (`hr.expense.approve`); the accountant performs the final review + reimbursement with `hr.expense.pay`, transitioning `APPROVED → PAID`. Both steps recorded in `approval_events` (§16.3) |
 | 32 | Travel request approval | **Manager-only, same hierarchy as leave** | Travel requests reuse `users.manager_id`; no multi-level chain. Only the expense claim gets the extra finance step (decision 31) (§16.3) |
 | 33 | Claim totals | **Always derived from items, never client-supplied** | `travel_expense_claims.total` is recomputed in-txn as the sum of item amounts on every item add/update/delete; at pay the accountant may adjust per-item `approved_amount`, and the total is re-derived (§16.3) |
+| 34 | Attendance model | **Single open record per user, BS-date reports** | `attendances` (org, user, `bs_date`, check-in/out times + optional GPS/remarks, `source DEVICE|MANUAL`, derived `duration_minutes`). One OPEN record per user enforced by a partial unique index; check-out optional and must be after check-in. Reports keyed by BS date; employee self-service, manager corrections via `hr.attendance.adjust` (service verifies the employee is a reportee) (§16.5) |
 
 ## 3. Target Backend Structure
 
@@ -354,6 +355,16 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 - [ ] Approved claim posts expense journal (per-category expense accounts from COA, credit employee AP) in one transaction
 - [ ] `paid` transition marks reimbursement; expense report endpoints (by user / period / category)
 
+### 16.5 Attendance (Phase C2)
+- [x] `attendances` — (org, user, `bs_date`, check-in at/remarks/GPS, optional check-out at/remarks/GPS, `status OPEN|CLOSED`, `source DEVICE|MANUAL`, `duration_minutes` derived on check-out)
+- [x] Self-service check-in/out (`hr.attendance.create/update`); one OPEN record per user (partial unique index `uq_attendances_open_per_user`); check-out must be after check-in
+- [x] Manager corrections: manual entry + adjust (`hr.attendance.adjust`) — service verifies the employee is a reportee via `users.manager_id`; owner may adjust their own record
+- [x] Scoping: employees see own records/reports; managers see reportees; `hr.attendance.adjust` guards the org-wide list
+- [x] Reports: daily (BS date) + monthly (BS year/month — present days, total/avg minutes, absences vs month length)
+- [x] RBAC: salesman gets `create/read/update` (no `adjust`), manager/admin `hr.*`; every action audited
+
+**Acceptance:** employee checks in/out with optional GPS; a second check-in while open is rejected (409); checkout is optional and never before check-in; manager can record/adjust a reportee's day; daily and monthly BS reports are correct; employee cannot read org-wide attendance.
+
 **Acceptance:** salesman applies for leave and sees balance before submitting; manager approves/rejects with notes; balance can never go negative; no overlapping approved leaves; every transition audited; manager sees only their team.
 
 ## 17. Nepal-Specific Requirements Mapping
@@ -410,7 +421,7 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 ### In Progress
 - [~] Phase 3 — Accounting engine (COA default for new orgs, fiscal years, posting engine) — implementation + DB verification done; reports foundation deferred to Phase 8; phase-3 review follow-ups applied (Shrawan FY basis + data-fix migration, journal source uniqueness index, minimal trial balance)
 - [x] **Phase 4 complete** — Trading masters per §8 — implemented + verified live (migration `1786090000000-TradingMasters.ts` applied; seeds v10 `trading-permissions-backfill` applied; smoke-tested UOM/brand/category/item/conversion CRUD, org-wide + per-item conversions, dup-code/self-uom/zero-factor rejection, warehouse_manager `trading.*` (20 perms) allowed, driver 403, seat-limit 403 at limit, soft-delete, audit rows; 213 tests green, lint/build clean). Also fixed pre-existing `IamModule` boot bug (`AuditService` duplicate provider without repo scope)
-- [x] **Phase C1 + C2 complete** — HR per §16: leave (types, annual BS-year balances, requests, manager approval via `users.manager_id`) and travel (requests, expense claims + line items, manager approve → accountant pay) — migrations `1786100000000-HrLeave.ts` + `1786200000000-HrTravel.ts` applied; seeds v12 `hr-permissions-backfill` + v13 `travel-permissions-backfill` applied (hr module, `manager` role, travel/expense codes); `daysBetweenBs` in `nepali-date`; approval_events CHECK extended with `PAID`; 358 tests green, lint/build clean (decisions 28–33)
+- [x] **Phase C1 + C2 complete** — HR per §16: leave (types, annual BS-year balances, requests, manager approval via `users.manager_id`), travel (requests, expense claims + line items, manager approve → accountant pay), and attendance (check-in/out with optional GPS, single-open-record rule, manager manual entry/adjust, BS daily + monthly reports) — migrations `1786100000000-HrLeave.ts` + `1786200000000-HrTravel.ts` + `1786300000000-HrAttendance.ts` applied; seeds v12 `hr-permissions-backfill`, v13 `travel-permissions-backfill`, v14/15 `attendance-permissions-backfill` applied (hr module, `manager` role, travel/expense/attendance codes; salesman excluded from `hr.attendance.adjust`); `daysBetweenBs` in `nepali-date`; approval_events CHECK extended with `PAID`; 377 tests green, lint/build clean (decisions 28–34)
 
 ### Next up
 - [x] **Phase 1 complete** (committed `3ffc3ac`, pushed to `main`): tenant + subscription per §5 — migration `1785913601535-TenantAndSubscription.ts` applied; seeds v1–3 (modules, billing periods, plans) applied; `SubscriptionService`/`PlanLimitService`/`@PlanLimit` interceptor; controllers (plans public, subscription, usage snapshot, history, payments/webhook); 76 tests green, lint/build clean; live smoke-tested trial + seat/periodic/feature limits

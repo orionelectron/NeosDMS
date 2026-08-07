@@ -4,12 +4,14 @@ import { DataSource } from 'typeorm';
 import { AuditLogEntity } from '../audit/audit-log.entity';
 import { AuditService } from '../audit/audit.service';
 import { ApprovalEventEntity } from '../hr/entities/approval-event.entity';
+import { AttendanceEntity } from '../hr/entities/attendance.entity';
 import { LeaveBalanceEntity } from '../hr/entities/leave-balance.entity';
 import { LeaveRequestEntity } from '../hr/entities/leave-request.entity';
 import { LeaveTypeEntity } from '../hr/entities/leave-type.entity';
 import { TravelExpenseClaimEntity } from '../hr/entities/travel-expense-claim.entity';
 import { TravelExpenseItemEntity } from '../hr/entities/travel-expense-item.entity';
 import { TravelRequestEntity } from '../hr/entities/travel-request.entity';
+import { AttendanceService } from '../hr/attendance.service';
 import { LeaveService } from '../hr/leave.service';
 import { TravelService } from '../hr/travel.service';
 import { UserEntity } from '../iam/entities/user.entity';
@@ -127,8 +129,10 @@ export async function createHrTestingModule(
       repo(TravelExpenseClaimEntity),
       repo(TravelExpenseItemEntity),
       repo(ApprovalEventEntity),
+      repo(AttendanceEntity),
       LeaveService,
       TravelService,
+      AttendanceService,
     ],
   }).compile();
 }

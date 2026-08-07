@@ -172,3 +172,90 @@ export class InvalidExpenseAmountException extends HttpException {
     );
   }
 }
+
+export class AttendanceNotFoundException extends HttpException {
+  constructor() {
+    super(
+      { code: 'ATTENDANCE_NOT_FOUND', message: 'Attendance record not found' },
+      HttpStatus.NOT_FOUND,
+    );
+  }
+}
+
+export class AttendanceOpenRecordConflictException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'ATTENDANCE_OPEN_RECORD_CONFLICT',
+        message: 'You already have an open attendance record — check out first',
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class AttendanceNoOpenRecordException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'ATTENDANCE_NO_OPEN_RECORD',
+        message: 'No open attendance record found to check out',
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class AttendanceAlreadyClosedException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'ATTENDANCE_ALREADY_CLOSED',
+        message: 'This attendance record is already checked out',
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class AttendanceInvalidCheckoutException extends HttpException {
+  constructor(message: string) {
+    super(
+      { code: 'ATTENDANCE_INVALID_CHECKOUT', message },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class AttendanceInvalidLocationException extends HttpException {
+  constructor(message: string) {
+    super(
+      { code: 'ATTENDANCE_INVALID_LOCATION', message },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class AttendanceNotOwnedException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'ATTENDANCE_NOT_OWNED',
+        message: 'Attendance records can only be checked out by their owner',
+      },
+      HttpStatus.FORBIDDEN,
+    );
+  }
+}
+
+export class AttendanceNotReporteeException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'ATTENDANCE_NOT_REPORTEE',
+        message: 'Only a manager of the employee can add or adjust this record',
+      },
+      HttpStatus.FORBIDDEN,
+    );
+  }
+}

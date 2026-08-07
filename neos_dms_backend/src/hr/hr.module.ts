@@ -4,12 +4,15 @@ import { AuditModule } from '../audit/audit.module';
 import { UserEntity } from '../iam/entities/user.entity';
 import { NepaliDateModule } from '../nepali-date/nepali-date.module';
 import { ApprovalEventEntity } from './entities/approval-event.entity';
+import { AttendanceEntity } from './entities/attendance.entity';
 import { LeaveBalanceEntity } from './entities/leave-balance.entity';
 import { LeaveRequestEntity } from './entities/leave-request.entity';
 import { LeaveTypeEntity } from './entities/leave-type.entity';
 import { TravelExpenseClaimEntity } from './entities/travel-expense-claim.entity';
 import { TravelExpenseItemEntity } from './entities/travel-expense-item.entity';
 import { TravelRequestEntity } from './entities/travel-request.entity';
+import { AttendanceController } from './attendance.controller';
+import { AttendanceService } from './attendance.service';
 import { LeaveController } from './leave.controller';
 import { LeaveService } from './leave.service';
 import { TravelController } from './travel.controller';
@@ -25,12 +28,13 @@ import { TravelService } from './travel.service';
       TravelExpenseClaimEntity,
       TravelExpenseItemEntity,
       ApprovalEventEntity,
+      AttendanceEntity,
       UserEntity,
     ]),
     AuditModule,
     NepaliDateModule,
   ],
-  controllers: [LeaveController, TravelController],
-  providers: [LeaveService, TravelService],
+  controllers: [AttendanceController, LeaveController, TravelController],
+  providers: [AttendanceService, LeaveService, TravelService],
 })
 export class HrModule {}

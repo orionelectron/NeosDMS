@@ -121,6 +121,11 @@ const PERMISSION_DEFS: readonly PermissionDef[] = [
     resource: 'expense',
     actions: ['create', 'read', 'update', 'approve', 'pay'],
   },
+  {
+    module: 'hr',
+    resource: 'attendance',
+    actions: ['create', 'read', 'update', 'adjust'],
+  },
   { module: 'reports', resource: 'report', actions: ['read'] },
 ];
 
@@ -173,6 +178,9 @@ export const BASE_ROLES: readonly RoleDefinition[] = [
       'hr.expense.create',
       'hr.expense.read',
       'hr.expense.update',
+      'hr.attendance.create',
+      'hr.attendance.read',
+      'hr.attendance.update',
       'reports.report.read',
     ],
   },

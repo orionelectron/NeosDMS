@@ -132,4 +132,14 @@ export class SalesInvoiceLineEntity extends BaseEntity {
   /** Final billed line amount including tax. */
   @Column({ name: 'line_total', type: 'decimal', precision: 15, scale: 2 })
   lineTotal: string;
+
+  /** Moving-average unit cost snapshotted at POST (decision 42) — COGS basis. */
+  @Column({
+    name: 'cogs_unit_cost',
+    type: 'decimal',
+    precision: 15,
+    scale: 2,
+    default: 0,
+  })
+  cogsUnitCost: string;
 }

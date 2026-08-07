@@ -378,7 +378,33 @@ export class SalesInvoiceService {
       const dueDate = new Date(today);
       dueDate.setDate(dueDate.getDate() + dueDays);
 
-      const journal = await this.journalFor(manager, organizationId, invoice);
+      const lines = await manager.getRepository(SalesInvoiceLineEntity).find({
+        where: { invoiceId: invoice.id },
+        order: { lineNo: 'ASC' },
+      });
+
+      const costSnapshots = await this.inventoryService.averageCostForOut(
+        manager,
+        organizationId,
+        dto.inventoryLocationId,
+        lines.map((line) => ({
+          itemId: line.itemId,
+          baseQuantity: Number(line.baseQuantity),
+        })),
+      );
+      const avgCostByItem = new Map(
+        costSnapshots.map((snapshot) => [snapshot.itemId, snapshot.avgCost]),
+      );
+      const cogsTotal = ROUND2(
+        costSnapshots.reduce((sum, snapshot) => sum + snapshot.value, 0),
+      );
+
+      const journal = await this.journalFor(
+        manager,
+        organizationId,
+        invoice,
+        cogsTotal,
+      );
       const journalBranchId =
         invoice.branchId ??
         order.branchId ??
@@ -401,12 +427,6 @@ export class SalesInvoiceService {
         actor.id,
       );
 
-      const lines = await manager.getRepository(SalesInvoiceLineEntity).find({
-        where: { invoiceId: invoice.id },
-        relations: { sourceOrderLine: { item: true } },
-        order: { lineNo: 'ASC' },
-      });
-
       const inventoryTxn = await this.inventoryService.issueForSalesInvoice(
         manager,
         organizationId,
@@ -418,11 +438,17 @@ export class SalesInvoiceService {
             itemId: line.itemId,
             uomId: line.uomId,
             baseQuantity: Number(line.baseQuantity),
-            unitCost: Number(line.sourceOrderLine?.item?.standardCost ?? 0),
+            unitCost: avgCostByItem.get(line.itemId) ?? 0,
           })),
         },
         actor.id,
       );
+
+      const invoiceLineRepo = manager.getRepository(SalesInvoiceLineEntity);
+      for (const line of lines) {
+        line.cogsUnitCost = (avgCostByItem.get(line.itemId) ?? 0).toFixed(2);
+        await invoiceLineRepo.save(line);
+      }
 
       const orderLineRepo = manager.getRepository(SalesOrderLineEntity);
       const lockedLines = await this.lockOrderLines(
@@ -804,6 +830,7 @@ export class SalesInvoiceService {
     manager: EntityManager,
     organizationId: string,
     invoice: SalesInvoiceEntity,
+    cogsTotal: number,
   ): Promise<
     Array<{
       accountId: string;
@@ -871,6 +898,30 @@ export class SalesInvoiceService {
         credit: taxTotal,
         description: 'Output VAT',
       });
+    }
+    if (cogsTotal > 0) {
+      const cogs = await this.requirePurposeAccount(
+        manager,
+        organizationId,
+        'COST_OF_GOODS_SOLD',
+      );
+      const inventory = await this.requirePurposeAccount(
+        manager,
+        organizationId,
+        'INVENTORY',
+      );
+      lines.push(
+        {
+          accountId: cogs.id,
+          debit: cogsTotal,
+          description: 'Cost of goods sold',
+        },
+        {
+          accountId: inventory.id,
+          credit: cogsTotal,
+          description: 'Inventory out',
+        },
+      );
     }
     return lines;
   }

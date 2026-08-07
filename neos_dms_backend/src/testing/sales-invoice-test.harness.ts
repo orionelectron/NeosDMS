@@ -86,6 +86,8 @@ export const EXEMPT_TAX_CODE_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeee12';
 export const TEST_PLAN_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeee13';
 export const TEST_BILLING_PERIOD_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeee14';
 export const TEST_SUBSCRIPTION_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeee15';
+export const COGS_ACCOUNT_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeee16';
+export const INVENTORY_ACCOUNT_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeee17';
 
 /**
  * Seeds the org-scoped accounting/subscription/tax rows the invoice POST path
@@ -201,6 +203,38 @@ export async function seedSalesInvoiceBaseline(
         level: 3,
         path: '2000/2100/2102',
       },
+      {
+        id: INVENTORY_ACCOUNT_ID,
+        organizationId: TEST_ORG_ID,
+        parentAccountId: null,
+        name: 'Inventory',
+        code: '1104',
+        coaType: 'ASSET',
+        isGroup: false,
+        branchId: null,
+        isSystemAccount: true,
+        systemPurpose: 'INVENTORY',
+        isLocked: true,
+        isActive: true,
+        level: 3,
+        path: '1000/1100/1104',
+      },
+      {
+        id: COGS_ACCOUNT_ID,
+        organizationId: TEST_ORG_ID,
+        parentAccountId: null,
+        name: 'Cost of Goods Sold',
+        code: '5101',
+        coaType: 'EXPENSE',
+        isGroup: false,
+        branchId: null,
+        isSystemAccount: true,
+        systemPurpose: 'COST_OF_GOODS_SOLD',
+        isLocked: true,
+        isActive: true,
+        level: 3,
+        path: '5000/5101',
+      },
     ],
     ['id'],
   );
@@ -301,6 +335,7 @@ export async function seedStockAtLocation(
   itemId: string,
   quantity: number,
   locationId: string = TEST_LOCATION_ID,
+  avgCost: number = 0,
 ): Promise<void> {
   const repo = dataSource.manager.getRepository(InventoryBalanceEntity);
   const existing = await repo.findOne({
@@ -308,6 +343,7 @@ export async function seedStockAtLocation(
   });
   if (existing) {
     existing.quantity = quantity.toFixed(3);
+    existing.avgCost = avgCost.toFixed(2);
     await repo.save(existing);
   } else {
     await repo.save(
@@ -316,6 +352,7 @@ export async function seedStockAtLocation(
         locationId,
         itemId,
         quantity: quantity.toFixed(3),
+        avgCost: avgCost.toFixed(2),
       }),
     );
   }

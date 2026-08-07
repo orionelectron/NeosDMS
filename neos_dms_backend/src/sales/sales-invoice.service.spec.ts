@@ -3,6 +3,7 @@ import { JournalEntryEntity } from '../accounting/entities/journal-entry.entity'
 import { PartyEntity } from '../accounting/entities/party.entity';
 import { InventoryBalanceEntity } from '../inventory/entities/inventory-balance.entity';
 import { InventoryTransactionEntity } from '../inventory/entities/inventory-transaction.entity';
+import { SalesInvoiceLineEntity } from './entities/sales-invoice-line.entity';
 import { SalesOrderLineEntity } from './entities/sales-order-line.entity';
 import { SalesOrderService } from './sales-order.service';
 import { SalesInvoiceService } from './sales-invoice.service';
@@ -10,12 +11,14 @@ import {
   AR_ACCOUNT_ID,
   BASE_UOM_ID,
   beginTestTransaction,
+  COGS_ACCOUNT_ID,
   CUSTOMER_PARTY_ID,
   createSalesInvoiceTestingModule,
   DISCOUNT_ACCOUNT_ID,
   endTestTransaction,
   FISCAL_YEAR_ID,
   GOODS_ITEM_ID,
+  INVENTORY_ACCOUNT_ID,
   MANAGER_USER_ID,
   SALES_ACCOUNT_ID,
   SALESMAN_USER_ID,
@@ -532,6 +535,114 @@ describe('SalesInvoiceService', () => {
         limit: 20,
       });
       expect(all).toHaveLength(1);
+    });
+  });
+
+  describe('COGS (moving-average, decision 42)', () => {
+    it('posts COGS at the balance avg_cost and snapshots it on the line', async () => {
+      const orderId = await confirmedOrder();
+      const orderLineId = await orderLineIdOf(orderId);
+      const invoice = await service.create(TEST_ORG_ID, salesman(), {
+        salesOrderId: orderId,
+        lines: [invoiceLine(orderLineId, 10)],
+      });
+      await seedStockAtLocation(
+        dataSource,
+        GOODS_ITEM_ID,
+        100,
+        TEST_LOCATION_ID,
+        75,
+      );
+
+      const posted = await service.post(TEST_ORG_ID, salesman(), invoice.id, {
+        inventoryLocationId: TEST_LOCATION_ID,
+      });
+
+      const journal = await tx.manager
+        .getRepository(JournalEntryEntity)
+        .findOne({
+          where: { id: posted.journalEntryId },
+          relations: { lines: { account: true } },
+        });
+      const byAccount = new Map(
+        journal.lines.map((line) => [line.account.id, line]),
+      );
+      expect(Number(byAccount.get(COGS_ACCOUNT_ID).debitAmount)).toBe(750);
+      expect(Number(byAccount.get(INVENTORY_ACCOUNT_ID).creditAmount)).toBe(
+        750,
+      );
+
+      const txn = await tx.manager
+        .getRepository(InventoryTransactionEntity)
+        .findOne({
+          where: { id: posted.inventoryTransactionId },
+          relations: { lines: true },
+        });
+      expect(txn.lines[0].unitCost).toBe('75.00');
+
+      const line = await tx.manager
+        .getRepository(SalesInvoiceLineEntity)
+        .findOne({ where: { invoiceId: posted.id } });
+      expect(line.cogsUnitCost).toBe('75.00');
+    });
+
+    it('counts free goods into COGS via base_quantity', async () => {
+      const orderId = await confirmedOrder({
+        lines: [orderLine({ quantity: 10, freeQuantity: 2 })],
+      });
+      const orderLineId = await orderLineIdOf(orderId);
+      const invoice = await service.create(TEST_ORG_ID, salesman(), {
+        salesOrderId: orderId,
+        lines: [invoiceLine(orderLineId, 10)],
+      });
+      await seedStockAtLocation(
+        dataSource,
+        GOODS_ITEM_ID,
+        100,
+        TEST_LOCATION_ID,
+        75,
+      );
+
+      const posted = await service.post(TEST_ORG_ID, salesman(), invoice.id, {
+        inventoryLocationId: TEST_LOCATION_ID,
+      });
+
+      const journal = await tx.manager
+        .getRepository(JournalEntryEntity)
+        .findOne({
+          where: { id: posted.journalEntryId },
+          relations: { lines: { account: true } },
+        });
+      const byAccount = new Map(
+        journal.lines.map((line) => [line.account.id, line]),
+      );
+      expect(Number(byAccount.get(COGS_ACCOUNT_ID).debitAmount)).toBe(900);
+    });
+
+    it('skips the COGS lines when stock is unvalued (avg_cost 0)', async () => {
+      const orderId = await confirmedOrder();
+      const orderLineId = await orderLineIdOf(orderId);
+      const invoice = await service.create(TEST_ORG_ID, salesman(), {
+        salesOrderId: orderId,
+        lines: [invoiceLine(orderLineId, 10)],
+      });
+      await seedStockAtLocation(dataSource, GOODS_ITEM_ID, 100);
+
+      const posted = await service.post(TEST_ORG_ID, salesman(), invoice.id, {
+        inventoryLocationId: TEST_LOCATION_ID,
+      });
+
+      const journal = await tx.manager
+        .getRepository(JournalEntryEntity)
+        .findOne({
+          where: { id: posted.journalEntryId },
+          relations: { lines: { account: true } },
+        });
+      const byAccount = new Map(
+        journal.lines.map((line) => [line.account.id, line]),
+      );
+      expect(byAccount.has(COGS_ACCOUNT_ID)).toBe(false);
+      expect(byAccount.has(INVENTORY_ACCOUNT_ID)).toBe(false);
     });
   });
 });

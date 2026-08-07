@@ -31,6 +31,7 @@ import {
   InventoryZeroQuantityException,
 } from './inventory.errors';
 
+const ROUND2 = (n: number): number => Math.round(n * 100) / 100;
 const ROUND3 = (n: number): number => Math.round(n * 1000) / 1000;
 
 export interface InventoryLowStockRow {
@@ -51,6 +52,14 @@ interface InventoryLowStockRaw {
   locationName: string | null;
   onHand: string;
   reorderLevel: string;
+}
+
+export interface AverageCostOutLine {
+  itemId: string;
+  avgCost: number;
+  baseQuantity: number;
+  /** avg_cost × base_quantity — the COGS value for this line (decision 42). */
+  value: number;
 }
 
 @Injectable()
@@ -354,6 +363,38 @@ export class InventoryService {
     }
 
     return txn;
+  }
+
+  /**
+   * Snapshots the moving-average cost for a planned stock-out (decision 42).
+   * Locks each balance row FOR UPDATE so the caller's journal and stock txn
+   * agree on the cost. `value` = avg_cost × base_quantity (free units are
+   * already folded into base_quantity). Unvalued/missing balances report
+   * avgCost 0 — the caller skips zero-cost COGS lines.
+   */
+  async averageCostForOut(
+    manager: EntityManager,
+    organizationId: string,
+    locationId: string,
+    lines: Array<{ itemId: string; baseQuantity: number }>,
+  ): Promise<AverageCostOutLine[]> {
+    const snapshots: AverageCostOutLine[] = [];
+    for (const line of lines) {
+      const balance = await this.lockBalance(
+        manager,
+        organizationId,
+        locationId,
+        line.itemId,
+      );
+      const avgCost = balance ? Number(balance.avgCost ?? 0) : 0;
+      snapshots.push({
+        itemId: line.itemId,
+        avgCost,
+        baseQuantity: line.baseQuantity,
+        value: ROUND2(avgCost * line.baseQuantity),
+      });
+    }
+    return snapshots;
   }
 
   /**

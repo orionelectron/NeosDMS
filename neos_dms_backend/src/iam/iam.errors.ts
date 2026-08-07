@@ -85,3 +85,15 @@ export class CannotDeleteSelfException extends HttpException {
     );
   }
 }
+
+export class ManagerSelfReferenceException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'MANAGER_SELF_REFERENCE',
+        message: 'A user cannot be their own manager',
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}

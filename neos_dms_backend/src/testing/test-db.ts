@@ -3,6 +3,7 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import { AccountingEngine1786070270761 } from '../database/migrations/1786070270761-AccountingEngine';
 import { FixFiscalYearShrawanBasis1786080000000 } from '../database/migrations/1786080000000-FixFiscalYearShrawanBasis';
 import { DmsFieldSales1786091000000 } from '../database/migrations/1786091000000-DmsFieldSales';
+import { HrLeave1786100000000 } from '../database/migrations/1786100000000-HrLeave';
 import { TradingMasters1786090000000 } from '../database/migrations/1786090000000-TradingMasters';
 import { IamAndAuth1786035687494 } from '../database/migrations/1786035687494-IamAndAuth';
 import { JournalEntrySourceUniqueness1786081000000 } from '../database/migrations/1786081000000-JournalEntrySourceUniqueness';
@@ -32,6 +33,7 @@ export const TEST_DB_OPTIONS: DataSourceOptions = {
     JournalEntrySourceUniqueness1786081000000,
     TradingMasters1786090000000,
     DmsFieldSales1786091000000,
+    HrLeave1786100000000,
   ],
   synchronize: false,
   logging: false,

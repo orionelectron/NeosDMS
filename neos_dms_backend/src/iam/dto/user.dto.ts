@@ -32,6 +32,10 @@ export class CreateUserDto {
   roleId?: string;
 
   @IsOptional()
+  @IsUUID()
+  managerId?: string;
+
+  @IsOptional()
   @IsBoolean()
   mustChangePassword?: boolean;
 }
@@ -56,9 +60,13 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsUUID()
-  roleId?: string | null;
+  roleId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  managerId?: string;
 
   @IsOptional()
   @IsBoolean()
-  isActive?: boolean;
+  mustChangePassword?: boolean;
 }

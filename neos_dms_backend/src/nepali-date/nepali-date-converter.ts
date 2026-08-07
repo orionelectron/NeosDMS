@@ -277,6 +277,27 @@ export class NepaliDateConverter {
     );
   }
 
+  /**
+   * Returns the inclusive number of days between two BS dates (both endpoints
+   * counted, so 2082-01-01 to 2082-01-01 is 1). Throws if `to` precedes `from`.
+   */
+  daysBetweenBs(from: BsDate, to: BsDate): number {
+    this.assertValidBsDate(from.bsYear, from.bsMonth, from.bsDay);
+    this.assertValidBsDate(to.bsYear, to.bsMonth, to.bsDay);
+    const fromDay = this.bsToDayNumber(from.bsYear, from.bsMonth, from.bsDay);
+    const toDay = this.bsToDayNumber(to.bsYear, to.bsMonth, to.bsDay);
+    if (toDay < fromDay) {
+      throw new RangeError('The end date must not precede the start date.');
+    }
+    return toDay - fromDay + 1;
+  }
+
+  /** Converts the current (local) date to its BS equivalent. */
+  getTodayBsDate(): BsDate {
+    const now = new Date();
+    return this.adToBs(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  }
+
   private getBsYearData(bsYear: number): ReadonlyArray<number> {
     const index = bsYear - NepaliDateConverter.BS_EPOCH_YEAR;
     if (index < 0 || index >= this.bsCalendar.length) {

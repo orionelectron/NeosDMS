@@ -75,6 +75,7 @@ export class IamController {
         organizationId: tenant.id,
         branchId: dto.branchId,
         roleId: dto.roleId ?? null,
+        managerId: dto.managerId ?? null,
         fullName: dto.fullName,
         email: dto.email,
         password: dto.password,

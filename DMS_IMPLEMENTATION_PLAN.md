@@ -41,6 +41,9 @@
 | 25 | Dispatch sequence | **`dispatch_number` via `document_sequences`** | Each dispatch run gets a gov-compliant sequential number (FY + branch scoped), reusing the Phase 3 document-sequence engine like invoices |
 | 26 | POD & offline-first design | **Field ops built offline-friendly from the start** | Check-in/out, delivery confirmation, POD (signature/photo/GPS/notes) are captured on-device first, synced later. Server accepts bulk/queued POSTs; `photo_key`/`photo_url` fields store references so photos can upload async. Live tracking deferred |
 | 27 | Visit geometry | **Haversine distance + `is_off_route`** | Check-in computes `distance_from_outlet_meters` via haversine; `is_off_route` flag when outside a configurable tolerance. Enables honest salesman performance later without live tracking |
+| 28 | HR approval hierarchy | **`users.manager_id` self-FK** | A manager is the requester's `manager_id`, verified in the service; the `manager` base role grants the permission. No org-chart table in MVP (§16) |
+| 29 | Leave balance model | **Annual BS-calendar-year grant** | `leave_balances` keyed by `bs_year` (Baisakh–Chaitra), not the statutory accounting FY; no monthly accrual, no holiday calendar in MVP. Approval consumes balance; reject/cancel never does (§16.2) |
+| 30 | Expense → accounting order | **Posting is Phase C3, last** | Approved travel expense claims post an expense journal (per-category COA expense accounts, credit employee AP/petty cash) via Phase 3 machinery, after the workflows exist (§16.4) |
 
 ## 3. Target Backend Structure
 
@@ -314,7 +317,43 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 - [ ] Reporting dashboards + Nepali calendar UX in frontend
 - [ ] Balance sheet report
 
-## 16. Nepal-Specific Requirements Mapping
+## 16. DMS Phase C — HR: Leave & Travel
+
+> **Design (decisions 28–30):** HR leave + travel is self-contained ops tooling that reuses org-scoping, RBAC, audit and the Nepali date engine. It runs **off the critical FMCG path** (inventory → sales → dispatch) so it can be built in parallel without blocking §10–14. Travel expense claims eventually post to the accounting engine (§7) via expense accounts — that coupling is deliberately last.
+>
+> **Decisions locked:**
+> 28. **Approval hierarchy = `users.manager_id`** (self-FK, SET NULL). A "manager" is the requester's `manager_id`, verified in the service; the `manager` base role provides the permission grant. No org-chart table in MVP.
+> 29. **Leave model:** annual grant per BS calendar year (`leave_balances` keyed by `bs_year`, not accounting fiscal year) — no monthly accrual, no holiday calendar in MVP. Leave requests are BS date ranges; duration = inclusive `daysBetweenBs`. Leave approval consumes balance; reject/cancel doesn't.
+> 30. **Expense → accounting is Phase C3:** approved expense claims post an expense journal (debit per-category expense account, credit employee AP / petty cash) via the Phase 3 `document_sequences` + posting machinery. v1 stores receipt *keys* only (binary upload stays P1, decision 26).
+
+### 16.1 Shared infra (Phase C1)
+- [x] `users.manager_id` (nullable self-FK)
+- [x] `approval_events` — generic org-scoped (entity_type, entity_id, actor_id, action, note); used by leave now, travel later
+- [x] `NepaliDateConverter.daysBetweenBs(from, to)` — inclusive BS range day count
+- [x] `hr` module + permissions: `hr.leave.{create,read,update,delete,approve}`, `hr.travel.*`, `hr.expense.*`; new `manager` base role (seed v12); salesman gets self-service `hr.leave.*`/`hr.travel.*`/`hr.expense.*`
+
+### 16.2 Leave (Phase C1)
+- [x] `leave_types` — org-scoped master: `code` (unique per org), `name`, `is_paid`, `days_per_year`, `carryover_limit_days`, `max_consecutive_days`, `requires_balance`, `is_active`
+- [x] `leave_balances` — (org, user, leave_type, `bs_year`); `entitled_days` + `carryover_days` − `used_days`; unique per (org, user, type, year)
+- [x] `leave_requests` — (org, user, type, BS from/to, `days`, status `pending → approved/rejected/cancelled`, reason, reviewer_note, approved_by, approved_at); overlap + balance enforced in service; index (org, user, status)
+- [x] Apply: valid active type, balance sufficient (if `requires_balance`), no overlap with existing pending/approved; submit → `PENDING` + `approval_event`
+- [x] Approve/reject: actor must be requester's `manager_id` (permission `hr.leave.approve`); approve consumes balance; every transition audited
+- [x] Cancel: requester or manager, `PENDING` only
+- [x] Scoping: users see own leaves/balance; managers see their reportees; admin all
+
+### 16.3 Travel (Phase C2 — next)
+- [ ] `travel_requests` — (org, user, purpose, from/to, BS dates, transport_mode, estimated_cost, status + approval)
+- [ ] `travel_expense_claims` — (org, user, optional `travel_request_id`, claim period BS, total, status `pending → approved/rejected → paid`)
+- [ ] `travel_expense_items` — line items (BS date, category `HOTEL|FOOD|FUEL|TRANSPORT|TOLL|MISC`, description, amount, approved_amount, receipt_key)
+- [ ] Approval: manager; claims additionally reviewed by `finance_manager`/`accountant` (`hr.expense.approve`)
+
+### 16.4 Accounting tie-in (Phase C3 — after C2)
+- [ ] Approved claim posts expense journal (per-category expense accounts from COA, credit employee AP) in one transaction
+- [ ] `paid` transition marks reimbursement; expense report endpoints (by user / period / category)
+
+**Acceptance:** salesman applies for leave and sees balance before submitting; manager approves/rejects with notes; balance can never go negative; no overlapping approved leaves; every transition audited; manager sees only their team.
+
+## 17. Nepal-Specific Requirements Mapping
 
 | Requirement | Where it lands |
 |---|---|
@@ -326,7 +365,7 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 | Full auditability | `audit_logs` + `AuditService` |
 | Offline-friendly | future sync layer |
 
-## 17. Risk Register
+## 18. Risk Register
 
 | Risk | Mitigation |
 |---|---|
@@ -342,7 +381,7 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 | New limit dimensions needed later | Limits live in `plans.limits` jsonb + one code enum; no schema change |
 | Module-gating assumptions leak back in | `modules` is a catalog only; no `plan_module_mappings`; guards reference `PlanLimitService` |
 | FMCG scope creep from reference schema | §3.1 P0/P1/Drop is the contract; any new table must be tagged P0 or moved to P1 |
-| Fiscal-year boundary ambiguity (Baisakh vs Shrawan) | **Resolved: statutory Shrawan 1 basis** (decision 19) — §7/§16 contradiction closed, `buildFiscalYearPlan` is the single source of truth, `FixFiscalYearShrawanBasis` data-fix applied; provisioning picks the current statutory FY (month-aware) |
+| Fiscal-year boundary ambiguity (Baisakh vs Shrawan) | **Resolved: statutory Shrawan 1 basis** (decision 19) — §7/§17 contradiction closed, `buildFiscalYearPlan` is the single source of truth, `FixFiscalYearShrawanBasis` data-fix applied; provisioning picks the current statutory FY (month-aware) |
 | Double-posting from retried document creation | Partial unique `uq_journal_entries_source (organization_id, source_type, source_id)` (decision 20); document services must stamp `source_type`/`source_id` when posting |
 | Cross-module txn coordination (invoice → stock → journal in one txn) | Phase 6/7 post inside one `EntityManager` transaction — `provisionAccounting`/`AuditService` already accept an injected manager; add DB integration tests for the orchestrated flows |
 | Posting-engine correctness until Phase 8 reports | Minimal Phase 3 trial balance (decision 21) returns a `balanced` flag so the engine is validated end-to-end now, not months later |
@@ -351,7 +390,7 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 | Dispatch status drift (invalid jumps, lost deliveries) | State machine per §12.2 with server-enforced transitions; every transition audited |
 | Photo/POD uploads blocking field ops offline | Store `photo_key` reference only; binary upload is async-capable (decision 26); field app queues and syncs later |
 
-## 18. Progress Tracker
+## 19. Progress Tracker
 
 **Legend:** `[x]` done & verified · `[~]` in progress · `[ ]` pending
 
@@ -378,7 +417,7 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 - [ ] **DMS Phase B (new §12)** — Dispatch & delivery: vehicles, dispatches, dispatch_stops, pick/loading-sheet reads; per-stop deliver/partial/fail with POD; invoice finalization from delivered quantities; driver-scoped view.
 - [ ] **Phase 5+** — Inventory, Sales/AR, DMS Dispatch, Purchase/AP, Reports per plan order (§10–14)
 
-## 19. Reference Migration Inventory (for translation)
+## 20. Reference Migration Inventory (for translation)
 
 > **Applied simplifications:** single vertical (General Trade) — `verticals`/`vertical_module_mappings` dropped; `price_matrices` loses the vertical dimension; **`plan_module_mappings` dropped** (limits live in `plans.limits`); allocation chains collapsed to direct FKs (2 allocation tables kept); P1 items (`exchange_rates`, `attachments`, tags, `variant_attributes`, batches, `cheques`, `landed_cost_*`) and dropped items (`inventory_serials`) per §3.1.
 

@@ -23,6 +23,7 @@ import { UserEntity } from './entities/user.entity';
 import {
   BranchNotFoundException,
   CannotDeleteSelfException,
+  ManagerSelfReferenceException,
   PermissionNotFoundException,
   RoleCodeAlreadyUsedException,
   RoleNotFoundException,
@@ -36,6 +37,7 @@ export interface CreateUserInput {
   organizationId: string;
   branchId: string;
   roleId: string | null;
+  managerId?: string | null;
   fullName: string;
   email: string;
   password: string;
@@ -47,6 +49,7 @@ export interface CreateUserInput {
 export interface UpdateUserInput {
   branchId?: string;
   roleId?: string | null;
+  managerId?: string | null;
   fullName?: string;
   email?: string;
   username?: string | null;
@@ -223,6 +226,13 @@ export class IamService {
       if (!role) throw new RoleNotFoundException();
     }
 
+    if (input.managerId) {
+      const manager = await userRepo.findOne({
+        where: { id: input.managerId, organizationId: input.organizationId },
+      });
+      if (!manager) throw new UserNotFoundException();
+    }
+
     const currentCount = await userRepo.count({
       where: { organizationId: input.organizationId },
     });
@@ -239,6 +249,7 @@ export class IamService {
         organizationId: input.organizationId,
         branchId: input.branchId,
         roleId: input.roleId,
+        managerId: input.managerId ?? null,
         fullName: input.fullName,
         email: input.email.toLowerCase(),
         username: input.username ?? null,
@@ -313,6 +324,18 @@ export class IamService {
         });
         if (!role) throw new RoleNotFoundException();
       }
+      if (input.managerId !== undefined) {
+        if (input.managerId === null) {
+          // explicit clear is allowed
+        } else if (input.managerId === userId) {
+          throw new ManagerSelfReferenceException();
+        } else {
+          const manager = await userRepo.findOne({
+            where: { id: input.managerId, organizationId },
+          });
+          if (!manager) throw new UserNotFoundException();
+        }
+      }
       if (input.email !== undefined && input.email !== user.email) {
         const conflict = await userRepo.findOne({
           where: { email: input.email },
@@ -329,6 +352,9 @@ export class IamService {
       Object.assign(user, {
         ...(input.branchId !== undefined ? { branchId: input.branchId } : {}),
         ...(input.roleId !== undefined ? { roleId: input.roleId } : {}),
+        ...(input.managerId !== undefined
+          ? { managerId: input.managerId }
+          : {}),
         ...(input.fullName !== undefined ? { fullName: input.fullName } : {}),
         ...(input.email !== undefined
           ? { email: input.email.toLowerCase() }

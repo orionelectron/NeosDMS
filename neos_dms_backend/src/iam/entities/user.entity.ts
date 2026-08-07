@@ -60,4 +60,11 @@ export class UserEntity extends BaseEntity {
 
   @Column({ type: 'timestamptz', name: 'last_login_at', nullable: true })
   lastLoginAt: Date | null;
+
+  @Column({ name: 'manager_id', type: 'uuid', nullable: true })
+  managerId: string | null;
+
+  @ManyToOne(() => UserEntity, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'manager_id' })
+  manager: UserEntity | null;
 }

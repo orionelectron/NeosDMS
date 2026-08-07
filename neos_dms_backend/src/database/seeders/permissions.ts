@@ -8,6 +8,7 @@ export const MODULES = [
   'purchase',
   'inventory',
   'dispatch',
+  'hr',
   'reports',
 ] as const;
 
@@ -90,6 +91,26 @@ const PERMISSION_DEFS: readonly PermissionDef[] = [
     resource: 'dispatch',
     actions: ['create', 'read', 'update', 'complete'],
   },
+  {
+    module: 'hr',
+    resource: 'leave_type',
+    actions: CRUD_ACTIONS,
+  },
+  {
+    module: 'hr',
+    resource: 'leave',
+    actions: ['create', 'read', 'update', 'delete', 'approve'],
+  },
+  {
+    module: 'hr',
+    resource: 'leave_balance',
+    actions: ['read', 'update'],
+  },
+  {
+    module: 'hr',
+    resource: 'approval',
+    actions: ['read'],
+  },
   { module: 'reports', resource: 'report', actions: ['read'] },
 ];
 
@@ -132,6 +153,9 @@ export const BASE_ROLES: readonly RoleDefinition[] = [
       'sales.visit.*',
       'trading.item.read',
       'accounting.party.read',
+      'hr.leave.*',
+      'hr.leave_balance.read',
+      'hr.approval.read',
       'reports.report.read',
     ],
   },
@@ -151,6 +175,17 @@ export const BASE_ROLES: readonly RoleDefinition[] = [
       'sales.route_assignment.*',
       'sales.visit.read',
       'dispatch.dispatch.read',
+    ],
+  },
+  {
+    code: 'manager',
+    name: 'Manager',
+    permissions: [
+      'hr.*',
+      'reports.report.read',
+      'iam.user.read',
+      'sales.*',
+      'purchase.bill.read',
     ],
   },
 ];

@@ -10,6 +10,7 @@ import { taxCatalogSeed } from './tax-catalog.seed';
 import { tradingPermissionsSeed } from './trading-permissions.seed';
 import { transactionTypesSeed } from './transaction-types.seed';
 import { fieldPermissionsSeed } from './field-permissions.seed';
+import { hrPermissionsSeed } from './hr-permissions.seed';
 
 /**
  * Seed registry — ordered by ascending `version`; each runs exactly once
@@ -19,6 +20,7 @@ import { fieldPermissionsSeed } from './field-permissions.seed';
  * 7-9: Phase 3 — tax catalog, transaction types, accounting backfill.
  * 10:  Phase 4 — trading permission backfill (item-category/brand/uom-conversion).
  * 11:  Phase 5d — field-sales permission backfill (outlet/route/visit).
+ * 12:  Phase C1 — HR permission backfill (leave module, manager role).
  */
 export const SEEDS: readonly Seed[] = [
   modulesSeed,
@@ -32,4 +34,5 @@ export const SEEDS: readonly Seed[] = [
   accountingBackfillSeed,
   tradingPermissionsSeed,
   fieldPermissionsSeed,
+  hrPermissionsSeed,
 ];

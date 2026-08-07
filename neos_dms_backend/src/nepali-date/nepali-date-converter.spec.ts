@@ -154,4 +154,75 @@ describe('NepaliDateConverter', () => {
       expect(() => converter.getBsMonthName(13)).toThrow(RangeError);
     });
   });
+
+  describe('daysBetweenBs', () => {
+    it('counts a single day as 1', () => {
+      expect(
+        converter.daysBetweenBs(
+          { bsYear: 2082, bsMonth: 1, bsDay: 5 },
+          { bsYear: 2082, bsMonth: 1, bsDay: 5 },
+        ),
+      ).toBe(1);
+    });
+
+    it('counts inclusive range within a month', () => {
+      expect(
+        converter.daysBetweenBs(
+          { bsYear: 2082, bsMonth: 3, bsDay: 10 },
+          { bsYear: 2082, bsMonth: 3, bsDay: 12 },
+        ),
+      ).toBe(3);
+    });
+
+    it('counts across month boundaries using the BS calendar', () => {
+      // 2082-01-30 .. 2082-02-02 spans Baishakh→Jestha
+      const days = converter.daysBetweenBs(
+        { bsYear: 2082, bsMonth: 1, bsDay: 30 },
+        { bsYear: 2082, bsMonth: 2, bsDay: 2 },
+      );
+      const monthDays = converter.getDaysInBsMonth(2082, 1);
+      expect(days).toBe(monthDays - 30 + 1 + 2);
+    });
+
+    it('counts across year boundaries', () => {
+      // 2081-12-30 .. 2082-01-02 spans Chaitra→Baishakh
+      const days = converter.daysBetweenBs(
+        { bsYear: 2081, bsMonth: 12, bsDay: 30 },
+        { bsYear: 2082, bsMonth: 1, bsDay: 2 },
+      );
+      const chaitraDays = converter.getDaysInBsMonth(2081, 12);
+      expect(days).toBe(chaitraDays - 30 + 1 + 2);
+    });
+
+    it('throws when the end precedes the start', () => {
+      expect(() =>
+        converter.daysBetweenBs(
+          { bsYear: 2082, bsMonth: 3, bsDay: 12 },
+          { bsYear: 2082, bsMonth: 3, bsDay: 10 },
+        ),
+      ).toThrow(RangeError);
+    });
+
+    it('throws on an invalid BS day', () => {
+      expect(() =>
+        converter.daysBetweenBs(
+          { bsYear: 2082, bsMonth: 2, bsDay: 33 },
+          { bsYear: 2082, bsMonth: 2, bsDay: 34 },
+        ),
+      ).toThrow(RangeError);
+    });
+  });
+
+  describe('getTodayBsDate', () => {
+    it("round-trips back to today's AD date", () => {
+      const today = new Date();
+      const bs = converter.getTodayBsDate();
+      const ad = converter.bsToAd(bs.bsYear, bs.bsMonth, bs.bsDay);
+      expect(ad).toEqual({
+        adYear: today.getFullYear(),
+        adMonth: today.getMonth() + 1,
+        adDay: today.getDate(),
+      });
+    });
+  });
 });

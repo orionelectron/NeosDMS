@@ -7,6 +7,7 @@ import { HrLeave1786100000000 } from '../database/migrations/1786100000000-HrLea
 import { HrTravel1786200000000 } from '../database/migrations/1786200000000-HrTravel';
 import { HrAttendance1786300000000 } from '../database/migrations/1786300000000-HrAttendance';
 import { Inventory1786500000000 } from '../database/migrations/1786500000000-Inventory';
+import { SalesOrder1786600000000 } from '../database/migrations/1786600000000-SalesOrder';
 import { SalesTarget1786400000000 } from '../database/migrations/1786400000000-SalesTarget';
 import { TradingMasters1786090000000 } from '../database/migrations/1786090000000-TradingMasters';
 import { IamAndAuth1786035687494 } from '../database/migrations/1786035687494-IamAndAuth';
@@ -42,6 +43,7 @@ export const TEST_DB_OPTIONS: DataSourceOptions = {
     HrAttendance1786300000000,
     SalesTarget1786400000000,
     Inventory1786500000000,
+    SalesOrder1786600000000,
   ],
   synchronize: false,
   logging: false,

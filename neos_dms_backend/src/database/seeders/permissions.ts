@@ -64,6 +64,11 @@ const PERMISSION_DEFS: readonly PermissionDef[] = [
     resource: 'invoice',
     actions: ['create', 'read', 'update', 'void'],
   },
+  {
+    module: 'sales',
+    resource: 'order',
+    actions: ['create', 'read', 'update', 'confirm', 'cancel', 'complete'],
+  },
   { module: 'sales', resource: 'outlet', actions: CRUD_ACTIONS },
   { module: 'sales', resource: 'route', actions: CRUD_ACTIONS },
   {
@@ -181,6 +186,11 @@ export const BASE_ROLES: readonly RoleDefinition[] = [
     name: 'Salesman',
     permissions: [
       'sales.invoice.*',
+      'sales.order.create',
+      'sales.order.read',
+      'sales.order.update',
+      'sales.order.confirm',
+      'sales.order.cancel',
       'sales.outlet.*',
       'sales.route.*',
       'sales.visit.*',

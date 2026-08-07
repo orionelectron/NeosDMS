@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import type { PartyKind } from './accounting.constants';
 import {
@@ -145,7 +145,7 @@ export class PartyService {
         manager,
       );
 
-      return this.getParty(organizationId, party.id);
+      return this.loadPartyDetails(manager, organizationId, party.id);
     });
   }
 
@@ -185,6 +185,22 @@ export class PartyService {
     partyId: string,
   ): Promise<PartyEntity> {
     const party = await this.partyRepo.findOne({
+      where: { id: partyId, organizationId },
+      relations: {
+        addresses: true,
+        paymentTerm: true,
+      },
+    });
+    if (!party) throw new PartyNotFoundException(partyId);
+    return party;
+  }
+
+  private async loadPartyDetails(
+    manager: EntityManager,
+    organizationId: string,
+    partyId: string,
+  ): Promise<PartyEntity> {
+    const party = await manager.getRepository(PartyEntity).findOne({
       where: { id: partyId, organizationId },
       relations: {
         addresses: true,

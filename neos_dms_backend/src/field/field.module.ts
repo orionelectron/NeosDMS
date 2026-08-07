@@ -7,6 +7,7 @@ import { OutletEntity } from './entities/outlet.entity';
 import { RouteAssignmentEntity } from './entities/route-assignment.entity';
 import { RouteEntity } from './entities/route.entity';
 import { OutletController } from './outlet.controller';
+import { OutletImportService } from './outlet-import.service';
 import { OutletService } from './outlet.service';
 import { OutletVisitService } from './outlet-visit.service';
 import { RouteAssignmentController } from './route-assignment.controller';
@@ -34,6 +35,7 @@ import { VisitController } from './visit.controller';
   ],
   providers: [
     OutletService,
+    OutletImportService,
     RouteService,
     RouteAssignmentService,
     OutletVisitService,

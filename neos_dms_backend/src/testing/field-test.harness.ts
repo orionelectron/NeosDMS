@@ -9,6 +9,7 @@ import { OutletVisitEntity } from '../field/entities/outlet-visit.entity';
 import { RouteAssignmentEntity } from '../field/entities/route-assignment.entity';
 import { RouteEntity } from '../field/entities/route.entity';
 import { OutletService } from '../field/outlet.service';
+import { OutletImportService } from '../field/outlet-import.service';
 import { OutletVisitService } from '../field/outlet-visit.service';
 import { RouteAssignmentService } from '../field/route-assignment.service';
 import { RouteService } from '../field/route.service';
@@ -160,6 +161,7 @@ export async function createFieldTestingModule(
       repo(RouteAssignmentEntity),
       repo(OutletVisitEntity),
       OutletService,
+      OutletImportService,
       RouteService,
       RouteAssignmentService,
       OutletVisitService,

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,8 +8,17 @@ import {
   Patch,
   Post,
   Query,
+  StreamableFile,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CurrentTenant } from '../common/decorators/current-tenant.decorator';
 import type { TenantContext } from '../common/decorators/current-tenant.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -20,13 +30,19 @@ import {
   OutletListQueryDto,
   UpdateOutletDto,
 } from './dto/outlet.dto';
+import { OutletImportService } from './outlet-import.service';
 import { OutletService } from './outlet.service';
+
+const IMPORT_MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 @ApiBearerAuth()
 @ApiTags('field')
 @Controller()
 export class OutletController {
-  constructor(private readonly outletService: OutletService) {}
+  constructor(
+    private readonly outletService: OutletService,
+    private readonly outletImportService: OutletImportService,
+  ) {}
 
   @RequirePermission('sales.outlet.read')
   @Get('outlets')
@@ -58,6 +74,50 @@ export class OutletController {
       query,
     );
     return paginate(data, total, query);
+  }
+
+  @RequirePermission('sales.outlet.create')
+  @Post('outlets/import')
+  @ApiOperation({
+    summary:
+      'Bulk-import outlets from an .xlsx/.csv spreadsheet (migration). Skips duplicates, reports per-row errors.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: IMPORT_MAX_FILE_SIZE } }),
+  )
+  importOutlets(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() actor: AuthenticatedUser,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException(
+        'A spreadsheet file is required (multipart field "file")',
+      );
+    }
+    const extension = this.outletImportService.resolveExtension(
+      file.originalname,
+    );
+    return this.outletImportService.importOutlets(
+      tenant.id,
+      actor.id,
+      file.originalname,
+      file.buffer,
+      extension,
+    );
+  }
+
+  @RequirePermission('sales.outlet.read')
+  @Get('outlets/import/template')
+  @ApiOperation({ summary: 'Download an outlet import template (.xlsx)' })
+  async importTemplate(): Promise<StreamableFile> {
+    const { buffer, fileName } =
+      await this.outletImportService.generateTemplate();
+    return new StreamableFile(buffer, {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      disposition: `attachment; filename="${fileName}"`,
+    });
   }
 
   @RequirePermission('sales.outlet.read')

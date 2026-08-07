@@ -1,5 +1,17 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 
+export class OutletImportException extends HttpException {
+  constructor(message: string) {
+    super(
+      {
+        code: 'OUTLET_IMPORT_INVALID',
+        message,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
 export class OutletNotFoundException extends HttpException {
   constructor(id: string) {
     super(

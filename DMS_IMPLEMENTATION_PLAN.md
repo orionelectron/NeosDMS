@@ -225,6 +225,7 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 - [x] Check-out finalizes visit; visit completed on check-out; audit every check-in/check-out (`AuditService`)
 - [ ] Photo upload: store `photo_key` (S3/disk key) only; binary upload endpoint returns a key (P1 async upload)
 - [x] `GET /outlets/mine` + `GET /routes/mine` — salesman sees only their assigned routes + outlets (RBAC-scoped reads)
+- [x] Bulk outlet import for legacy-system migration: `POST /outlets/import` (xlsx/csv, per-row error report with spreadsheet row numbers, in-file + existing-org duplicate skip, savepoint-batched single txn, 10k row cap, 10 MB file cap) + `GET /outlets/import/template` (xlsx template with `Outlets` sheet + `Instructions` sheet); requires `sales.outlet.create`; `sales.outlet.import` audit; legacy `.xls` rejected with clear message
 
 ### 9.3 API + permissions
 - [x] `outlets` CRUD → `sales.outlet.{create,read,update,delete}` (resource under module `sales`)
@@ -234,7 +235,7 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 - [x] `visits` check-in/check-out/list → `sales.visit.{create,read,update}`; salesman can write their own, managers/all
 - [x] Seed: add the new permission codes (bump seed version) + extend `salesman` role with `sales.outlet.*`, `sales.route.*`, `sales.visit.*`; `warehouse_manager`/`admin` get read
 
-**Acceptance:** salesman sees only their routes/outlets; check-in rejects off-route/unauthorized users; outlet create makes a usable customer party; every visit transition is audited. — **Verified**: live smoke (`neos_dms_backend/smoke.js`) covers the full chain incl. RBAC 403s and duplicate/off-route negatives; 49 real-DB integration tests in `src/field/*.service.spec.ts` (harness: `src/testing/` — real Postgres on :5433, per-test transaction rollback).
+**Acceptance:** salesman sees only their routes/outlets; check-in rejects off-route/unauthorized users; outlet create makes a usable customer party; every visit transition is audited. — **Verified**: live smoke (`neos_dms_backend/smoke.js`) covers the full chain incl. RBAC 403s and duplicate/off-route negatives; 49 real-DB integration tests in `src/field/*.service.spec.ts` (harness: `src/testing/` — real Postgres on :5433, per-test transaction rollback). Outlet bulk import verified via live curl smoke (xlsx + csv): valid rows import with auto-provisioned parties, in-file duplicates skipped, per-row validation errors reported with row numbers, `sales.outlet.import` audited.
 
 ## 10. Phase 5 — Inventory (quantity-based, no batches in MVP)
 

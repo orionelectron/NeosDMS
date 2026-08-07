@@ -17,10 +17,14 @@ import { PurchaseBillLineEntity } from './entities/purchase-bill-line.entity';
 import { PurchaseBillEntity } from './entities/purchase-bill.entity';
 import { PurchaseReceiptLineEntity } from './entities/purchase-receipt-line.entity';
 import { PurchaseReceiptEntity } from './entities/purchase-receipt.entity';
+import { PurchaseReturnLineEntity } from './entities/purchase-return-line.entity';
+import { PurchaseReturnEntity } from './entities/purchase-return.entity';
 import { PurchaseBillController } from './purchase-bill.controller';
 import { PurchaseBillService } from './purchase-bill.service';
 import { PurchaseReceiptController } from './purchase-receipt.controller';
 import { PurchaseReceiptService } from './purchase-receipt.service';
+import { PurchaseReturnController } from './purchase-return.controller';
+import { PurchaseReturnService } from './purchase-return.service';
 
 @Module({
   imports: [
@@ -29,6 +33,8 @@ import { PurchaseReceiptService } from './purchase-receipt.service';
       PurchaseReceiptLineEntity,
       PurchaseBillEntity,
       PurchaseBillLineEntity,
+      PurchaseReturnEntity,
+      PurchaseReturnLineEntity,
       PartyEntity,
       FiscalYearEntity,
       InventoryLocationEntity,
@@ -43,10 +49,15 @@ import { PurchaseReceiptService } from './purchase-receipt.service';
     InventoryModule,
     SubscriptionModule,
   ],
-  controllers: [PurchaseReceiptController, PurchaseBillController],
+  controllers: [
+    PurchaseReceiptController,
+    PurchaseBillController,
+    PurchaseReturnController,
+  ],
   providers: [
     PurchaseReceiptService,
     PurchaseBillService,
+    PurchaseReturnService,
     DocumentSequenceService,
   ],
 })

@@ -97,6 +97,11 @@ const PERMISSION_DEFS: readonly PermissionDef[] = [
     actions: ['create', 'read', 'update', 'post', 'void'],
   },
   {
+    module: 'purchase',
+    resource: 'return',
+    actions: ['create', 'read', 'update', 'post', 'void'],
+  },
+  {
     module: 'inventory',
     resource: 'transaction',
     actions: ['create', 'read', 'adjust'],
@@ -182,6 +187,7 @@ export const BASE_ROLES: readonly RoleDefinition[] = [
       'sales.invoice.read',
       'purchase.bill.*',
       'purchase.receipt.read',
+      'purchase.return.*',
       'hr.expense.read',
       'hr.expense.pay',
       'hr.travel_request.read',
@@ -245,6 +251,7 @@ export const BASE_ROLES: readonly RoleDefinition[] = [
       'sales.*',
       'purchase.bill.*',
       'purchase.receipt.*',
+      'purchase.return.*',
       'inventory.location.read',
       'inventory.transaction.read',
       'inventory.balance.read',

@@ -589,6 +589,117 @@ export class InventoryService {
     return txn;
   }
 
+  /**
+   * Manager-scoped stock-out for a posted purchase return (decision 41). Runs
+   * inside the return's own transaction so the document number, journal, and
+   * stock all commit atomically.
+   *
+   * Every line leaves the location as a `purchase_return` OUT transaction.
+   * Per line, `value` reverses the value that entered inventory:
+   *  - bill-sourced lines carry the source bill line's gross (a debit note
+   *    reverses the original purchase cost): `new_avg = (qty × avg − value)
+   *    / new_qty` — the exact mirror of the bill's reweight;
+   *  - never-billed GRN lines carry value 0 (no value was ever recognized),
+   *    so the pool value stays and `avg_cost` rises.
+   */
+  async receiveForPurchaseReturn(
+    manager: EntityManager,
+    organizationId: string,
+    input: {
+      locationId: string;
+      returnId: string;
+      notes: string | null;
+      lines: Array<{
+        itemId: string;
+        uomId: string;
+        baseQuantity: number;
+        value: number;
+      }>;
+    },
+    actorId: string,
+  ): Promise<InventoryTransactionEntity> {
+    await this.requireLocation(manager, organizationId, input.locationId);
+
+    const prepared = await Promise.all(
+      input.lines.map(async (line) => {
+        if (line.baseQuantity <= 0) throw new InventoryZeroQuantityException();
+        const item = await this.requireTrackedItem(
+          manager,
+          organizationId,
+          line.itemId,
+        );
+        return { line, item };
+      }),
+    );
+
+    const txn = await this.saveTransaction(
+      manager,
+      organizationId,
+      {
+        locationId: input.locationId,
+        toLocationId: null,
+        type: 'purchase_return',
+        notes: input.notes,
+        referenceType: 'purchase_return',
+        referenceId: input.returnId,
+      },
+      prepared.map(({ line, item }) => ({
+        itemId: item.id,
+        uomId: line.uomId,
+        direction: 'OUT',
+        quantity: line.baseQuantity,
+        unitCost: ROUND2(line.value / line.baseQuantity),
+      })),
+      actorId,
+    );
+
+    const balanceRepo = manager.getRepository(InventoryBalanceEntity);
+    for (const { line, item } of prepared) {
+      const balance = await this.lockBalance(
+        manager,
+        organizationId,
+        input.locationId,
+        line.itemId,
+      );
+      const currentQty = balance ? Number(balance.quantity) : 0;
+      const currentAvg = balance ? Number(balance.avgCost ?? 0) : 0;
+      const newQty = ROUND3(currentQty - line.baseQuantity);
+      if (newQty < 0 && !item.allowNegativeStock) {
+        throw new InventoryInsufficientStockException(
+          line.itemId,
+          currentQty.toFixed(3),
+          line.baseQuantity.toFixed(3),
+        );
+      }
+      const newAvg =
+        newQty > 0
+          ? ROUND2((currentQty * currentAvg - line.value) / newQty)
+          : 0;
+
+      if (!balance) {
+        await balanceRepo.save(
+          balanceRepo.create({
+            organizationId,
+            locationId: input.locationId,
+            itemId: line.itemId,
+            quantity: newQty.toFixed(3),
+            avgCost: newAvg.toFixed(2),
+          }),
+        );
+      } else {
+        await balanceRepo.update(
+          { id: balance.id },
+          {
+            quantity: newQty.toFixed(3),
+            avgCost: newAvg.toFixed(2),
+          },
+        );
+      }
+    }
+
+    return txn;
+  }
+
   async listTransactions(
     organizationId: string,
     query: InventoryTransactionQueryDto,
@@ -865,7 +976,8 @@ export class InventoryService {
         | 'stock_transfer'
         | 'sales_invoice'
         | 'purchase_receipt'
-        | 'purchase_bill';
+        | 'purchase_bill'
+        | 'purchase_return';
       notes: string | null;
       referenceType?: string | null;
       referenceId?: string | null;

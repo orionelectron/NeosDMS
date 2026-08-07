@@ -66,8 +66,8 @@ export class PurchaseReceiptLineEntity extends BaseEntity {
 
   /**
    * Base-unit quantity already claimed by posted purchase bills (decision 40
-   * single-move rule). A receipt line bills once, in full — a second bill
-   * referencing it is rejected at POST.
+   * single-move rule). A receipt line bills once — a second bill referencing
+   * it is rejected at POST.
    */
   @Column({
     name: 'billed_quantity',
@@ -77,4 +77,18 @@ export class PurchaseReceiptLineEntity extends BaseEntity {
     default: 0,
   })
   billedQuantity: string;
+
+  /**
+   * Base-unit quantity already reversed by posted purchase returns that were
+   * never billed. A later bill may only claim the remaining quantity
+   * `base_quantity − billed_quantity − returned_quantity`.
+   */
+  @Column({
+    name: 'returned_quantity',
+    type: 'decimal',
+    precision: 15,
+    scale: 3,
+    default: 0,
+  })
+  returnedQuantity: string;
 }

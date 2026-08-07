@@ -49,6 +49,7 @@ import {
   PurchaseBillNotDraftException,
   PurchaseBillNotFoundException,
   PurchaseBillReceiptLineAlreadyBilledException,
+  PurchaseBillReceiptLineNoRemainingException,
   PurchaseBillReceiptLineNotFoundException,
   PurchaseBillReceiptLinePartialException,
   PurchaseBillReceiptLocationMismatchException,
@@ -318,10 +319,14 @@ export class PurchaseBillService {
             receiptLine.id,
           );
         }
-        if (
-          ROUND3(Number(line.baseQuantity)) !==
-          ROUND3(Number(receiptLine.baseQuantity))
-        ) {
+        const remaining = ROUND3(
+          Number(receiptLine.baseQuantity) -
+            Number(receiptLine.returnedQuantity),
+        );
+        if (remaining <= 0) {
+          throw new PurchaseBillReceiptLineNoRemainingException(receiptLine.id);
+        }
+        if (ROUND3(Number(line.baseQuantity)) !== remaining) {
           throw new PurchaseBillReceiptLinePartialException(receiptLine.id);
         }
         billedStamps.push({
@@ -593,7 +598,8 @@ export class PurchaseBillService {
    * Journal-only flavor (decision 40): the goods already landed on the posted
    * GRN, so the bill only recognizes value. The receipt line must be posted,
    * belong to the same supplier, and never have been billed before; it bills
-   * once, in full (single-move rule).
+   * once — exactly the remaining quantity `base − billed − returned`
+   * (single-move rule, decision 41).
    */
   private async prepareSourcedLine(
     manager: EntityManager,
@@ -621,10 +627,19 @@ export class PurchaseBillService {
     if (Number(receiptLine.billedQuantity) > 0) {
       throw new PurchaseBillReceiptLineAlreadyBilledException(receiptLine.id);
     }
-
-    const quantity = dtoLine.quantity ?? Number(receiptLine.quantity);
+    const remaining = ROUND3(
+      Number(receiptLine.baseQuantity) - Number(receiptLine.returnedQuantity),
+    );
+    if (remaining <= 0) {
+      throw new PurchaseBillReceiptLineNoRemainingException(receiptLine.id);
+    }
+    const remainingEntry = ROUND3(
+      Number(receiptLine.quantity) *
+        (remaining / Number(receiptLine.baseQuantity)),
+    );
+    const quantity = dtoLine.quantity ?? remainingEntry;
     if (quantity <= 0) throw new PurchaseBillZeroQuantityException();
-    if (ROUND3(quantity) !== ROUND3(Number(receiptLine.quantity))) {
+    if (ROUND3(quantity) !== remainingEntry) {
       throw new PurchaseBillReceiptLinePartialException(receiptLine.id);
     }
 
@@ -652,7 +667,7 @@ export class PurchaseBillService {
       itemId: receiptLine.itemId,
       uomId: receiptLine.uomId,
       quantity,
-      baseQuantity: Number(receiptLine.baseQuantity),
+      baseQuantity: remaining,
       unitPrice,
       grossAmount: ROUND2(quantity * unitPrice),
       discountShare: 0,

@@ -328,6 +328,18 @@ export class PurchaseBillReceiptLineAlreadyBilledException extends HttpException
   }
 }
 
+export class PurchaseBillReceiptLineNoRemainingException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'PURCHASE_BILL_RECEIPT_LINE_NO_REMAINING',
+        message: `Goods receipt line '${id}' has no remaining quantity to bill (already billed or returned)`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
 export class PurchaseBillReceiptLinePartialException extends HttpException {
   constructor(id: string) {
     super(
@@ -360,6 +372,200 @@ export class PurchaseBillTdsCodeInvalidException extends HttpException {
         message: `TDS tax code '${id}' not found or not a TDS_WITHHOLDING code`,
       },
       HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+// ── Purchase returns (debit notes) ──────────────────────────────────────────
+
+export class PurchaseReturnNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'PURCHASE_RETURN_NOT_FOUND',
+        message: `Purchase return '${id}' not found`,
+      },
+      HttpStatus.NOT_FOUND,
+    );
+  }
+}
+
+export class PurchaseReturnNotDraftException extends HttpException {
+  constructor(id: string, status: string, action: string) {
+    super(
+      {
+        code: 'PURCHASE_RETURN_NOT_DRAFT',
+        message: `Cannot ${action} a ${status} purchase return`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class PurchaseReturnAccountMissingException extends HttpException {
+  constructor(purpose: string) {
+    super(
+      {
+        code: 'PURCHASE_RETURN_ACCOUNT_MISSING',
+        message: `No active account resolves purpose '${purpose}'`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class PurchaseReturnSupplierNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'PURCHASE_RETURN_SUPPLIER_NOT_FOUND',
+        message: `Party '${id}' is not an active supplier`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class PurchaseReturnLocationNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'PURCHASE_RETURN_LOCATION_NOT_FOUND',
+        message: `Inventory location '${id}' not found or inactive`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class PurchaseReturnFiscalYearMissingException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'PURCHASE_RETURN_FISCAL_YEAR_MISSING',
+        message: 'No active, open fiscal year covers the return date',
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class PurchaseReturnLineIncompleteException extends HttpException {
+  constructor(index: number) {
+    super(
+      {
+        code: 'PURCHASE_RETURN_LINE_INCOMPLETE',
+        message: `Return line ${index + 1} needs exactly one of sourcePurchaseBillLineId or sourcePurchaseReceiptLineId`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class PurchaseReturnZeroQuantityException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'PURCHASE_RETURN_ZERO_QUANTITY',
+        message: 'Each returned line needs a quantity greater than zero',
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class PurchaseReturnSourceBillLineNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'PURCHASE_RETURN_BILL_LINE_NOT_FOUND',
+        message: `Purchase bill line '${id}' not found`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class PurchaseReturnSourceReceiptLineNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'PURCHASE_RETURN_RECEIPT_LINE_NOT_FOUND',
+        message: `Goods receipt line '${id}' not found`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class PurchaseReturnSourceNotPostedException extends HttpException {
+  constructor(kind: string, id: string) {
+    super(
+      {
+        code: 'PURCHASE_RETURN_SOURCE_NOT_POSTED',
+        message: `The ${kind} '${id}' is not posted; only posted documents can be returned`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class PurchaseReturnSupplierMismatchException extends HttpException {
+  constructor(sourceLineId: string) {
+    super(
+      {
+        code: 'PURCHASE_RETURN_SUPPLIER_MISMATCH',
+        message: `Source line '${sourceLineId}' belongs to a different supplier than the return`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class PurchaseReturnLocationMismatchException extends HttpException {
+  constructor(sourceLineId: string, sourceLocationId: string | null) {
+    super(
+      {
+        code: 'PURCHASE_RETURN_LOCATION_MISMATCH',
+        message: `Source line '${sourceLineId}' sits at location '${sourceLocationId}', not the return's`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class PurchaseReturnReceiptLineBilledException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'PURCHASE_RETURN_RECEIPT_LINE_BILLED',
+        message: `Goods receipt line '${id}' was already billed; return it via the purchase bill line instead`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class PurchaseReturnQuantityExceededException extends HttpException {
+  constructor(sourceLineId: string, remaining: string) {
+    super(
+      {
+        code: 'PURCHASE_RETURN_QUANTITY_EXCEEDED',
+        message: `Source line '${sourceLineId}' has only ${remaining} base units left to return`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class PurchaseReturnNoRemainingException extends HttpException {
+  constructor(sourceLineId: string) {
+    super(
+      {
+        code: 'PURCHASE_RETURN_NO_REMAINING',
+        message: `Source line '${sourceLineId}' has no quantity left to return`,
+      },
+      HttpStatus.CONFLICT,
     );
   }
 }

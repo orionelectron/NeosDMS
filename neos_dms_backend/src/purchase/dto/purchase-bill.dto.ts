@@ -33,7 +33,7 @@ export class PurchaseBillLineDto {
   @IsUUID()
   uomId?: string;
 
-  /** Direct lines: required. Sourced lines: defaults to the receipt line's full quantity. */
+  /** Direct lines: required. Sourced lines: defaults to the receipt line's remaining quantity (base − billed − returned). */
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0.001)

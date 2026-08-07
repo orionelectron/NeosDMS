@@ -69,6 +69,16 @@ const PERMISSION_DEFS: readonly PermissionDef[] = [
     resource: 'order',
     actions: ['create', 'read', 'update', 'confirm', 'cancel', 'complete'],
   },
+  {
+    module: 'sales',
+    resource: 'return',
+    actions: ['create', 'read', 'update', 'post', 'void'],
+  },
+  {
+    module: 'sales',
+    resource: 'receipt',
+    actions: ['create', 'read', 'update', 'post', 'void'],
+  },
   { module: 'sales', resource: 'outlet', actions: CRUD_ACTIONS },
   { module: 'sales', resource: 'route', actions: CRUD_ACTIONS },
   {
@@ -185,6 +195,8 @@ export const BASE_ROLES: readonly RoleDefinition[] = [
       'iam.user.read',
       'iam.audit-log.read',
       'sales.invoice.read',
+      'sales.return.*',
+      'sales.receipt.*',
       'purchase.bill.*',
       'purchase.receipt.read',
       'purchase.return.*',

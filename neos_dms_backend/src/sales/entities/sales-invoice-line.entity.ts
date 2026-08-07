@@ -24,6 +24,10 @@ import { SalesOrderLineEntity } from './sales-order-line.entity';
   'discount_percent >= 0 AND discount_percent <= 100',
 )
 @Check('chk_sales_invoice_lines_total', 'line_total >= 0')
+@Check(
+  'chk_sales_invoice_lines_returned',
+  'returned_quantity >= 0 AND returned_quantity <= base_quantity',
+)
 export class SalesInvoiceLineEntity extends BaseEntity {
   @Column({ name: 'organization_id', type: 'uuid' })
   organizationId: string;
@@ -142,4 +146,14 @@ export class SalesInvoiceLineEntity extends BaseEntity {
     default: 0,
   })
   cogsUnitCost: string;
+
+  /** Base uom quantity returned by posted credit notes (Phase 6d). */
+  @Column({
+    name: 'returned_quantity',
+    type: 'decimal',
+    precision: 15,
+    scale: 3,
+    default: 0,
+  })
+  returnedQuantity: string;
 }

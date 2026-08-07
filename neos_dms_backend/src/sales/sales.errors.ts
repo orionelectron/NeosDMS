@@ -268,3 +268,343 @@ export class SalesInvoiceTdsWithholdingException extends HttpException {
     );
   }
 }
+
+// ── Sales returns (credit notes) ────────────────────────────────────────────
+
+export class SalesReturnNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'SALES_RETURN_NOT_FOUND',
+        message: `Sales return '${id}' not found`,
+      },
+      HttpStatus.NOT_FOUND,
+    );
+  }
+}
+
+export class SalesReturnNotDraftException extends HttpException {
+  constructor(id: string, status: string, action: string) {
+    super(
+      {
+        code: 'SALES_RETURN_NOT_DRAFT',
+        message: `Cannot ${action} a ${status} sales return`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class SalesReturnAccountMissingException extends HttpException {
+  constructor(purpose: string) {
+    super(
+      {
+        code: 'SALES_RETURN_ACCOUNT_MISSING',
+        message: `No active account resolves purpose '${purpose}'`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class SalesReturnCustomerNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'SALES_RETURN_CUSTOMER_NOT_FOUND',
+        message: `Party '${id}' is not an active customer`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SalesReturnLocationNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'SALES_RETURN_LOCATION_NOT_FOUND',
+        message: `Inventory location '${id}' not found or inactive`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SalesReturnFiscalYearMissingException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'SALES_RETURN_FISCAL_YEAR_MISSING',
+        message: 'No active, open fiscal year covers the return date',
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class SalesReturnSourceInvoiceLineNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'SALES_RETURN_INVOICE_LINE_NOT_FOUND',
+        message: `Sales invoice line '${id}' not found`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SalesReturnLineIncompleteException extends HttpException {
+  constructor(lineIndex: number) {
+    super(
+      {
+        code: 'SALES_RETURN_LINE_INCOMPLETE',
+        message: `Return line at index ${lineIndex} needs a source invoice line`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SalesReturnSourceNotPostedException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'SALES_RETURN_SOURCE_NOT_POSTED',
+        message: `Sales invoice '${id}' is not posted; only posted invoices can be returned`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class SalesReturnCustomerMismatchException extends HttpException {
+  constructor(sourceLineId: string) {
+    super(
+      {
+        code: 'SALES_RETURN_CUSTOMER_MISMATCH',
+        message: `Source line '${sourceLineId}' belongs to a different customer than the return`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class SalesReturnLocationMismatchException extends HttpException {
+  constructor(sourceLineId: string, sourceLocationId: string | null) {
+    super(
+      {
+        code: 'SALES_RETURN_LOCATION_MISMATCH',
+        message: `Source line '${sourceLineId}' shipped from location '${sourceLocationId}', not the return's`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class SalesReturnQuantityExceededException extends HttpException {
+  constructor(sourceLineId: string, remaining: string) {
+    super(
+      {
+        code: 'SALES_RETURN_QUANTITY_EXCEEDED',
+        message: `Source line '${sourceLineId}' has only ${remaining} base units left to return`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class SalesReturnNoRemainingException extends HttpException {
+  constructor(sourceLineId: string) {
+    super(
+      {
+        code: 'SALES_RETURN_NO_REMAINING',
+        message: `Source line '${sourceLineId}' has no quantity left to return`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class SalesReturnZeroQuantityException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'SALES_RETURN_ZERO_QUANTITY',
+        message: 'Each returned line needs a quantity greater than zero',
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+// ── Customer receipts ───────────────────────────────────────────────────────
+
+export class CustomerReceiptNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'CUSTOMER_RECEIPT_NOT_FOUND',
+        message: `Customer receipt '${id}' not found`,
+      },
+      HttpStatus.NOT_FOUND,
+    );
+  }
+}
+
+export class CustomerReceiptNotDraftException extends HttpException {
+  constructor(id: string, status: string, action: string) {
+    super(
+      {
+        code: 'CUSTOMER_RECEIPT_NOT_DRAFT',
+        message: `Customer receipt '${id}' is '${status}' and cannot be ${action}`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class CustomerReceiptCustomerNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'CUSTOMER_RECEIPT_CUSTOMER_NOT_FOUND',
+        message: `Party '${id}' is not an active customer`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class CustomerReceiptMethodNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'CUSTOMER_RECEIPT_METHOD_NOT_FOUND',
+        message: `Payment method '${id}' not found or inactive`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class CustomerReceiptAccountNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'CUSTOMER_RECEIPT_ACCOUNT_NOT_FOUND',
+        message: `Receipt account '${id}' not found or inactive`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class CustomerReceiptAccountTypeException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'CUSTOMER_RECEIPT_ACCOUNT_TYPE',
+        message: `Receipt account '${id}' must be an active asset account`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class CustomerReceiptNoAllocationsException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'CUSTOMER_RECEIPT_NO_ALLOCATIONS',
+        message: 'A customer receipt needs at least one invoice allocation',
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class CustomerReceiptAllocationZeroException extends HttpException {
+  constructor(invoiceId: string) {
+    super(
+      {
+        code: 'CUSTOMER_RECEIPT_ALLOCATION_ZERO',
+        message: `Allocation against invoice '${invoiceId}' must be greater than zero`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class CustomerReceiptInvoiceNotFoundException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'CUSTOMER_RECEIPT_INVOICE_NOT_FOUND',
+        message: `Sales invoice '${id}' not found`,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class CustomerReceiptInvoiceNotPostedException extends HttpException {
+  constructor(id: string) {
+    super(
+      {
+        code: 'CUSTOMER_RECEIPT_INVOICE_NOT_POSTED',
+        message: `Sales invoice '${id}' is not posted; only posted invoices can be collected`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class CustomerReceiptInvoiceCustomerMismatchException extends HttpException {
+  constructor(invoiceId: string) {
+    super(
+      {
+        code: 'CUSTOMER_RECEIPT_INVOICE_CUSTOMER_MISMATCH',
+        message: `Sales invoice '${invoiceId}' belongs to a different customer than the receipt`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class CustomerReceiptAllocationExceedsBalanceException extends HttpException {
+  constructor(invoiceId: string, balance: string) {
+    super(
+      {
+        code: 'CUSTOMER_RECEIPT_ALLOCATION_EXCEEDS_BALANCE',
+        message: `Sales invoice '${invoiceId}' has only ${balance} outstanding to collect`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class CustomerReceiptFiscalYearMissingException extends HttpException {
+  constructor() {
+    super(
+      {
+        code: 'CUSTOMER_RECEIPT_FISCAL_YEAR_MISSING',
+        message: 'No active, open fiscal year covers the receipt date',
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class CustomerReceiptAccountMissingException extends HttpException {
+  constructor(purpose: string) {
+    super(
+      {
+        code: 'CUSTOMER_RECEIPT_ACCOUNT_MISSING',
+        message: `No active account resolves purpose '${purpose}'`,
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}

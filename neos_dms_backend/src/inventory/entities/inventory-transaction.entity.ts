@@ -25,7 +25,7 @@ import { InventoryTransactionLineEntity } from './inventory-transaction-line.ent
 )
 @Check(
   'chk_inventory_txns_type',
-  "transaction_type IN ('opening_stock','stock_adjustment','stock_transfer','sales_invoice','purchase_receipt','purchase_bill','purchase_return')",
+  "transaction_type IN ('opening_stock','stock_adjustment','stock_transfer','sales_invoice','sales_return','purchase_receipt','purchase_bill','purchase_return')",
 )
 @Check('chk_inventory_txns_status', "status IN ('POSTED')")
 @Check(

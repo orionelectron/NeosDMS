@@ -700,6 +700,108 @@ export class InventoryService {
     return txn;
   }
 
+  /**
+   * Manager-scoped stock-in for a posted sales return (credit note). Runs
+   * inside the return's own transaction so the document number, journal, and
+   * stock all commit atomically.
+   *
+   * Every line re-enters the location as a `sales_return` IN transaction at
+   * the invoice line's snapshotted `cogs_unit_cost` (decision 42): the exact
+   * mirror of the invoice's stock-out — `new_avg = (qty × avg + value) /
+   * new_qty` reverses the COGS reweight, and the journal's `DR Inventory /
+   * CR COGS` reverses the original cost of goods sold.
+   */
+  async receiveForSalesReturn(
+    manager: EntityManager,
+    organizationId: string,
+    input: {
+      locationId: string;
+      returnId: string;
+      notes: string | null;
+      lines: Array<{
+        itemId: string;
+        uomId: string;
+        baseQuantity: number;
+        value: number;
+      }>;
+    },
+    actorId: string,
+  ): Promise<InventoryTransactionEntity> {
+    await this.requireLocation(manager, organizationId, input.locationId);
+
+    const prepared = await Promise.all(
+      input.lines.map(async (line) => {
+        if (line.baseQuantity <= 0) throw new InventoryZeroQuantityException();
+        const item = await this.requireTrackedItem(
+          manager,
+          organizationId,
+          line.itemId,
+        );
+        return { line, item };
+      }),
+    );
+
+    const txn = await this.saveTransaction(
+      manager,
+      organizationId,
+      {
+        locationId: input.locationId,
+        toLocationId: null,
+        type: 'sales_return',
+        notes: input.notes,
+        referenceType: 'sales_return',
+        referenceId: input.returnId,
+      },
+      prepared.map(({ line, item }) => ({
+        itemId: item.id,
+        uomId: line.uomId,
+        direction: 'IN',
+        quantity: line.baseQuantity,
+        unitCost: ROUND2(line.value / line.baseQuantity),
+      })),
+      actorId,
+    );
+
+    const balanceRepo = manager.getRepository(InventoryBalanceEntity);
+    for (const { line } of prepared) {
+      const balance = await this.lockBalance(
+        manager,
+        organizationId,
+        input.locationId,
+        line.itemId,
+      );
+      const currentQty = balance ? Number(balance.quantity) : 0;
+      const currentAvg = balance ? Number(balance.avgCost ?? 0) : 0;
+      const newQty = ROUND3(currentQty + line.baseQuantity);
+      const newAvg =
+        newQty > 0
+          ? ROUND2((currentQty * currentAvg + line.value) / newQty)
+          : 0;
+
+      if (!balance) {
+        await balanceRepo.save(
+          balanceRepo.create({
+            organizationId,
+            locationId: input.locationId,
+            itemId: line.itemId,
+            quantity: newQty.toFixed(3),
+            avgCost: newAvg.toFixed(2),
+          }),
+        );
+      } else {
+        await balanceRepo.update(
+          { id: balance.id },
+          {
+            quantity: newQty.toFixed(3),
+            avgCost: newAvg.toFixed(2),
+          },
+        );
+      }
+    }
+
+    return txn;
+  }
+
   async listTransactions(
     organizationId: string,
     query: InventoryTransactionQueryDto,
@@ -975,6 +1077,7 @@ export class InventoryService {
         | 'stock_adjustment'
         | 'stock_transfer'
         | 'sales_invoice'
+        | 'sales_return'
         | 'purchase_receipt'
         | 'purchase_bill'
         | 'purchase_return';

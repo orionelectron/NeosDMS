@@ -54,7 +54,10 @@ const PERMISSION_DEFS: readonly PermissionDef[] = [
     actions: ['create', 'read', 'update'],
   },
   { module: 'trading', resource: 'item', actions: CRUD_ACTIONS },
+  { module: 'trading', resource: 'item-category', actions: CRUD_ACTIONS },
+  { module: 'trading', resource: 'brand', actions: CRUD_ACTIONS },
   { module: 'trading', resource: 'uom', actions: CRUD_ACTIONS },
+  { module: 'trading', resource: 'uom-conversion', actions: CRUD_ACTIONS },
   {
     module: 'sales',
     resource: 'invoice',
@@ -125,7 +128,7 @@ export const BASE_ROLES: readonly RoleDefinition[] = [
   {
     code: 'warehouse_manager',
     name: 'Warehouse Manager',
-    permissions: ['inventory.*', 'trading.item.*', 'dispatch.dispatch.read'],
+    permissions: ['inventory.*', 'trading.*', 'dispatch.dispatch.read'],
   },
 ];
 

@@ -11,6 +11,7 @@ import { HealthModule } from './health/health.module';
 import { IamModule } from './iam/iam.module';
 import { NepaliDateModule } from './nepali-date/nepali-date.module';
 import { TenancyModule } from './tenancy/tenancy.module';
+import { TradingModule } from './trading/trading.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { TenancyModule } from './tenancy/tenancy.module';
     TenancyModule,
     IamModule,
     AccountingModule,
+    TradingModule,
   ],
 })
 export class AppModule {}

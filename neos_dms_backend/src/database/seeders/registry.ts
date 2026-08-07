@@ -7,6 +7,7 @@ import { modulesIamSeed } from './modules-iam.seed';
 import { permissionsSeed } from './permissions.seed';
 import { plansSeed } from './plans.seed';
 import { taxCatalogSeed } from './tax-catalog.seed';
+import { tradingPermissionsSeed } from './trading-permissions.seed';
 import { transactionTypesSeed } from './transaction-types.seed';
 
 /**
@@ -26,4 +27,5 @@ export const SEEDS: readonly Seed[] = [
   taxCatalogSeed,
   transactionTypesSeed,
   accountingBackfillSeed,
+  tradingPermissionsSeed,
 ];

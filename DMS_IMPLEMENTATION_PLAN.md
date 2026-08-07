@@ -189,10 +189,10 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 
 ## 8. Phase 4 — Trading Masters (FMCG core)
 
-- [ ] `item_categories`, `uoms`, `brands`, `items` (SKU, base UOM, default price, tax template, reorder level)
-- [ ] `uom_conversions` — case ↔ piece conversion (critical for FMCG; `factor` + CHECK factor > 0)
-- [ ] Enforce `items` seat limit on item create
-- [ ] Endpoints: items CRUD, categories, brands, UOM + conversions
+- [x] `item_categories`, `uoms`, `brands`, `items` (SKU, base UOM, default price, tax template, reorder level)
+- [x] `uom_conversions` — case ↔ piece conversion (critical for FMCG; `factor` + CHECK factor > 0)
+- [x] Enforce `items` seat limit on item create
+- [x] Endpoints: items CRUD, categories, brands, UOM + conversions
 
 **Acceptance:** an item can be sold/invoiced in cases and stocked in pieces; conversions are unit-safe.
 
@@ -294,12 +294,14 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 
 ### In Progress
 - [~] Phase 3 — Accounting engine (COA default for new orgs, fiscal years, posting engine) — implementation + DB verification done; reports foundation deferred to Phase 8; phase-3 review follow-ups applied (Shrawan FY basis + data-fix migration, journal source uniqueness index, minimal trial balance)
+- [x] **Phase 4 complete** — Trading masters per §8 — implemented + verified live (migration `1786090000000-TradingMasters.ts` applied; seeds v10 `trading-permissions-backfill` applied; smoke-tested UOM/brand/category/item/conversion CRUD, org-wide + per-item conversions, dup-code/self-uom/zero-factor rejection, warehouse_manager `trading.*` (20 perms) allowed, driver 403, seat-limit 403 at limit, soft-delete, audit rows; 213 tests green, lint/build clean). Also fixed pre-existing `IamModule` boot bug (`AuditService` duplicate provider without repo scope)
 
 ### Next up
 - [x] **Phase 1 complete** (committed `3ffc3ac`, pushed to `main`): tenant + subscription per §5 — migration `1785913601535-TenantAndSubscription.ts` applied; seeds v1–3 (modules, billing periods, plans) applied; `SubscriptionService`/`PlanLimitService`/`@PlanLimit` interceptor; controllers (plans public, subscription, usage snapshot, history, payments/webhook); 76 tests green, lint/build clean; live smoke-tested trial + seat/periodic/feature limits
 - [x] **Phase 2 complete** (committed + pushed): IAM + RBAC per §6 — migration `1786035687494-IamAndAuth.ts` applied; seeds v4–6 (IAM modules, 70 permission codes, base-role backfill) applied; DB-backed refresh sessions with rotation; `JwtAuthGuard` + `PermissionsGuard` + `@RequirePermission`/`@Public`; `AuditService` with dual AD/BS timestamps; one-org-per-user onboarding (owner = ADMIN, temp password → forced change); admin bypass via `SUPERUSER_ROLE_CODE`; `password_hash` excluded from API responses; 76 tests green, lint/build clean; live smoke-tested (see §6 acceptance)
 - [~] Phase 3 — Accounting engine (FMCG subset, NPR-only) per §7 — implemented + verified live (migration, seeds, backfill, tax uniqueness migration, 151 tests); reports foundation left for Phase 8
-- [ ] Phase 4+ — Trading masters, Inventory, Sales/AR, Purchase/AP, Reports per plan order
+- [x] **Phase 4 complete** — Trading masters per §8 — implemented + verified live (see In Progress above)
+- [ ] Phase 5+ — Inventory, Sales/AR, Purchase/AP, Reports per plan order
 
 ## 17. Reference Migration Inventory (for translation)
 

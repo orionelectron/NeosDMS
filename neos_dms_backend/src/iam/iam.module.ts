@@ -5,7 +5,6 @@ import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import type { AppConfig } from '../config/configuration';
 import { AuditModule } from '../audit/audit.module';
-import { AuditService } from '../audit/audit.service';
 import { NepaliDateModule } from '../nepali-date/nepali-date.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { TenancyModule } from '../tenancy/tenancy.module';
@@ -49,7 +48,6 @@ import { TokenService } from './token.service';
     IamService,
     TokenService,
     PasswordService,
-    AuditService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
   ],

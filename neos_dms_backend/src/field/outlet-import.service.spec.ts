@@ -1,6 +1,7 @@
 import * as ExcelJS from 'exceljs';
 import { DataSource } from 'typeorm';
 import { AuditLogEntity } from '../audit/audit-log.entity';
+import { PartyEntity } from '../accounting/entities/party.entity';
 import { OutletEntity } from './entities/outlet.entity';
 import { OutletImportException } from './field.errors';
 import { OutletImportService } from './outlet-import.service';
@@ -306,6 +307,291 @@ describe('OutletImportService (real DB)', () => {
         name: 'CSV Store',
         reason: 'DUPLICATE_IN_FILE',
       });
+    });
+
+    it('auto-detects semicolon and pipe CSV delimiters', async () => {
+      const semi = [
+        HEADER.join(';'),
+        [
+          'Semi Store',
+          '',
+          '',
+          '',
+          '',
+          'Bagmati',
+          'Kathmandu',
+          '27.7',
+          '85.3',
+          '',
+          '',
+        ].join(';'),
+      ].join('\n');
+      const semiReport = await service.importOutlets(
+        TEST_ORG_ID,
+        actorId,
+        'semi.csv',
+        Buffer.from(semi, 'utf8'),
+        'csv',
+      );
+      expect(semiReport.imported).toBe(1);
+      expect(semiReport.errorCount).toBe(0);
+
+      const pipe = [
+        HEADER.join('|'),
+        [
+          'Pipe Store',
+          '',
+          '',
+          '',
+          '',
+          'Bagmati',
+          'Lalitpur',
+          '27.65',
+          '85.32',
+          '',
+          '',
+        ].join('|'),
+      ].join('\n');
+      const pipeReport = await service.importOutlets(
+        TEST_ORG_ID,
+        actorId,
+        'pipe.csv',
+        Buffer.from(pipe, 'utf8'),
+        'csv',
+      );
+      expect(pipeReport.imported).toBe(1);
+      expect(pipeReport.errorCount).toBe(0);
+    });
+  });
+
+  describe('dryRun', () => {
+    it('reports would-be counts without writing anything or auditing', async () => {
+      const buffer = await xlsxBuffer([
+        HEADER,
+        outletRow('Dry A'),
+        outletRow('Dry B'),
+      ]);
+
+      const report = await service.importOutlets(
+        TEST_ORG_ID,
+        actorId,
+        'dry.xlsx',
+        buffer,
+        'xlsx',
+        { dryRun: true },
+      );
+
+      expect(report.dryRun).toBe(true);
+      expect(report.imported).toBe(2);
+      expect(report.updated).toBe(0);
+      expect(report.duplicateCount).toBe(0);
+      expect(report.errorCount).toBe(0);
+      expect(report.errorsCsv).not.toBe('');
+      expect(await outletRepo().count()).toBe(0);
+
+      const audits = await dataSource
+        .getRepository(AuditLogEntity)
+        .find({ where: { action: 'sales.outlet.import' } });
+      expect(audits).toHaveLength(0);
+    });
+
+    it('reports duplicates and errors in preview mode without inserting', async () => {
+      const buffer = await xlsxBuffer([
+        HEADER,
+        outletRow('Dry Dup'),
+        outletRow('Dry Dup'),
+        ['Bad', null, null, null, null, null, null, 'oops', null, null, null],
+      ]);
+
+      const report = await service.importOutlets(
+        TEST_ORG_ID,
+        actorId,
+        'dry.xlsx',
+        buffer,
+        'xlsx',
+        { dryRun: true },
+      );
+
+      expect(report.dryRun).toBe(true);
+      expect(report.imported).toBe(1);
+      expect(report.duplicateCount).toBe(1);
+      expect(report.errorCount).toBe(1);
+      expect(await outletRepo().count()).toBe(0);
+    });
+  });
+
+  describe('mode=update', () => {
+    it('updates existing outlets (and their customer party), creates the rest', async () => {
+      const partyRepo = dataSource.getRepository(PartyEntity);
+      const party = await partyRepo.save(
+        partyRepo.create({
+          organizationId: TEST_ORG_ID,
+          name: 'Update Me',
+          legalName: 'Update Me',
+          partyKind: 'BUSINESS',
+          isCustomer: true,
+          email: 'old@example.com',
+          phone: '000',
+          address: 'Old Address',
+          creditLimit: '0',
+          openingBalance: '0',
+        }),
+      );
+      await outletRepo().save(
+        outletRepo().create({
+          organizationId: TEST_ORG_ID,
+          partyId: party.id,
+          name: 'Update Me',
+          channel: 'GENERAL_TRADE',
+          status: 'ACTIVE',
+          email: 'old-outlet@example.com',
+        }),
+      );
+
+      const buffer = await xlsxBuffer([
+        HEADER,
+        [
+          'Update Me',
+          'New Owner',
+          'new@example.com',
+          '014440001',
+          'New Address',
+          'Bagmati',
+          'Kathmandu',
+          27.71,
+          85.31,
+          'MODERN_TRADE',
+          'Mega Store',
+        ],
+        outletRow('Brand New'),
+      ]);
+
+      const report = await service.importOutlets(
+        TEST_ORG_ID,
+        actorId,
+        'upd.xlsx',
+        buffer,
+        'xlsx',
+        { mode: 'update' },
+      );
+
+      expect(report.mode).toBe('update');
+      expect(report.imported).toBe(1);
+      expect(report.updated).toBe(1);
+      expect(report.updates).toEqual([{ row: 2, name: 'Update Me' }]);
+      expect(report.duplicateCount).toBe(0);
+      expect(report.errorCount).toBe(0);
+
+      const updated = await outletRepo().findOneBy({ name: 'Update Me' });
+      expect(updated).toMatchObject({
+        ownerName: 'New Owner',
+        email: 'new@example.com',
+        phone: '014440001',
+        address: 'New Address',
+        channel: 'MODERN_TRADE',
+        category: 'Mega Store',
+        status: 'ACTIVE',
+      });
+      expect(Number(updated?.latitude)).toBeCloseTo(27.71, 4);
+
+      const partyAfter = await partyRepo.findOneBy({ id: party.id });
+      expect(partyAfter).toMatchObject({
+        name: 'Update Me',
+        email: 'new@example.com',
+        phone: '014440001',
+        address: 'New Address',
+      });
+
+      expect(
+        await outletRepo().findOneBy({ name: 'Brand New' }),
+      ).not.toBeNull();
+    });
+
+    it('still reports in-file duplicates as duplicates in update mode', async () => {
+      await outletRepo().save(
+        outletRepo().create({
+          organizationId: TEST_ORG_ID,
+          name: 'Dup In Update',
+          partyId: null,
+          channel: 'GENERAL_TRADE',
+          status: 'ACTIVE',
+        }),
+      );
+
+      const buffer = await xlsxBuffer([
+        HEADER,
+        outletRow('Dup In Update'),
+        outletRow('Dup In Update'),
+      ]);
+      const report = await service.importOutlets(
+        TEST_ORG_ID,
+        actorId,
+        'upd.xlsx',
+        buffer,
+        'xlsx',
+        { mode: 'update' },
+      );
+
+      expect(report.updated).toBe(1);
+      expect(report.duplicateCount).toBe(1);
+      expect(report.duplicates[0]).toEqual({
+        row: 3,
+        name: 'Dup In Update',
+        reason: 'DUPLICATE_IN_FILE',
+      });
+    });
+  });
+
+  describe('errorsCsv', () => {
+    it('contains the header row, failing rows with values, and the issue text', async () => {
+      const buffer = await xlsxBuffer([
+        HEADER,
+        outletRow('Good'),
+        [
+          'Bad, Co',
+          null,
+          null,
+          null,
+          null,
+          null,
+          'Kathmandu',
+          'oops',
+          null,
+          null,
+          null,
+        ],
+      ]);
+
+      const report = await service.importOutlets(
+        TEST_ORG_ID,
+        actorId,
+        'err.xlsx',
+        buffer,
+        'xlsx',
+      );
+
+      expect(report.imported).toBe(1);
+      const lines = report.errorsCsv.split('\r\n');
+      expect(lines[0]).toBe(
+        'name,owner_name,email,phone,address,province,district,latitude,longitude,channel,category,error',
+      );
+      expect(lines[1]).toContain('"Bad, Co"');
+      expect(lines[1]).toContain('latitude must be a number');
+      expect(lines).toHaveLength(2);
+    });
+
+    it('is header-only when there are no errors', async () => {
+      const buffer = await xlsxBuffer([HEADER, outletRow('Clean Store')]);
+      const report = await service.importOutlets(
+        TEST_ORG_ID,
+        actorId,
+        'clean.xlsx',
+        buffer,
+        'xlsx',
+      );
+      expect(report.errorsCsv).toBe(
+        'name,owner_name,email,phone,address,province,district,latitude,longitude,channel,category,error',
+      );
     });
   });
 

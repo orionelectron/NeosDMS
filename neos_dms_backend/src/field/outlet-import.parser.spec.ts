@@ -1,6 +1,7 @@
 import * as ExcelJS from 'exceljs';
 import {
   cellToValue,
+  detectCsvDelimiter,
   mapHeaders,
   normalizeHeaderName,
   normalizeOutletRow,
@@ -45,6 +46,44 @@ describe('outlet-import parser (unit)', () => {
       expect(parseCsv('\ufeffname,district\nA,B')).toEqual([
         ['name', 'district'],
         ['A', 'B'],
+      ]);
+    });
+  });
+
+  describe('detectCsvDelimiter', () => {
+    it('detects comma, semicolon, pipe and tab', () => {
+      expect(detectCsvDelimiter('name,owner_name,phone\nA,B,C\n')).toBe(',');
+      expect(detectCsvDelimiter('name;owner_name;phone\nA;B;C\n')).toBe(';');
+      expect(detectCsvDelimiter('name|owner_name|phone\nA|B|C\n')).toBe('|');
+      expect(detectCsvDelimiter('name\towner_name\tphone\nA\tB\tC\n')).toBe(
+        '\t',
+      );
+    });
+
+    it('ignores delimiters inside quoted fields', () => {
+      const csv = 'name,address\n"Shrestha; Ram & Co","Ganesh, Marg"\n';
+      expect(detectCsvDelimiter(csv)).toBe(',');
+    });
+
+    it('defaults to comma when nothing separates columns', () => {
+      expect(detectCsvDelimiter('name\nStore One\n')).toBe(',');
+    });
+  });
+
+  describe('parseCsv with custom delimiter', () => {
+    it('parses semicolon-separated content', () => {
+      expect(parseCsv('name;district\nStore A;Kathmandu\n', ';')).toEqual([
+        ['name', 'district'],
+        ['Store A', 'Kathmandu'],
+      ]);
+    });
+
+    it('still honors quotes with a custom delimiter', () => {
+      expect(
+        parseCsv('name;address\n"Store;A";"Kathmandu, Baneshwor"\n', ';'),
+      ).toEqual([
+        ['name', 'address'],
+        ['Store;A', 'Kathmandu, Baneshwor'],
       ]);
     });
   });

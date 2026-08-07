@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsIn,
   IsNumber,
   IsOptional,
@@ -149,4 +150,18 @@ export class OutletListQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsIn(OUTLET_STATUS)
   status?: (typeof OUTLET_STATUS)[number];
+}
+
+export class OutletImportQueryDto {
+  @IsOptional()
+  @IsIn(['skip', 'update'])
+  mode?: 'skip' | 'update';
+
+  @IsOptional()
+  @IsBoolean()
+  dryRun?: boolean;
+
+  @IsOptional()
+  @IsIn(['json', 'csv'])
+  format?: 'json' | 'csv';
 }

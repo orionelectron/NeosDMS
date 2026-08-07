@@ -27,6 +27,7 @@ import { Paginated, paginate } from '../common/dto/pagination.dto';
 import { RequirePermission } from '../iam/decorators/require-permission.decorator';
 import {
   CreateOutletDto,
+  OutletImportQueryDto,
   OutletListQueryDto,
   UpdateOutletDto,
 } from './dto/outlet.dto';
@@ -80,15 +81,16 @@ export class OutletController {
   @Post('outlets/import')
   @ApiOperation({
     summary:
-      'Bulk-import outlets from an .xlsx/.csv spreadsheet (migration). Skips duplicates, reports per-row errors.',
+      'Bulk-import outlets from an .xlsx/.csv spreadsheet (migration). Skips duplicates, reports per-row errors. Query options: dryRun=true (validate only), mode=update (update existing), format=csv (download error file).',
   })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: IMPORT_MAX_FILE_SIZE } }),
   )
-  importOutlets(
+  async importOutlets(
     @CurrentTenant() tenant: TenantContext,
     @CurrentUser() actor: AuthenticatedUser,
+    @Query() query: OutletImportQueryDto,
     @UploadedFile() file?: Express.Multer.File,
   ) {
     if (!file) {
@@ -99,13 +101,22 @@ export class OutletController {
     const extension = this.outletImportService.resolveExtension(
       file.originalname,
     );
-    return this.outletImportService.importOutlets(
+    const report = await this.outletImportService.importOutlets(
       tenant.id,
       actor.id,
       file.originalname,
       file.buffer,
       extension,
+      { mode: query.mode, dryRun: query.dryRun },
     );
+    if (query.format === 'csv') {
+      const baseName = file.originalname.replace(/\.[^.]+$/, '');
+      return new StreamableFile(Buffer.from(report.errorsCsv, 'utf8'), {
+        type: 'text/csv',
+        disposition: `attachment; filename="${baseName}-errors.csv"`,
+      });
+    }
+    return report;
   }
 
   @RequirePermission('sales.outlet.read')

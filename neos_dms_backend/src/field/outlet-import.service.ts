@@ -1,7 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as ExcelJS from 'exceljs';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import {
+  DataSource,
+  DeepPartial,
+  EntityManager,
+  QueryDeepPartialEntity,
+  Repository,
+} from 'typeorm';
 import { PartyEntity } from '../accounting/entities/party.entity';
 import { AuditService } from '../audit/audit.service';
 import { OutletEntity } from './entities/outlet.entity';
@@ -22,10 +28,22 @@ const DUPLICATE_CONSTRAINT_CODES = new Set(['23505']);
 
 export type DuplicateReason = 'DUPLICATE_IN_FILE' | 'ALREADY_EXISTS';
 
+export type ImportMode = 'skip' | 'update';
+
+export interface ImportOptions {
+  mode?: ImportMode;
+  dryRun?: boolean;
+}
+
 export interface OutletImportDuplicate {
   row: number;
   name: string;
   reason: DuplicateReason;
+}
+
+export interface OutletImportUpdate {
+  row: number;
+  name: string;
 }
 
 export interface OutletImportRowError {
@@ -38,16 +56,38 @@ export interface OutletImportReport {
   fileName: string;
   totalRows: number;
   imported: number;
+  updated: number;
   duplicateCount: number;
   errorCount: number;
+  dryRun: boolean;
+  mode: ImportMode;
   duplicates: OutletImportDuplicate[];
+  updates: OutletImportUpdate[];
   errors: OutletImportRowError[];
+  errorsCsv: string;
 }
 
 interface PendingRow {
   row: number;
   value: OutletImportRow;
+  cells: (string | number | null)[];
 }
+
+interface PendingUpdate extends PendingRow {
+  outletId: string;
+  partyId: string | null;
+}
+
+interface RowIssue {
+  row: number;
+  name?: string;
+  errors: string[];
+  cells: (string | number | null)[];
+}
+
+type ImportOp =
+  | { kind: 'create'; item: PendingRow }
+  | { kind: 'update'; item: PendingUpdate };
 
 /**
  * Bulk outlet import for migrations from legacy systems.
@@ -56,11 +96,13 @@ interface PendingRow {
  * 1. Parse the whole file into memory (validated, single pass).
  * 2. Validate + normalize every row, collecting row-level errors.
  * 3. Dedupe within the file AND against existing org outlets (name is unique
- *    per org) — duplicates are skipped and reported, not failed.
+ *    per org). In `skip` mode duplicates are skipped and reported; in `update`
+ *    mode existing outlets are updated in place instead of skipped.
  * 4. Import valid rows inside one outer transaction, one nested savepoint per
  *    batch so a failing batch only rolls back its own rows; unexpected DB
  *    errors are isolated per row and reported. Everything valid commits
  *    together; a catastrophic failure rolls back the whole import.
+ * 5. `dryRun` returns the full report (incl. the error CSV) without writing.
  */
 @Injectable()
 export class OutletImportService {
@@ -91,7 +133,11 @@ export class OutletImportService {
     fileName: string,
     buffer: Buffer,
     extension: SpreadsheetExtension,
+    options: ImportOptions = {},
   ): Promise<OutletImportReport> {
+    const mode = options.mode ?? 'skip';
+    const dryRun = options.dryRun ?? false;
+
     const parsed = await this.parseFile(buffer, extension);
     if (parsed.rows.length > OUTLET_IMPORT_MAX_ROWS) {
       throw new OutletImportException(
@@ -100,31 +146,44 @@ export class OutletImportService {
     }
 
     const headerIndex = this.mapHeaders(parsed.header);
-    const { validationErrors, pending } = this.validateRows(
-      parsed.rows,
-      headerIndex,
+    const { issues, pending } = this.validateRows(parsed.rows, headerIndex);
+    const { duplicates, toCreate, toUpdate } = await this.dedupe(
+      organizationId,
+      pending,
+      mode,
     );
-    const { duplicates, toImport } = await this.dedupe(organizationId, pending);
 
-    const { imported, dbErrors } = await this.importRows(
+    const { imported, updated, dbErrors, errorsCsv } = await this.importRows(
       organizationId,
       actorId,
       fileName,
+      parsed.header,
       parsed.rows.length,
       duplicates.length,
-      validationErrors.length,
-      toImport,
+      issues,
+      toCreate,
+      toUpdate,
+      dryRun,
     );
 
-    const errors = [...validationErrors, ...dbErrors];
+    const errors = [...issues, ...dbErrors].map((issue) => ({
+      row: issue.row,
+      name: issue.name,
+      errors: issue.errors,
+    }));
     return {
       fileName,
       totalRows: parsed.rows.length,
       imported,
+      updated,
       duplicateCount: duplicates.length,
       errorCount: errors.length,
+      dryRun,
+      mode,
       duplicates,
+      updates: toUpdate.map(({ row, value }) => ({ row, name: value.name })),
       errors,
+      errorsCsv,
     };
   }
 
@@ -192,6 +251,18 @@ export class OutletImportService {
         '',
         'Remove the example row before uploading. Upload the file via POST /api/v1/outlets/import.',
       ],
+      [
+        '',
+        'Dry-run first: POST /outlets/import?dryRun=true returns the same report (incl. an error CSV) without changing any data. Re-upload without dryRun when it looks right.',
+      ],
+      [
+        '',
+        'By default rows whose name already exists are skipped. Add ?mode=update to update those existing outlets in place instead (name/status are never overwritten).',
+      ],
+      [
+        '',
+        'To download the errors as a CSV file instead of JSON, add ?format=csv to the upload request.',
+      ],
     ];
     instructions.addRow(['column', 'notes']);
     instructions.getRow(1).font = { bold: true };
@@ -228,8 +299,8 @@ export class OutletImportService {
   private validateRows(
     rows: (string | number | null)[][],
     headerIndex: ReturnType<typeof mapHeaders>,
-  ): { validationErrors: OutletImportRowError[]; pending: PendingRow[] } {
-    const validationErrors: OutletImportRowError[] = [];
+  ): { issues: RowIssue[]; pending: PendingRow[] } {
+    const issues: RowIssue[] = [];
     const pending: PendingRow[] = [];
     rows.forEach((cells, index) => {
       const rowNumber = index + 2;
@@ -239,34 +310,44 @@ export class OutletImportService {
           : undefined;
       const result = normalizeOutletRow(cells, headerIndex);
       if (result.issues.length > 0) {
-        validationErrors.push({
+        issues.push({
           row: rowNumber,
           name: name || undefined,
           errors: result.issues,
+          cells,
         });
       } else if (result.value) {
-        pending.push({ row: rowNumber, value: result.value });
+        pending.push({ row: rowNumber, value: result.value, cells });
       }
     });
-    return { validationErrors, pending };
+    return { issues, pending };
   }
 
   private async dedupe(
     organizationId: string,
     pending: PendingRow[],
-  ): Promise<{ duplicates: OutletImportDuplicate[]; toImport: PendingRow[] }> {
-    const existing = new Set<string>();
+    mode: ImportMode,
+  ): Promise<{
+    duplicates: OutletImportDuplicate[];
+    toCreate: PendingRow[];
+    toUpdate: PendingUpdate[];
+  }> {
+    const existing = new Map<string, { id: string; partyId: string | null }>();
     const outlets = await this.outletRepo.find({
       where: { organizationId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, partyId: true },
     });
     for (const outlet of outlets) {
-      existing.add(outlet.name.trim().toLowerCase());
+      existing.set(outlet.name.trim().toLowerCase(), {
+        id: outlet.id,
+        partyId: outlet.partyId,
+      });
     }
 
     const duplicates: OutletImportDuplicate[] = [];
+    const toCreate: PendingRow[] = [];
+    const toUpdate: PendingUpdate[] = [];
     const seen = new Set<string>();
-    const toImport: PendingRow[] = [];
     for (const item of pending) {
       const key = item.value.name.trim().toLowerCase();
       if (seen.has(key)) {
@@ -277,105 +358,176 @@ export class OutletImportService {
         });
         continue;
       }
-      if (existing.has(key)) {
-        duplicates.push({
-          row: item.row,
-          name: item.value.name,
-          reason: 'ALREADY_EXISTS',
-        });
+      const existingOutlet = existing.get(key);
+      if (existingOutlet) {
+        if (mode === 'update') {
+          seen.add(key);
+          toUpdate.push({
+            ...item,
+            outletId: existingOutlet.id,
+            partyId: existingOutlet.partyId,
+          });
+        } else {
+          duplicates.push({
+            row: item.row,
+            name: item.value.name,
+            reason: 'ALREADY_EXISTS',
+          });
+        }
         continue;
       }
       seen.add(key);
-      toImport.push(item);
+      toCreate.push(item);
     }
-    return { duplicates, toImport };
+    return { duplicates, toCreate, toUpdate };
   }
 
   private async importRows(
     organizationId: string,
     actorId: string,
     fileName: string,
+    header: string[],
     totalRows: number,
     duplicateCount: number,
-    validationErrorCount: number,
-    toImport: PendingRow[],
-  ): Promise<{ imported: number; dbErrors: OutletImportRowError[] }> {
-    const dbErrors: OutletImportRowError[] = [];
+    issues: RowIssue[],
+    toCreate: PendingRow[],
+    toUpdate: PendingUpdate[],
+    dryRun: boolean,
+  ): Promise<{
+    imported: number;
+    updated: number;
+    dbErrors: RowIssue[];
+    errorsCsv: string;
+  }> {
+    const dbErrors: RowIssue[] = [];
     let imported = 0;
+    let updated = 0;
 
-    await this.dataSource.transaction(async (manager) => {
-      for (let i = 0; i < toImport.length; i += BATCH_SIZE) {
-        const batch = toImport.slice(i, i + BATCH_SIZE);
-        try {
-          // Each batch runs in its own savepoint: a failure rolls back only
-          // this batch and leaves the outer transaction usable (PG aborts the
-          // whole transaction on an error outside a savepoint).
-          await manager.transaction(async (txn) => {
-            await this.insertBatch(txn, organizationId, batch);
-          });
-          imported += batch.length;
-        } catch {
-          for (const item of batch) {
-            try {
-              await manager.transaction(async (txn) => {
-                await this.insertBatch(txn, organizationId, [item]);
-              });
-              imported += 1;
-            } catch (error) {
-              dbErrors.push({
-                row: item.row,
-                name: item.value.name,
-                errors: [this.describeDbError(error, item.value.name)],
-              });
+    if (!dryRun) {
+      await this.dataSource.transaction(async (manager) => {
+        const ops: ImportOp[] = [
+          ...toCreate.map((item) => ({ kind: 'create' as const, item })),
+          ...toUpdate.map((item) => ({ kind: 'update' as const, item })),
+        ];
+        for (let i = 0; i < ops.length; i += BATCH_SIZE) {
+          const batch = ops.slice(i, i + BATCH_SIZE);
+          try {
+            // Each batch runs in its own savepoint: a failure rolls back only
+            // this batch and leaves the outer transaction usable (PG aborts the
+            // whole transaction on an error outside a savepoint).
+            await manager.transaction(async (txn) => {
+              await this.applyBatch(txn, organizationId, batch);
+            });
+            imported += batch.filter((op) => op.kind === 'create').length;
+            updated += batch.filter((op) => op.kind === 'update').length;
+          } catch {
+            for (const op of batch) {
+              try {
+                await manager.transaction(async (txn) => {
+                  await this.applyBatch(txn, organizationId, [op]);
+                });
+                if (op.kind === 'create') imported += 1;
+                else updated += 1;
+              } catch (error) {
+                dbErrors.push({
+                  row: op.item.row,
+                  name: op.item.value.name,
+                  errors: [this.describeDbError(error, op.item.value.name)],
+                  cells: op.item.cells,
+                });
+              }
             }
           }
         }
-      }
 
-      await this.auditService.record(
-        {
-          organizationId,
-          userId: actorId,
-          action: 'sales.outlet.import',
-          entityType: 'outlet',
-          newData: {
-            fileName,
-            totalRows,
-            imported,
-            ignoredDuplicates: duplicateCount,
-            failed: validationErrorCount + dbErrors.length,
+        await this.auditService.record(
+          {
+            organizationId,
+            userId: actorId,
+            action: 'sales.outlet.import',
+            entityType: 'outlet',
+            newData: {
+              fileName,
+              totalRows,
+              imported,
+              updated,
+              ignoredDuplicates: duplicateCount,
+              failed: issues.length + dbErrors.length,
+            },
           },
-        },
-        manager,
-      );
-    });
+          manager,
+        );
+      });
+    } else {
+      imported = toCreate.length;
+      updated = toUpdate.length;
+    }
 
-    return { imported, dbErrors };
+    const errorsCsv = this.buildErrorCsv(header, [...issues, ...dbErrors]);
+    return { imported, updated, dbErrors, errorsCsv };
   }
 
-  private async insertBatch(
+  private async applyBatch(
     manager: EntityManager,
     organizationId: string,
-    batch: PendingRow[],
+    ops: ImportOp[],
   ): Promise<void> {
     const partyRepo = manager.getRepository(PartyEntity);
     const outletRepo = manager.getRepository(OutletEntity);
 
-    const parties = await partyRepo.save(
-      partyRepo.create(
-        batch.map((item) =>
-          this.customerPartyFields(organizationId, item.value),
+    const creates = ops.filter((op) => op.kind === 'create');
+    if (creates.length > 0) {
+      const parties = await partyRepo.save(
+        partyRepo.create(
+          creates.map((op) =>
+            this.customerPartyFields(organizationId, op.item.value),
+          ),
         ),
-      ),
-    );
+      );
+      await outletRepo.save(
+        outletRepo.create(
+          creates.map((op, index) =>
+            this.outletFields(organizationId, op.item.value, parties[index].id),
+          ),
+        ),
+      );
+    }
 
-    await outletRepo.save(
-      outletRepo.create(
-        batch.map((item, index) =>
-          this.outletFields(organizationId, item.value, parties[index].id),
-        ),
-      ),
-    );
+    for (const op of ops) {
+      if (op.kind !== 'update') continue;
+      if (op.item.partyId) {
+        await partyRepo.update(
+          op.item.partyId,
+          this.customerPartyUpdateFields(op.item.value),
+        );
+      }
+      await outletRepo.update(
+        op.item.outletId,
+        this.outletUpdateFields(op.item.value),
+      );
+    }
+  }
+
+  private buildErrorCsv(header: string[], errors: RowIssue[]): string {
+    const lines = [this.toCsvLine([...header, 'error'])];
+    for (const issue of errors) {
+      const cells = header.map((_, i) =>
+        issue.cells[i] == null ? '' : String(issue.cells[i]),
+      );
+      lines.push(this.toCsvLine([...cells, issue.errors.join('; ')]));
+    }
+    return lines.join('\r\n');
+  }
+
+  private toCsvLine(fields: (string | number | null | undefined)[]): string {
+    return fields
+      .map((field) => {
+        const value = field == null ? '' : String(field);
+        return /[",\r\n;]/.test(value) || /^[ \t]|[ \t]$/.test(value)
+          ? `"${value.replace(/"/g, '""')}"`
+          : value;
+      })
+      .join(',');
   }
 
   private customerPartyFields(
@@ -408,7 +560,7 @@ export class OutletImportService {
     organizationId: string,
     row: OutletImportRow,
     partyId: string,
-  ): Partial<OutletEntity> {
+  ): DeepPartial<OutletEntity> {
     return {
       organizationId,
       partyId,
@@ -421,11 +573,36 @@ export class OutletImportService {
       district: row.district ?? null,
       latitude: row.latitude == null ? null : String(row.latitude),
       longitude: row.longitude == null ? null : String(row.longitude),
-      photoKey: null,
-      description: null,
       channel: row.channel,
       category: row.category ?? null,
-      status: 'ACTIVE',
+    };
+  }
+
+  private outletUpdateFields(
+    row: OutletImportRow,
+  ): QueryDeepPartialEntity<OutletEntity> {
+    return {
+      name: row.name,
+      ownerName: row.ownerName ?? null,
+      email: row.email ?? null,
+      phone: row.phone ?? null,
+      address: row.address ?? null,
+      province: row.province ?? null,
+      district: row.district ?? null,
+      latitude: row.latitude == null ? null : String(row.latitude),
+      longitude: row.longitude == null ? null : String(row.longitude),
+      channel: row.channel,
+      category: row.category ?? null,
+    };
+  }
+
+  private customerPartyUpdateFields(
+    row: OutletImportRow,
+  ): QueryDeepPartialEntity<PartyEntity> {
+    return {
+      email: row.email ?? null,
+      phone: row.phone ?? null,
+      address: row.address ?? null,
     };
   }
 

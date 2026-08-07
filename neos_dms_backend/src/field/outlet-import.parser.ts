@@ -174,11 +174,51 @@ async function parseXlsx(buffer: Buffer): Promise<ParsedSpreadsheet> {
   return splitHeader(rows);
 }
 
+const CSV_DELIMITERS = [',', ';', '\t', '|'] as const;
+
+export type CsvDelimiter = (typeof CSV_DELIMITERS)[number];
+
+/**
+ * Guesses the CSV delimiter from a text sample by counting delimiter chars
+ * that appear outside quoted regions. Handles Excel's regional CSV exports
+ * (`;` in many locales) and pipe/tab separators. Ties resolve to comma.
+ */
+export function detectCsvDelimiter(text: string): CsvDelimiter {
+  const sample = text.slice(0, 64 * 1024);
+  const counts: Partial<Record<CsvDelimiter, number>> = {};
+  let inQuotes = false;
+  for (let i = 0; i < sample.length; i += 1) {
+    const ch = sample[i];
+    if (ch === '"') {
+      if (inQuotes && sample[i + 1] === '"') {
+        i += 1;
+        continue;
+      }
+      inQuotes = !inQuotes;
+      continue;
+    }
+    if (!inQuotes && (CSV_DELIMITERS as readonly string[]).includes(ch)) {
+      const delim = ch as CsvDelimiter;
+      counts[delim] = (counts[delim] ?? 0) + 1;
+    }
+  }
+  let best: CsvDelimiter = ',';
+  let bestCount = 0;
+  for (const delim of CSV_DELIMITERS) {
+    const count = counts[delim] ?? 0;
+    if (count > bestCount) {
+      bestCount = count;
+      best = delim;
+    }
+  }
+  return best;
+}
+
 /**
  * RFC 4180-ish CSV parser: handles quoted fields, `""` escapes, embedded
  * commas/newlines and CRLF line endings.
  */
-export function parseCsv(text: string): string[][] {
+export function parseCsv(text: string, delimiter: string = ','): string[][] {
   const source = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
   const rows: string[][] = [];
   let row: string[] = [];
@@ -218,7 +258,7 @@ export function parseCsv(text: string): string[][] {
       i += 1;
       continue;
     }
-    if (char === ',') {
+    if (char === delimiter) {
       pushField();
       i += 1;
       continue;
@@ -241,7 +281,9 @@ export function parseCsv(text: string): string[][] {
 }
 
 function parseCsvBuffer(buffer: Buffer): ParsedSpreadsheet {
-  const rows = parseCsv(buffer.toString('utf8')).map((r) =>
+  const text = buffer.toString('utf8');
+  const delimiter = detectCsvDelimiter(text);
+  const rows = parseCsv(text, delimiter).map((r) =>
     r.map((c) => (c.trim() === '' ? null : c)),
   );
   return splitHeader(rows);

@@ -10,7 +10,7 @@
 - API layer: `lib/api/http.ts` `apiFetch<T>()` — JWT auth + refresh-on-401, response-envelope `unwrap`, pagination meta `{page,limit,total,totalPages}`
 - Session: `components/providers/auth-provider.tsx` — `useAuth()` exposes `user`, `permissions`, `can(permission)`
 - Module gating: `lib/modules/registry.ts` — org module `trading` ↔ backend permission prefix `trading.*`; route prefix `/trading`
-- Built so far: landing site, onboarding wizard, app shell (top bar / sidebar / notifications), dashboard placeholder. Trading module T1–T3 shipped (UOMs, brands, categories); T4/T5 queued.
+- Built so far: landing site, onboarding wizard, app shell (top bar / sidebar / notifications), dashboard placeholder. Trading module T1–T5 shipped (UOMs, brands, categories, items, conversions); T6 queued.
 - Priority (A1): the **accounting core is the frontend base** — sales/purchase/inventory modules post into the ledger. A1–A6 ship before trading T4/T5 resume.
 
 ## 2. Decisions Log
@@ -200,13 +200,14 @@ neos_dms_frontend/
 - [x] **Phase A4 — Journal entries** — `journalApi` (list w/ `status`+`from`/`to`/`accountId`, get, create, post, cancel), `journalSchema` (per-line debit-XOR-credit + balanced via superRefine, 4dp strings), `journalList`/`journalDetail` keys; `journal-entries` list (status tabs + from/to date inputs, JE number once posted, row → detail, inline Post, Cancel w/ confirm, `accounting.journal-entry.{create,post,delete}` gating) + `journal-entries/[id]` detail (lines table w/ account/party/description/dr/cr + totals, Post/Cancel draft-only confirm) + create sheet (`branchId` from `GET /organizations/me/branches`, date, description, dynamic line editor with leaf-account select, optional party, live balance indicator via `useWatch`). `tsc` + `eslint` + `next build` clean
 - [x] **Phase A5 — Trial balance + ledger** — `trialBalanceApi` (`GET /trial-balance` w/ `fiscalYearId`/`from`/`to`); `trial-balance` page (fiscal-year select defaulting to active FY + from/to range, grouped by coaType indented by level, opening/activity/closing dr+cr, totals row, `balanced` banner — defaults derived without setState-in-effect); `ledger/[accountId]` (per-account register via `GET /journal-entries?accountId=`, date/number/description/dr/cr/running balance with normal-side sign, chronological, links back to journal detail). `tsc` + `eslint` + `next build` clean
 - [x] **Phase A6 — Tax reference + document sequences** — `taxApi` (types/templates/codes read-only) + `documentSequenceApi` (list/create); `tax` page (three read-only sections — system types, templates, org codes with IRD badge/rate/linked account); `document-sequences` list (document type, prefix, next number, branch/FY scope) + create sheet (documentType/prefix/branch/FY/lastNumber, `accounting.document-sequence.create` gating). `tsc` + `eslint` + `next build` clean
+- [x] **Phase T4 — Items** — `itemApi` (list w/ `categoryId`/`brandId`/`isActive` filters, get, create, update) + `Item`/dto types + `ITEM_TYPES`/`VALUATION_METHODS`/`INVENTORY_TRACKINGS`, `itemSchema` (2dp money strings, whole reorder level, `"none"` sentinels for nullable UUID refs), `trading.itemList`/`itemDetail` keys; `trading/items` list (debounced search + category/brand/active filter bar, pagination, name→detail link, sale price NPR, active + type badges, edit/activate-deactivate, `trading.item.*` gating, no delete UI — toggle only) + item create/edit sheet (Identity/Classification/Pricing/Tax & HSN/Inventory/Accounting sections, category/brand/base-UOM/tax-code selects, leaf+active account selects with referenced-account fallback, expiry + negative-stock switches, isActive on edit) + `items/[id]` detail (back link, summary card — identity/tax/pricing/inventory/posting accounts resolved from COA). `tsc` + `eslint` + `next build` clean; `/trading/items` + `/trading/items/[id]` return 200. User smoke pending
+- [x] **Phase T5 — UOM conversions** — `conversionApi` (list w/ `itemId` filter, create, delete) + `UomConversion` type, `conversionSchema` (6dp factor `> 0`, from ≠ to via superRefine, `"none"` itemId sentinel = global), `trading.conversionList` key; `trading/conversions` page (item filter select, scope badge Global/per-item, factor 6dp display, delete w/ destructive confirm — only hard-delete in trading, `trading.uom-conversion.*` gating) + create sheet (item select w/ global option, from/to UOM, live “1 X = N Y” preview, `lockedItemId` for item detail); conversions section wired into `items/[id]`. `tsc` + `eslint` + `next build` clean; `/trading/conversions` returns 200. User smoke pending
 
 ### In Progress
 - [ ] User smoke of accounting core A1–A6 (dev server)
+- [ ] User smoke of trading T4–T5 (dev server)
 
 ### Next up
-- [ ] Phase T4 — Items (resumes after accounting core smoke)
-- [ ] Phase T5 — UOM conversions (resumes after accounting core smoke)
 - [ ] Phase T6 — Sales/Inventory wiring (deferred)
 
 ## 7. Reference — backend trading surface (authoritative)

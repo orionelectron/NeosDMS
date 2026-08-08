@@ -40,6 +40,7 @@ interface PlannerMapProps {
   selectedOutletId: string | null;
   drawing: boolean;
   vertices: Array<[number, number]>;
+  showRouted: boolean;
   onPointClick: (id: string) => void;
   onSelectGroup: (id: string | null) => void;
   onMapClick: (latlng: MapClick) => void;
@@ -394,6 +395,7 @@ export function PlannerMap({
   selectedOutletId,
   drawing,
   vertices,
+  showRouted,
   onPointClick,
   onSelectGroup,
   onMapClick,
@@ -478,12 +480,13 @@ export function PlannerMap({
       <MapClickHandler enabled={drawing} onMapClick={onMapClick} />
       <FlyToOutlet outletId={selectedOutletId} outlets={outlets} />
 
-      {routed.length > 0 && (
+      {showRouted && routed.length > 0 && (
         <PointsLayer
           points={routed}
           color="#94a3b8"
           individual={false}
           interactive={!drawing}
+          onPointClick={onPointClick}
         />
       )}
 

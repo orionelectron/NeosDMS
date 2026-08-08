@@ -52,12 +52,15 @@ function MapSkeleton() {
 export function RoutePlanner() {
   const queryClient = useQueryClient();
 
+  type OutletFilter = "all" | "unassigned";
+
   const [groups, setGroups] = React.useState<PlannedGroup[]>([]);
   const [selectedGroupId, setSelectedGroupId] = React.useState<string | null>(null);
   const [selectedOutletId, setSelectedOutletId] = React.useState<string | null>(null);
   const [perRoute, setPerRoute] = React.useState(25);
   const [drawing, setDrawing] = React.useState(false);
   const [vertices, setVertices] = React.useState<Array<[number, number]>>([]);
+  const [outletFilter, setOutletFilter] = React.useState<OutletFilter>("unassigned");
 
   const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: queryKeys.field.routePlannerOutlets,
@@ -218,6 +221,13 @@ export function RoutePlanner() {
 
   function handlePointClick(id: string) {
     if (drawing) return;
+    const outlet = byId.get(id);
+    if (outlet?.routeId) {
+      toast.warning(
+        `${outlet.name} is already on a route — it can't be planned again.`,
+      );
+      return;
+    }
     const group = groups.find((g) => g.outletIds.includes(id));
     setSelectedOutletId(id);
     if (group) setSelectedGroupId(group.id);
@@ -248,9 +258,15 @@ export function RoutePlanner() {
       }),
     onSuccess: (report) => {
       const newRoutes = report.routes.filter((route) => route.created).length;
-      toast.success(
-        `Saved ${newRoutes} new route${newRoutes === 1 ? "" : "s"} and linked ${report.linksInserted} outlet${report.linksInserted === 1 ? "" : "s"} (${report.linksSkipped} already covered).`,
-      );
+      if (report.linksSkipped > 0) {
+        toast.warning(
+          `Saved ${newRoutes} new route${newRoutes === 1 ? "" : "s"} — linked ${report.linksInserted} outlet${report.linksInserted === 1 ? "" : "s"}; ${report.linksSkipped} already on a route and skipped.`,
+        );
+      } else {
+        toast.success(
+          `Saved ${newRoutes} new route${newRoutes === 1 ? "" : "s"} and linked ${report.linksInserted} outlet${report.linksInserted === 1 ? "" : "s"}.`,
+        );
+      }
       queryClient.invalidateQueries({ queryKey: ["field", "routes"] });
       queryClient.invalidateQueries({ queryKey: queryKeys.field.routePlannerOutlets });
       clearPlan();
@@ -325,6 +341,7 @@ export function RoutePlanner() {
           selectedOutletId={selectedOutletId}
           drawing={drawing}
           vertices={vertices}
+          showRouted={outletFilter === "all"}
           onPointClick={handlePointClick}
           onSelectGroup={handleSelectGroup}
           onMapClick={handleMapClick}
@@ -346,6 +363,31 @@ export function RoutePlanner() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
+            <div
+              className="grid grid-cols-2 gap-1 rounded-lg border bg-muted/40 p-1"
+              role="group"
+              aria-label="Outlets on map"
+            >
+              <Button
+                variant={outletFilter === "all" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => setOutletFilter("all")}
+                aria-pressed={outletFilter === "all"}
+              >
+                All outlets
+              </Button>
+              <Button
+                variant={outletFilter === "unassigned" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => setOutletFilter("unassigned")}
+                aria-pressed={outletFilter === "unassigned"}
+              >
+                Unassigned
+              </Button>
+            </div>
+
             {polygonActive && (
               <div className="flex items-center justify-between gap-2 rounded-md border border-indigo-500/30 bg-indigo-500/10 px-3 py-2">
                 <p className="text-xs text-indigo-700 dark:text-indigo-300">

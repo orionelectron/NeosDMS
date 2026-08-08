@@ -4,11 +4,20 @@ import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Ban, Loader2, Plus, Send } from "lucide-react";
+import { Ban, Loader2, Plus, ScrollText, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -19,6 +28,7 @@ import {
 } from "@/components/ui/table";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageContainer } from "@/components/app-shell/page-container";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -134,52 +144,68 @@ export function JournalTable() {
   });
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Tabs value={status} onValueChange={setStatus}>
-          <TabsList>
-            {STATUS_TABS.map((tab) => (
-              <TabsTrigger key={tab.value} value={tab.value}>
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-sm">
-            <Input
-              type="date"
-              value={from}
-              onChange={(event) => {
-                setFrom(event.target.value);
-                setPage(1);
-              }}
-              className="h-9 w-40"
-              aria-label="From date"
-            />
-            <span className="text-muted-foreground">to</span>
-            <Input
-              type="date"
-              value={to}
-              onChange={(event) => {
-                setTo(event.target.value);
-                setPage(1);
-              }}
-              className="h-9 w-40"
-              aria-label="To date"
-            />
+    <PageContainer
+      icon={ScrollText}
+      title="Journal entries"
+      description="Draft, post and cancel balanced journal entries posted to the ledger."
+      actions={
+        canCreate ? (
+          <Button onClick={() => setFormOpen(true)}>
+            <Plus className="size-4" aria-hidden />
+            New entry
+          </Button>
+        ) : undefined
+      }
+    >
+      <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0">
+        <CardHeader className="shrink-0 px-5 py-4">
+          <div>
+            <CardTitle>All entries</CardTitle>
+            <CardDescription>
+              {isLoading
+                ? "Loading…"
+                : `${data?.meta.total ?? 0} journal entries`}
+            </CardDescription>
           </div>
-          {canCreate && (
-            <Button onClick={() => setFormOpen(true)}>
-              <Plus className="size-4" aria-hidden />
-              New entry
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-lg border">
-        <Table>
+          <CardAction>
+            <div className="flex flex-wrap items-center gap-3">
+              <Tabs value={status} onValueChange={setStatus}>
+                <TabsList>
+                  {STATUS_TABS.map((tab) => (
+                    <TabsTrigger key={tab.value} value={tab.value}>
+                      {tab.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+              <div className="flex items-center gap-2 text-sm">
+                <Input
+                  type="date"
+                  value={from}
+                  onChange={(event) => {
+                    setFrom(event.target.value);
+                    setPage(1);
+                  }}
+                  className="h-9 w-40"
+                  aria-label="From date"
+                />
+                <span className="text-muted-foreground">to</span>
+                <Input
+                  type="date"
+                  value={to}
+                  onChange={(event) => {
+                    setTo(event.target.value);
+                    setPage(1);
+                  }}
+                  className="h-9 w-40"
+                  aria-label="To date"
+                />
+              </div>
+            </div>
+          </CardAction>
+        </CardHeader>
+        <CardContent className="min-h-0 flex-1 overflow-y-auto px-0">
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Number</TableHead>
@@ -268,16 +294,18 @@ export function JournalTable() {
             )}
           </TableBody>
         </Table>
-      </div>
-
-      {data && (data.meta.total > 0 || data.data.length > 0) && (
-        <TablePagination
-          page={page}
-          pageSize={data.meta.limit}
-          total={data.meta.total}
-          onPageChange={setPage}
-        />
-      )}
+        </CardContent>
+        <CardFooter className="shrink-0 border-t px-5 py-3">
+          {data && (data.meta.total > 0 || data.data.length > 0) && (
+            <TablePagination
+              page={page}
+              pageSize={data.meta.limit}
+              total={data.meta.total}
+              onPageChange={setPage}
+            />
+          )}
+        </CardFooter>
+      </Card>
 
       <JournalFormSheet open={formOpen} onOpenChange={setFormOpen} />
 
@@ -311,8 +339,8 @@ export function JournalTable() {
               Cancel entry
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+          </AlertDialogContent>
+        </AlertDialog>
+    </PageContainer>
   );
 }

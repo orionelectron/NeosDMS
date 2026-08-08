@@ -19,8 +19,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
+import { PageContainer } from "@/components/app-shell/page-container";
 import {
   accountApi,
   journalApi,
@@ -96,7 +96,10 @@ export function LedgerTable({ accountId }: LedgerTableProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <PageContainer
+      title={`${account.code} — ${account.name}`}
+      description={`Ledger register · ${creditNormal ? "credit-normal" : "debit-normal"} · balances computed on the loaded entries`}
+    >
       <Link
         href="/accounting/trial-balance"
         className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -107,16 +110,7 @@ export function LedgerTable({ accountId }: LedgerTableProps) {
 
       <Card>
         <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <CardTitle className="text-lg">
-                {account.code} — {account.name}
-              </CardTitle>
-              <CardDescription>
-                Ledger register · {creditNormal ? "credit-normal" : "debit-normal"} ·
-                balances computed on the loaded entries
-              </CardDescription>
-            </div>
+          <div className="flex items-center justify-end gap-4">
             <div className="text-right">
               <span className="block text-xs text-muted-foreground">
                 Closing balance
@@ -215,6 +209,6 @@ export function LedgerTable({ accountId }: LedgerTableProps) {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 }

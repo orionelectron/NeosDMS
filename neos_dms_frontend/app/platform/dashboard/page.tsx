@@ -1,7 +1,8 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageHeader } from "@/components/app-shell/page-header";
+import { PageContainer } from "@/components/app-shell/page-container";
+import { LayoutGrid } from "lucide-react";
 
 const kpis = [
   {
@@ -23,11 +24,11 @@ const kpis = [
 
 export default function PlatformDashboardPage() {
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Platform"
-        description="Monitor organizations, subscriptions and platform administrators."
-      />
+    <PageContainer
+      icon={LayoutGrid}
+      title="Platform"
+      description="Monitor organizations, subscriptions and platform administrators."
+    >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {kpis.map((kpi) => (
           <Card key={kpi.title}>
@@ -45,6 +46,6 @@ export default function PlatformDashboardPage() {
           </Card>
         ))}
       </div>
-    </div>
+    </PageContainer>
   );
 }

@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeftRight, ArrowUpDown, PackagePlus } from "lucide-react";
-import { PageHeader } from "@/components/app-shell/page-header";
+import { PageContainer } from "@/components/app-shell/page-container";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -108,44 +108,43 @@ export function TransactionTable() {
   const canPost = canCreate || canAdjust;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <PageHeader
-        title="Stock movements"
-        description="Opening stock, adjustments and transfers posted to stock."
-        actions={
-          canPost ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button>
-                  <ArrowUpDown className="size-4" aria-hidden />
-                  Post stock
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {canCreate && (
-                  <>
-                    <DropdownMenuItem onSelect={() => setMovementMode("opening")}>
-                      <PackagePlus className="size-4" aria-hidden />
-                      Opening stock
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setMovementMode("transfer")}>
-                      <ArrowLeftRight className="size-4" aria-hidden />
-                      Transfer
-                    </DropdownMenuItem>
-                  </>
-                )}
-                {canAdjust && (
-                  <DropdownMenuItem onSelect={() => setMovementMode("adjustment")}>
-                    <ArrowUpDown className="size-4" aria-hidden />
-                    Adjustment
+    <PageContainer
+      icon={ArrowUpDown}
+      title="Stock movements"
+      description="Opening stock, adjustments and transfers posted to stock."
+      actions={
+        canPost ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>
+                <ArrowUpDown className="size-4" aria-hidden />
+                Post stock
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {canCreate && (
+                <>
+                  <DropdownMenuItem onSelect={() => setMovementMode("opening")}>
+                    <PackagePlus className="size-4" aria-hidden />
+                    Opening stock
                   </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : undefined
-        }
-      />
-
+                  <DropdownMenuItem onSelect={() => setMovementMode("transfer")}>
+                    <ArrowLeftRight className="size-4" aria-hidden />
+                    Transfer
+                  </DropdownMenuItem>
+                </>
+              )}
+              {canAdjust && (
+                <DropdownMenuItem onSelect={() => setMovementMode("adjustment")}>
+                  <ArrowUpDown className="size-4" aria-hidden />
+                  Adjustment
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : undefined
+      }
+    >
       <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0">
         <CardHeader className="shrink-0 px-5 py-4">
           <div>
@@ -350,6 +349,6 @@ export function TransactionTable() {
         }}
         mode={movementMode ?? "opening"}
       />
-    </div>
+    </PageContainer>
   );
 }

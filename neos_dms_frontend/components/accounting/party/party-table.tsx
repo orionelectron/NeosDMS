@@ -3,11 +3,20 @@
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Pencil, Power, PowerOff, Search } from "lucide-react";
+import { Loader2, Pencil, Plus, Power, PowerOff, Search, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -20,6 +29,7 @@ import {
   TablePagination,
 } from "@/components/ui/table-pagination";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageContainer } from "@/components/app-shell/page-container";
 import { getErrorMessage } from "@/lib/api/http";
 import { partyApi, type Party } from "@/lib/api/accounting";
 import { queryKeys } from "@/lib/query/keys";
@@ -92,33 +102,52 @@ export function PartyTable() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Tabs value={role} onValueChange={setRole}>
-          <TabsList>
-            {ROLE_FILTERS.map((filter) => (
-              <TabsTrigger key={filter.value} value={filter.value}>
-                {filter.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search parties"
-              className="w-56 pl-8"
-            />
+    <PageContainer
+      icon={Users}
+      title="Parties"
+      description="Customers, suppliers and leads with contact details and credit terms."
+      actions={
+        <Button onClick={openCreate}>
+          <Plus className="size-4" aria-hidden />
+          Add party
+        </Button>
+      }
+    >
+      <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0">
+        <CardHeader className="shrink-0 px-5 py-4">
+          <div>
+            <CardTitle>All parties</CardTitle>
+            <CardDescription>
+              {isLoading
+                ? "Loading…"
+                : `${data?.meta.total ?? 0} party${(data?.meta.total ?? 0) === 1 ? "" : "ies"}`}
+            </CardDescription>
           </div>
-          <Button onClick={openCreate}>Add party</Button>
-        </div>
-      </div>
-
-      <div className="rounded-lg border">
-        <Table>
+          <CardAction>
+            <div className="flex flex-wrap items-center gap-3">
+              <Tabs value={role} onValueChange={setRole}>
+                <TabsList>
+                  {ROLE_FILTERS.map((filter) => (
+                    <TabsTrigger key={filter.value} value={filter.value}>
+                      {filter.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search parties"
+                  className="w-56 pl-8"
+                />
+              </div>
+            </div>
+          </CardAction>
+        </CardHeader>
+        <CardContent className="min-h-0 flex-1 overflow-y-auto px-0">
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Party</TableHead>
@@ -213,22 +242,24 @@ export function PartyTable() {
             )}
           </TableBody>
         </Table>
-      </div>
-
-      {data && (data.meta.total > 0 || data.data.length > 0) && (
-        <TablePagination
-          page={page}
-          pageSize={data.meta.limit}
-          total={data.meta.total}
-          onPageChange={setPage}
-        />
-      )}
+        </CardContent>
+        <CardFooter className="shrink-0 border-t px-5 py-3">
+          {data && (data.meta.total > 0 || data.data.length > 0) && (
+            <TablePagination
+              page={page}
+              pageSize={data.meta.limit}
+              total={data.meta.total}
+              onPageChange={setPage}
+            />
+          )}
+        </CardFooter>
+      </Card>
 
       <PartyFormSheet
         open={formOpen}
         onOpenChange={setFormOpen}
         party={editing}
       />
-    </div>
+    </PageContainer>
   );
 }

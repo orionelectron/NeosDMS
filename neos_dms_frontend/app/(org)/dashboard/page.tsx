@@ -1,7 +1,8 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageHeader } from "@/components/app-shell/page-header";
+import { PageContainer } from "@/components/app-shell/page-container";
+import { LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 
 const kpis = [
@@ -27,11 +28,11 @@ export default function DashboardPage() {
   const firstName = user?.fullName?.split(/\s+/)[0];
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Dashboard"
-        description={`Welcome back${firstName ? `, ${firstName}` : ""}.`}
-      />
+    <PageContainer
+      icon={LayoutDashboard}
+      title="Dashboard"
+      description={`Welcome back${firstName ? `, ${firstName}` : ""}.`}
+    >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {kpis.map((kpi) => (
           <Card key={kpi.title}>
@@ -49,6 +50,6 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
-    </div>
+    </PageContainer>
   );
 }

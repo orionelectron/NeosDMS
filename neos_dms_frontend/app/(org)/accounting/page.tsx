@@ -9,7 +9,7 @@ import {
   Percent,
   Hash,
 } from "lucide-react";
-import { PageHeader } from "@/components/app-shell/page-header";
+import { PageContainer } from "@/components/app-shell/page-container";
 import {
   Card,
   CardContent,
@@ -72,11 +72,11 @@ const RESOURCES = [
 
 export default function AccountingOverviewPage() {
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Accounting"
-        description="Chart of accounts, journals, parties and taxes."
-      />
+    <PageContainer
+      icon={BookOpen}
+      title="Accounting"
+      description="Chart of accounts, journals, parties and taxes."
+    >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {RESOURCES.map((resource) => {
           const Icon = resource.icon;
@@ -110,6 +110,6 @@ export default function AccountingOverviewPage() {
           );
         })}
       </div>
-    </div>
+    </PageContainer>
   );
 }

@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Boxes, SlidersHorizontal } from "lucide-react";
-import { PageHeader } from "@/components/app-shell/page-header";
+import { PageContainer } from "@/components/app-shell/page-container";
 import {
   Select,
   SelectContent,
@@ -105,8 +105,11 @@ export function BalanceTable() {
 
   if (!canRead) {
     return (
-      <div className="space-y-6">
-        <PageHeader title="Stock balances" description="On-hand stock at each location." />
+      <PageContainer
+        icon={Boxes}
+        title="Stock balances"
+        description="On-hand stock at each location."
+      >
         <Card>
           <CardContent className="flex h-40 items-center justify-center">
             <p className="text-sm text-muted-foreground">
@@ -114,17 +117,16 @@ export function BalanceTable() {
             </p>
           </CardContent>
         </Card>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <PageHeader
-        title="Stock balances"
-        description="On-hand quantity and moving-average cost per item at each location."
-      />
-
+    <PageContainer
+      icon={Boxes}
+      title="Stock balances"
+      description="On-hand quantity and moving-average cost per item at each location."
+    >
       <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0">
         <CardHeader className="shrink-0 px-5 py-4">
           <div>
@@ -334,6 +336,6 @@ export function BalanceTable() {
         mode="adjustment"
         initial={adjustInitial}
       />
-    </div>
+    </PageContainer>
   );
 }

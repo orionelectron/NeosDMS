@@ -2,10 +2,17 @@
 
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Hash, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -14,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PageContainer } from "@/components/app-shell/page-container";
 import { useAuth } from "@/components/providers/auth-provider";
 import { documentSequenceApi } from "@/lib/api/accounting";
 import { queryKeys } from "@/lib/query/keys";
@@ -39,21 +47,32 @@ export function DocumentSequenceTable() {
   const canCreate = can("accounting.document-sequence.create");
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          Numbering sequences used to assign document numbers at posting time.
-        </p>
-        {canCreate && (
+    <PageContainer
+      icon={Hash}
+      title="Document sequences"
+      description="Running numbering for invoices, journals and other documents."
+      actions={
+        canCreate ? (
           <Button onClick={() => setFormOpen(true)}>
             <Plus className="size-4" aria-hidden />
             New sequence
           </Button>
-        )}
-      </div>
-
-      <div className="rounded-lg border">
-        <Table>
+        ) : undefined
+      }
+    >
+      <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0">
+        <CardHeader className="shrink-0 px-5 py-4">
+          <div>
+            <CardTitle>All sequences</CardTitle>
+            <CardDescription>
+              {isPending
+                ? "Loading…"
+                : `${data?.length ?? 0} sequence${(data?.length ?? 0) === 1 ? "" : "s"}`}
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="min-h-0 flex-1 overflow-y-auto px-0">
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Document type</TableHead>
@@ -112,9 +131,10 @@ export function DocumentSequenceTable() {
             )}
           </TableBody>
         </Table>
-      </div>
+        </CardContent>
+      </Card>
 
       <DocumentSequenceFormSheet open={formOpen} onOpenChange={setFormOpen} />
-    </div>
+    </PageContainer>
   );
 }

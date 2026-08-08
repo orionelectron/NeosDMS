@@ -6,7 +6,7 @@ import {
   Boxes,
   MapPin,
 } from "lucide-react";
-import { PageHeader } from "@/components/app-shell/page-header";
+import { PageContainer } from "@/components/app-shell/page-container";
 import {
   Card,
   CardContent,
@@ -48,11 +48,11 @@ const RESOURCES = [
 
 export default function InventoryOverviewPage() {
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Inventory"
-        description="Stock balances, locations and adjustments."
-      />
+    <PageContainer
+      icon={Boxes}
+      title="Inventory"
+      description="Stock balances, locations and adjustments."
+    >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {RESOURCES.map((resource) => {
           const Icon = resource.icon;
@@ -84,6 +84,6 @@ export default function InventoryOverviewPage() {
           );
         })}
       </div>
-    </div>
+    </PageContainer>
   );
 }

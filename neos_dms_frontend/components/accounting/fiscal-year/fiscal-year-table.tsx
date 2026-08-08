@@ -11,7 +11,7 @@ import {
   Sparkles,
   Unlock,
 } from "lucide-react";
-import { PageHeader } from "@/components/app-shell/page-header";
+import { PageContainer } from "@/components/app-shell/page-container";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -131,20 +131,19 @@ export function FiscalYearTable() {
   });
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <PageHeader
-        title="Fiscal years"
-        description="BS fiscal years with their twelve periods."
-        actions={
-          canCreate ? (
-            <Button onClick={() => setFormOpen(true)}>
-              <Plus className="size-4" aria-hidden />
-              New fiscal year
-            </Button>
-          ) : undefined
-        }
-      />
-
+    <PageContainer
+      icon={CalendarRange}
+      title="Fiscal years"
+      description="BS fiscal years with their twelve periods."
+      actions={
+        canCreate ? (
+          <Button onClick={() => setFormOpen(true)}>
+            <Plus className="size-4" aria-hidden />
+            New fiscal year
+          </Button>
+        ) : undefined
+      }
+    >
       <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0">
         <CardHeader className="shrink-0 px-5 py-4">
           <div>
@@ -292,6 +291,6 @@ export function FiscalYearTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </PageContainer>
   );
 }

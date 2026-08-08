@@ -3,8 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
-import { PageHeader } from "@/components/app-shell/page-header";
+import { CalendarRange, ChevronLeft } from "lucide-react";
+import { PageContainer } from "@/components/app-shell/page-container";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -29,24 +29,22 @@ export default function FiscalYearDetailPage() {
   const fiscalYear = data;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div>
-        <Link
-          href="/accounting/fiscal-years"
-          className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ChevronLeft className="size-4" aria-hidden />
-          Fiscal years
-        </Link>
-        <PageHeader
-          title={fiscalYear?.name ?? "Fiscal year"}
-          description={
-            fiscalYear
-              ? `${formatDate(fiscalYear.startDate)} – ${formatDate(fiscalYear.endDate)}`
-              : "Loading…"
-          }
-        />
-      </div>
+    <PageContainer
+      icon={CalendarRange}
+      title={fiscalYear?.name ?? "Fiscal year"}
+      description={
+        fiscalYear
+          ? `${formatDate(fiscalYear.startDate)} – ${formatDate(fiscalYear.endDate)}`
+          : "Loading…"
+      }
+    >
+      <Link
+        href="/accounting/fiscal-years"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ChevronLeft className="size-4" aria-hidden />
+        Fiscal years
+      </Link>
 
       {isPending ? (
         <div className="grid gap-4 sm:grid-cols-3">
@@ -105,6 +103,6 @@ export default function FiscalYearDetailPage() {
       )}
 
       <PeriodsTable fiscalYearId={params.id} />
-    </div>
+    </PageContainer>
   );
 }

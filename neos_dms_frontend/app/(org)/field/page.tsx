@@ -7,7 +7,7 @@ import {
   Target,
   UserRound,
 } from "lucide-react";
-import { PageHeader } from "@/components/app-shell/page-header";
+import { PageContainer } from "@/components/app-shell/page-container";
 import {
   Card,
   CardContent,
@@ -56,11 +56,11 @@ const RESOURCES = [
 
 export default function FieldOverviewPage() {
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Field"
-        description="Outlets, routes, visits and sales targets."
-      />
+    <PageContainer
+      icon={MapPinned}
+      title="Field"
+      description="Outlets, routes, visits and sales targets."
+    >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {RESOURCES.map((resource) => {
           const Icon = resource.icon;
@@ -94,6 +94,6 @@ export default function FieldOverviewPage() {
           );
         })}
       </div>
-    </div>
+    </PageContainer>
   );
 }

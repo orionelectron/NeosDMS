@@ -4,7 +4,7 @@ import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, Ban, Loader2, Send } from "lucide-react";
+import { ArrowLeft, Ban, Loader2, ScrollText, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,7 +13,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
   CardAction,
 } from "@/components/ui/card";
 import {
@@ -34,6 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { PageContainer } from "@/components/app-shell/page-container";
 import { useAuth } from "@/components/providers/auth-provider";
 import { getErrorMessage } from "@/lib/api/http";
 import { journalApi, type JournalEntry } from "@/lib/api/accounting";
@@ -130,7 +130,12 @@ export function JournalDetail({ id }: JournalDetailProps) {
   );
 
   return (
-    <div className="space-y-4">
+    <PageContainer
+      icon={ScrollText}
+      title={entry.referenceNumber ?? "Draft journal entry"}
+      description={`Created ${formatDateTime(entry.createdAt)}`}
+      actions={<StatusBadge status={entry.status} />}
+    >
       <Button variant="ghost" size="sm" asChild>
         <Link href="/accounting/journal-entries">
           <ArrowLeft className="size-4" aria-hidden />
@@ -140,17 +145,7 @@ export function JournalDetail({ id }: JournalDetailProps) {
 
       <Card>
         <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <CardTitle className="text-lg">
-                {entry.referenceNumber ?? "Draft journal entry"}
-              </CardTitle>
-              <CardDescription>
-                Created {formatDateTime(entry.createdAt)}
-              </CardDescription>
-            </div>
-            <StatusBadge status={entry.status} />
-          </div>
+          <CardTitle>Details</CardTitle>
         </CardHeader>
         <CardContent>
           <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
@@ -291,8 +286,8 @@ export function JournalDetail({ id }: JournalDetailProps) {
               Cancel entry
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+          </AlertDialogContent>
+        </AlertDialog>
+    </PageContainer>
   );
 }

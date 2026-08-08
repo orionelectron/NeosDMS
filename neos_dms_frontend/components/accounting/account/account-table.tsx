@@ -4,6 +4,7 @@ import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  BookOpen,
   ChevronDown,
   Lock,
   Pencil,
@@ -14,7 +15,7 @@ import {
   Trash2,
   Wallet,
 } from "lucide-react";
-import { PageHeader } from "@/components/app-shell/page-header";
+import { PageContainer } from "@/components/app-shell/page-container";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -145,20 +146,19 @@ export function AccountTable() {
   const rows = data?.data ?? [];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <PageHeader
-        title="Chart of accounts"
-        description="Accounts the ledger posts to, grouped by type."
-        actions={
-          canCreate ? (
-            <Button onClick={openCreate}>
-              <Plus className="size-4" aria-hidden />
-              New account
-            </Button>
-          ) : undefined
-        }
-      />
-
+    <PageContainer
+      icon={BookOpen}
+      title="Chart of accounts"
+      description="Accounts the ledger posts to, grouped by type."
+      actions={
+        canCreate ? (
+          <Button onClick={openCreate}>
+            <Plus className="size-4" aria-hidden />
+            New account
+          </Button>
+        ) : undefined
+      }
+    >
       <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0">
         <CardHeader className="shrink-0 px-5 py-4">
           <div>
@@ -427,6 +427,6 @@ export function AccountTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </PageContainer>
   );
 }

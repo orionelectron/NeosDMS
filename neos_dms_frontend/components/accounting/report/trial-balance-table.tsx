@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Scale } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -14,6 +14,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PageContainer } from "@/components/app-shell/page-container";
 import {
   Table,
   TableBody,
@@ -99,7 +100,11 @@ export function TrialBalanceTable() {
   }, [data]);
 
   return (
-    <div className="space-y-4">
+    <PageContainer
+      icon={Scale}
+      title="Trial balance"
+      description="Opening, activity and closing balances per account within a fiscal year."
+    >
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-muted-foreground">
@@ -280,6 +285,6 @@ export function TrialBalanceTable() {
           </CardContent>
         </Card>
       )}
-    </div>
+    </PageContainer>
   );
 }

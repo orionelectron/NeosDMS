@@ -4,7 +4,7 @@ import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, SlidersHorizontal, Trash2 } from "lucide-react";
-import { PageHeader } from "@/components/app-shell/page-header";
+import { PageContainer } from "@/components/app-shell/page-container";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -111,20 +111,19 @@ export function ConversionTable({ itemId, itemName }: ConversionTableProps) {
   const rows = data?.data ?? [];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <PageHeader
-        title={itemName ? `Conversions for ${itemName}` : "UOM conversions"}
-        description="Convert between units — globally or per item (e.g. case ↔ piece)."
-        actions={
-          canCreate ? (
-            <Button onClick={() => setFormOpen(true)}>
-              <Plus className="size-4" aria-hidden />
-              New conversion
-            </Button>
-          ) : undefined
-        }
-      />
-
+    <PageContainer
+      icon={SlidersHorizontal}
+      title={itemName ? `Conversions for ${itemName}` : "UOM conversions"}
+      description="Convert between units — globally or per item (e.g. case ↔ piece)."
+      actions={
+        canCreate ? (
+          <Button onClick={() => setFormOpen(true)}>
+            <Plus className="size-4" aria-hidden />
+            New conversion
+          </Button>
+        ) : undefined
+      }
+    >
       <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0">
         <CardHeader className="shrink-0 px-5 py-4">
           <div>
@@ -338,6 +337,6 @@ export function ConversionTable({ itemId, itemName }: ConversionTableProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </PageContainer>
   );
 }

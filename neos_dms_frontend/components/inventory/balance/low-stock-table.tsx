@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
-import { PageHeader } from "@/components/app-shell/page-header";
+import { PageContainer } from "@/components/app-shell/page-container";
 import {
   Select,
   SelectContent,
@@ -72,11 +72,11 @@ export function LowStockTable() {
 
   if (!canRead) {
     return (
-      <div className="space-y-6">
-        <PageHeader
-          title="Low stock"
-          description="Items at or below their reorder level."
-        />
+      <PageContainer
+        icon={AlertTriangle}
+        title="Low stock"
+        description="Items at or below their reorder level."
+      >
         <Card>
           <CardContent className="flex h-40 items-center justify-center">
             <p className="text-sm text-muted-foreground">
@@ -84,17 +84,16 @@ export function LowStockTable() {
             </p>
           </CardContent>
         </Card>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <PageHeader
-        title="Low stock"
-        description="Items at or below their reorder level — restock before they run out."
-      />
-
+    <PageContainer
+      icon={AlertTriangle}
+      title="Low stock"
+      description="Items at or below their reorder level — restock before they run out."
+    >
       <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0">
         <CardHeader className="shrink-0 px-5 py-4">
           <div>
@@ -225,6 +224,6 @@ export function LowStockTable() {
           </CardFooter>
         )}
       </Card>
-    </div>
+    </PageContainer>
   );
 }

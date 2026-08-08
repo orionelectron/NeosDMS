@@ -7,7 +7,7 @@ import {
   ArrowRight,
   SlidersHorizontal,
 } from "lucide-react";
-import { PageHeader } from "@/components/app-shell/page-header";
+import { PageContainer } from "@/components/app-shell/page-container";
 import {
   Card,
   CardContent,
@@ -52,11 +52,11 @@ const RESOURCES = [
 
 export default function TradingOverviewPage() {
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Trading"
-        description="Products, brands, categories and units of measure."
-      />
+    <PageContainer
+      icon={Package}
+      title="Trading"
+      description="Products, brands, categories and units of measure."
+    >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {RESOURCES.map((resource) => {
           const Icon = resource.icon;
@@ -88,6 +88,6 @@ export default function TradingOverviewPage() {
           );
         })}
       </div>
-    </div>
+    </PageContainer>
   );
 }

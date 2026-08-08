@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { PageHeader } from "@/components/app-shell/page-header";
+import { PageContainer } from "@/components/app-shell/page-container";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -159,20 +159,19 @@ export function LocationTable() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <PageHeader
-        title="Locations"
-        description="Godowns, vans, shops and warehouses that hold stock."
-        actions={
-          canCreate ? (
-            <Button onClick={openCreate}>
-              <Plus className="size-4" aria-hidden />
-              New location
-            </Button>
-          ) : undefined
-        }
-      />
-
+    <PageContainer
+      icon={MapPin}
+      title="Locations"
+      description="Godowns, vans, shops and warehouses that hold stock."
+      actions={
+        canCreate ? (
+          <Button onClick={openCreate}>
+            <Plus className="size-4" aria-hidden />
+            New location
+          </Button>
+        ) : undefined
+      }
+    >
       <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0">
         <CardHeader className="shrink-0 px-5 py-4">
           <div>
@@ -426,6 +425,6 @@ export function LocationTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </PageContainer>
   );
 }

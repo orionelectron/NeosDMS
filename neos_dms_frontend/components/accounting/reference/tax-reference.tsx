@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { Percent } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -18,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PageContainer } from "@/components/app-shell/page-container";
 import { taxApi } from "@/lib/api/accounting";
 import { queryKeys } from "@/lib/query/keys";
 import { cn } from "@/lib/utils";
@@ -45,7 +47,11 @@ export function TaxReference() {
   });
 
   return (
-    <div className="space-y-4">
+    <PageContainer
+      icon={Percent}
+      title="Tax codes"
+      description="System tax types, templates and the organization's VAT/TDS tax codes."
+    >
       <Card>
         <CardHeader>
           <CardTitle>System tax types</CardTitle>
@@ -193,6 +199,6 @@ export function TaxReference() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   );
 }

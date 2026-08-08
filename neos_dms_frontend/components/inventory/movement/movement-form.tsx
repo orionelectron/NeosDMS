@@ -403,7 +403,7 @@ export function MovementFormSheet({
               {showCost && (
                 <p className="text-xs text-muted-foreground">
                   {mode === "opening"
-                    ? "Unit cost is the per-unit cost you paid (e.g. from the purchase invoice) — pre-filled from the item's standard cost when available. It becomes the moving-average cost used to value stock, shown as Avg cost in Stock balances."
+                    ? "Unit cost is the per-unit cost used to value stock — pre-filled from the item's retail list price when available. It becomes the moving-average cost shown as Avg cost in Stock balances."
                     : "Unit cost is optional — leave blank to keep the current average cost."}
                 </p>
               )}

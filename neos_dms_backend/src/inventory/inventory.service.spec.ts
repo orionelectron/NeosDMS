@@ -109,6 +109,16 @@ describe('InventoryService', () => {
     return row?.quantity ?? '0';
   }
 
+  async function avgCostAt(
+    locationId: string,
+    itemId: string,
+  ): Promise<string> {
+    const row = await tx.manager.getRepository(InventoryBalanceEntity).findOne({
+      where: { organizationId: TEST_ORG_ID, locationId, itemId },
+    });
+    return row?.avgCost ?? '0';
+  }
+
   it('posts opening stock and materializes the balance', async () => {
     const txn = await service.postOpening(
       TEST_ORG_ID,
@@ -121,6 +131,16 @@ describe('InventoryService', () => {
     expect(txn.lines).toHaveLength(1);
     expect(txn.lines[0].direction).toBe('IN');
     expect(await balanceAt(LOC_A, GOODS_ITEM_ID)).toBe('50.000');
+  });
+
+  it('seeds the balance avg cost from the opening stock unit cost', async () => {
+    await service.postOpening(
+      TEST_ORG_ID,
+      opening({ lines: [{ itemId: GOODS_ITEM_ID, uomId: BASE_UOM_ID, quantity: 50, unitCost: 10 }] }),
+      SALESMAN_USER_ID,
+    );
+    expect(await balanceAt(LOC_A, GOODS_ITEM_ID)).toBe('50.000');
+    expect(await avgCostAt(LOC_A, GOODS_ITEM_ID)).toBe('10.00');
   });
 
   it('converts a non-base uom to the item base uom', async () => {
@@ -218,6 +238,38 @@ describe('InventoryService', () => {
       SALESMAN_USER_ID,
     );
     expect(await balanceAt(LOC_A, GOODS_ITEM_ID)).toBe('35.000');
+  });
+
+  it('reweights avg cost on a stock-in adjustment with a unit cost', async () => {
+    await service.postOpening(
+      TEST_ORG_ID,
+      opening({
+        lines: [
+          { itemId: GOODS_ITEM_ID, uomId: BASE_UOM_ID, quantity: 50, unitCost: 10 },
+        ],
+      }),
+      SALESMAN_USER_ID,
+    );
+    expect(await avgCostAt(LOC_A, GOODS_ITEM_ID)).toBe('10.00');
+
+    await service.postAdjustment(
+      TEST_ORG_ID,
+      {
+        locationId: LOC_A,
+        lines: [
+          {
+            itemId: GOODS_ITEM_ID,
+            uomId: BASE_UOM_ID,
+            quantity: 10,
+            direction: 'IN',
+            unitCost: 20,
+          },
+        ],
+      },
+      SALESMAN_USER_ID,
+    );
+    expect(await balanceAt(LOC_A, GOODS_ITEM_ID)).toBe('60.000');
+    expect(await avgCostAt(LOC_A, GOODS_ITEM_ID)).toBe('11.67');
   });
 
   it('defaults adjustment direction to IN', async () => {

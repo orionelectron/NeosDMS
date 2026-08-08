@@ -46,9 +46,9 @@ export function MovementLineEditor({
       form.setValue(`lines.${index}.uomId`, item.baseUomId);
       if (showCost) {
         const currentCost = form.getValues(`lines.${index}.unitCost`) ?? "";
-        const retailListPrice = Number(item.salePrice);
-        if (currentCost === "" && retailListPrice > 0) {
-          form.setValue(`lines.${index}.unitCost`, String(retailListPrice));
+        const standardCost = Number(item.standardCost);
+        if (currentCost === "" && standardCost > 0) {
+          form.setValue(`lines.${index}.unitCost`, String(standardCost));
         }
       }
     }

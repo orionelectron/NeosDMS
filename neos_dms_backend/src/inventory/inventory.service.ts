@@ -137,13 +137,14 @@ export class InventoryService {
         actorId,
       );
 
-      for (const { item, baseQty } of prepared) {
-        await this.applyDelta(
+      for (const { item, baseQty, line } of prepared) {
+        await this.applyMovementDelta(
           manager,
           organizationId,
           dto.locationId,
           item.id,
           baseQty,
+          line.unitCost ?? 0,
           item.allowNegativeStock,
         );
       }
@@ -205,13 +206,14 @@ export class InventoryService {
         actorId,
       );
 
-      for (const { item, delta } of prepared) {
-        await this.applyDelta(
+      for (const { item, delta, direction, line } of prepared) {
+        await this.applyMovementDelta(
           manager,
           organizationId,
           dto.locationId,
           item.id,
           delta,
+          direction === 'IN' ? (line.unitCost ?? 0) : 0,
           item.allowNegativeStock,
         );
       }
@@ -1064,6 +1066,75 @@ export class InventoryService {
       );
     }
     await repo.update({ id: balance.id }, { quantity: next.toFixed(3) });
+  }
+
+  /**
+   * Like {@link applyDelta} but also maintains the moving-average cost, used
+   * by the post-ledger movements (opening stock, adjustments) where the
+   * line's unit cost must seed/reweight the balance:
+   *
+   *  - new balance (no row yet): avg_cost = unit cost of the line;
+   *  - stock-in with a unit cost: `new_avg = (qty × avg + in × cost) /
+   *    new_qty`;
+   *  - stock-in without a unit cost: quantity-only, average unchanged;
+   *  - stock-out: quantity-only, average unchanged.
+   */
+  private async applyMovementDelta(
+    manager: EntityManager,
+    organizationId: string,
+    locationId: string,
+    itemId: string,
+    delta: number,
+    unitCost: number,
+    allowNegative: boolean,
+  ): Promise<void> {
+    const repo = manager.getRepository(InventoryBalanceEntity);
+    const balance = await this.lockBalance(
+      manager,
+      organizationId,
+      locationId,
+      itemId,
+    );
+
+    const currentQty = balance ? Number(balance.quantity) : 0;
+    const currentAvg = balance ? Number(balance.avgCost ?? 0) : 0;
+    const newQty = ROUND3(currentQty + delta);
+    if (newQty < 0 && !allowNegative) {
+      throw new InventoryInsufficientStockException(
+        itemId,
+        currentQty.toFixed(3),
+        String(Math.abs(delta)),
+      );
+    }
+
+    let newAvg = currentAvg;
+    if (delta > 0) {
+      if (!balance) {
+        newAvg = unitCost;
+      } else if (unitCost > 0) {
+        newAvg = ROUND2((currentQty * currentAvg + delta * unitCost) / newQty);
+      }
+    }
+
+    if (!balance) {
+      await repo.save(
+        repo.create({
+          organizationId,
+          locationId,
+          itemId,
+          quantity: newQty.toFixed(3),
+          avgCost: newAvg.toFixed(2),
+        }),
+      );
+    } else {
+      await repo.update(
+        { id: balance.id },
+        {
+          quantity: newQty.toFixed(3),
+          avgCost: newAvg.toFixed(2),
+        },
+      );
+    }
   }
 
   private async saveTransaction(

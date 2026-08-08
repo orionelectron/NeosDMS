@@ -23,6 +23,18 @@ export function getErrorMessage(
   return fallback;
 }
 
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  meta: PaginationMeta;
+}
+
 function unwrap<T>(body: unknown): T {
   if (
     body &&
@@ -33,6 +45,18 @@ function unwrap<T>(body: unknown): T {
     return (body as { data: T }).data;
   }
   return body as T;
+}
+
+function isPaginated(body: unknown): body is {
+  data: unknown[];
+  meta: PaginationMeta;
+} {
+  return (
+    body !== null &&
+    typeof body === "object" &&
+    Array.isArray((body as { data?: unknown }).data) &&
+    "meta" in (body as Record<string, unknown>)
+  );
 }
 
 interface ApiErrorBody {
@@ -91,10 +115,10 @@ async function refreshAccessToken(): Promise<string> {
   return refreshInFlight;
 }
 
-export async function apiFetch<T>(
+async function requestRaw(
   path: string,
   options: ApiRequestOptions = {},
-): Promise<T> {
+): Promise<unknown> {
   const { body, auth = true, retryOnAuth = true, headers, ...rest } = options;
 
   const finalHeaders = new Headers(headers);
@@ -112,7 +136,11 @@ export async function apiFetch<T>(
   const url = `${env.apiUrl}${path}`;
   const requestBody = body !== undefined ? JSON.stringify(body) : undefined;
 
-  const response = await fetch(url, { ...rest, headers: finalHeaders, body: requestBody });
+  const response = await fetch(url, {
+    ...rest,
+    headers: finalHeaders,
+    body: requestBody,
+  });
 
   if (response.status === 401 && auth && retryOnAuth) {
     const newToken = await refreshAccessToken();
@@ -127,9 +155,9 @@ export async function apiFetch<T>(
       throw normalizeError(retryResponse.status, errorBody);
     }
     if (retryResponse.status === 204) {
-      return undefined as T;
+      return undefined;
     }
-    return unwrap<T>(await retryResponse.json());
+    return retryResponse.json();
   }
 
   if (!response.ok) {
@@ -138,7 +166,25 @@ export async function apiFetch<T>(
   }
 
   if (response.status === 204) {
-    return undefined as T;
+    return undefined;
   }
-  return unwrap<T>(await response.json());
+  return response.json();
+}
+
+export async function apiFetch<T>(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<T> {
+  return unwrap<T>(await requestRaw(path, options));
+}
+
+export async function apiFetchPaginated<T>(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<PaginatedResult<T>> {
+  const body = await requestRaw(path, options);
+  if (isPaginated(body)) {
+    return { data: body.data as T[], meta: body.meta };
+  }
+  throw new ApiError(500, "Malformed paginated response from the server.");
 }

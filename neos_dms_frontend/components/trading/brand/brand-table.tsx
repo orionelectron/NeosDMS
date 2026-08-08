@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Pencil, Plus, Power, PowerOff, Ruler, Search } from "lucide-react";
+import { Pencil, Plus, Power, PowerOff, Search, Tags } from "lucide-react";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,25 +29,25 @@ import {
 import { TablePagination } from "@/components/ui/table-pagination";
 import { useAuth } from "@/components/providers/auth-provider";
 import { getErrorMessage } from "@/lib/api/http";
-import { uomApi, type Uom } from "@/lib/api/trading";
+import { brandApi, type Brand } from "@/lib/api/trading";
 import { queryKeys } from "@/lib/query/keys";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { UomFormSheet } from "@/components/trading/uom/uom-form";
+import { BrandFormSheet } from "@/components/trading/brand/brand-form";
 
 const PAGE_SIZE = 20;
 
-export function UomTable() {
+export function BrandTable() {
   const { can } = useAuth();
   const queryClient = useQueryClient();
-  const canCreate = can("trading.uom.create");
-  const canUpdate = can("trading.uom.update");
+  const canCreate = can("trading.brand.create");
+  const canUpdate = can("trading.brand.update");
 
   const [searchInput, setSearchInput] = React.useState("");
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [formOpen, setFormOpen] = React.useState(false);
-  const [editing, setEditing] = React.useState<Uom | null>(null);
+  const [editing, setEditing] = React.useState<Brand | null>(null);
 
   React.useEffect(() => {
     const id = window.setTimeout(() => {
@@ -58,21 +58,21 @@ export function UomTable() {
   }, [searchInput]);
 
   const { data, isPending } = useQuery({
-    queryKey: queryKeys.trading.uomList({ search, page, limit: PAGE_SIZE }),
-    queryFn: () => uomApi.list({ search, page, limit: PAGE_SIZE }),
+    queryKey: queryKeys.trading.brandList({ search, page, limit: PAGE_SIZE }),
+    queryFn: () => brandApi.list({ search, page, limit: PAGE_SIZE }),
   });
 
   const total = data?.meta.total ?? 0;
 
   const toggleMutation = useMutation({
-    mutationFn: (uom: Uom) =>
-      uomApi.update(uom.id, { isActive: !uom.isActive }),
-    onSuccess: (_data, uom) => {
-      toast.success(uom.isActive ? "Unit deactivated." : "Unit activated.");
-      queryClient.invalidateQueries({ queryKey: ["trading", "uoms"] });
+    mutationFn: (brand: Brand) =>
+      brandApi.update(brand.id, { isActive: !brand.isActive }),
+    onSuccess: (_data, brand) => {
+      toast.success(brand.isActive ? "Brand deactivated." : "Brand activated.");
+      queryClient.invalidateQueries({ queryKey: ["trading", "brands"] });
     },
     onError: (error: unknown) => {
-      toast.error(getErrorMessage(error, "Could not update the unit."));
+      toast.error(getErrorMessage(error, "Could not update the brand."));
     },
   });
 
@@ -81,8 +81,8 @@ export function UomTable() {
     setFormOpen(true);
   }
 
-  function openEdit(uom: Uom) {
-    setEditing(uom);
+  function openEdit(brand: Brand) {
+    setEditing(brand);
     setFormOpen(true);
   }
 
@@ -91,13 +91,13 @@ export function UomTable() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Units of measure"
-        description="Units like case, box or piece used across the system."
+        title="Brands"
+        description="Brands you distribute, assigned to items as needed."
         actions={
           canCreate ? (
             <Button onClick={openCreate}>
               <Plus className="size-4" aria-hidden />
-              New unit
+              New brand
             </Button>
           ) : undefined
         }
@@ -106,9 +106,9 @@ export function UomTable() {
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>All units</CardTitle>
+            <CardTitle>All brands</CardTitle>
             <CardDescription>
-              {isPending ? "Loading…" : `${total} unit${total === 1 ? "" : "s"}`}
+              {isPending ? "Loading…" : `${total} brand${total === 1 ? "" : "s"}`}
             </CardDescription>
           </div>
           <CardAction>
@@ -120,9 +120,9 @@ export function UomTable() {
               <Input
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Search units…"
+                placeholder="Search brands…"
                 className="w-56 pl-9"
-                aria-label="Search units"
+                aria-label="Search brands"
               />
             </div>
           </CardAction>
@@ -132,7 +132,6 @@ export function UomTable() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Short name</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Updated</TableHead>
                 {canUpdate && <TableHead className="text-right">Actions</TableHead>}
@@ -143,10 +142,7 @@ export function UomTable() {
                 Array.from({ length: 6 }).map((_, index) => (
                   <TableRow key={index}>
                     <TableCell>
-                      <Skeleton className="h-4 w-32" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-4 w-12" />
+                      <Skeleton className="h-4 w-40" />
                     </TableCell>
                     <TableCell>
                       <Skeleton className="h-5 w-16 rounded-full" />
@@ -163,26 +159,25 @@ export function UomTable() {
                 ))
               ) : rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canUpdate ? 5 : 4} className="h-40 text-center">
+                  <TableCell colSpan={canUpdate ? 4 : 3} className="h-40 text-center">
                     <div className="mx-auto flex max-w-sm flex-col items-center gap-2 px-6">
                       <span className="flex size-10 items-center justify-center rounded-full bg-muted">
-                        <Ruler className="size-5 text-muted-foreground" aria-hidden />
+                        <Tags className="size-5 text-muted-foreground" aria-hidden />
                       </span>
                       {search ? (
                         <p className="text-sm font-medium">
-                          No units match “{search}”
+                          No brands match “{search}”
                         </p>
                       ) : (
                         <>
-                          <p className="text-sm font-medium">No units yet</p>
+                          <p className="text-sm font-medium">No brands yet</p>
                           <p className="text-xs text-muted-foreground">
-                            Create your first unit of measure, e.g. case, box or
-                            piece.
+                            Create your first brand, e.g. Acme or Orion.
                           </p>
                           {canCreate && (
                             <Button size="sm" onClick={openCreate}>
                               <Plus className="size-4" aria-hidden />
-                              Create unit
+                              Create brand
                             </Button>
                           )}
                         </>
@@ -191,25 +186,22 @@ export function UomTable() {
                   </TableCell>
                 </TableRow>
               ) : (
-                rows.map((uom) => (
-                  <TableRow key={uom.id}>
-                    <TableCell className="font-medium">{uom.name}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {uom.shortName}
-                    </TableCell>
+                rows.map((brand) => (
+                  <TableRow key={brand.id}>
+                    <TableCell className="font-medium">{brand.name}</TableCell>
                     <TableCell>
                       <Badge
-                        variant={uom.isActive ? "default" : "outline"}
+                        variant={brand.isActive ? "default" : "outline"}
                         className={cn(
-                          uom.isActive &&
+                          brand.isActive &&
                             "bg-success/10 text-success hover:bg-success/10",
                         )}
                       >
-                        {uom.isActive ? "Active" : "Inactive"}
+                        {brand.isActive ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatDateTime(uom.updatedAt)}
+                      {formatDateTime(brand.updatedAt)}
                     </TableCell>
                     {canUpdate && (
                       <TableCell>
@@ -217,7 +209,7 @@ export function UomTable() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => openEdit(uom)}
+                            onClick={() => openEdit(brand)}
                           >
                             <Pencil className="size-4" aria-hidden />
                             Edit
@@ -225,15 +217,15 @@ export function UomTable() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => toggleMutation.mutate(uom)}
+                            onClick={() => toggleMutation.mutate(brand)}
                             disabled={toggleMutation.isPending}
                           >
-                            {uom.isActive ? (
+                            {brand.isActive ? (
                               <PowerOff className="size-4" aria-hidden />
                             ) : (
                               <Power className="size-4" aria-hidden />
                             )}
-                            {uom.isActive ? "Deactivate" : "Activate"}
+                            {brand.isActive ? "Deactivate" : "Activate"}
                           </Button>
                         </div>
                       </TableCell>
@@ -256,10 +248,10 @@ export function UomTable() {
         )}
       </Card>
 
-      <UomFormSheet
+      <BrandFormSheet
         open={formOpen}
         onOpenChange={setFormOpen}
-        uom={editing}
+        brand={editing}
       />
     </div>
   );

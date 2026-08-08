@@ -58,3 +58,40 @@ export const uomApi = {
     apiFetch<Uom>(`/uoms/${id}`, { method: "PATCH", body: dto }),
 };
 
+// ---------------------------------------------------------------------------
+// Brands
+// ---------------------------------------------------------------------------
+
+export interface Brand {
+  id: string;
+  organizationId: string;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateBrandDto {
+  name: string;
+}
+
+export interface UpdateBrandDto {
+  name?: string;
+  isActive?: boolean;
+}
+
+export type BrandListQuery = ListQuery;
+
+export const brandApi = {
+  list: (query: BrandListQuery = {}) => {
+    const { page, limit, search } = query;
+    return apiFetchPaginated<Brand>(
+      `/brands?${toQuery({ page, limit, search })}`,
+    );
+  },
+  create: (dto: CreateBrandDto) =>
+    apiFetch<Brand>("/brands", { method: "POST", body: dto }),
+  update: (id: string, dto: UpdateBrandDto) =>
+    apiFetch<Brand>(`/brands/${id}`, { method: "PATCH", body: dto }),
+};
+

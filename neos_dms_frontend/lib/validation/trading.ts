@@ -7,3 +7,10 @@ export const uomSchema = z.object({
 });
 
 export type UomValues = z.infer<typeof uomSchema>;
+
+// Mirrors backend `CreateBrandDto` / `UpdateBrandDto` exactly.
+export const brandSchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+});
+
+export type BrandValues = z.infer<typeof brandSchema>;

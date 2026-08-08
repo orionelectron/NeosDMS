@@ -190,7 +190,7 @@ export interface Item {
   taxCodeId: string | null;
   taxCode: TaxCode | null;
   mrp: string;
-  salePrice: string;
+  rlp: string;
   standardCost: string;
   reorderLevel: number;
   inventoryTracking: InventoryTracking;
@@ -219,7 +219,7 @@ export interface CreateItemDto {
   valuationMethod?: ValuationMethod;
   taxCodeId?: string | null;
   mrp?: number;
-  salePrice?: number;
+  rlp?: number;
   standardCost?: number;
   reorderLevel?: number;
   inventoryTracking?: InventoryTracking;
@@ -245,7 +245,7 @@ export interface UpdateItemDto {
   valuationMethod?: ValuationMethod;
   taxCodeId?: string | null;
   mrp?: number;
-  salePrice?: number;
+  rlp?: number;
   standardCost?: number;
   reorderLevel?: number;
   inventoryTracking?: InventoryTracking;

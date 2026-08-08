@@ -98,13 +98,13 @@ export class ItemEntity extends BaseEntity {
   mrp: string;
 
   @Column({
-    name: 'sale_price',
+    name: 'rlp',
     type: 'decimal',
     precision: 15,
     scale: 2,
     default: 0,
   })
-  salePrice: string;
+  rlp: string;
 
   @Column({
     name: 'standard_cost',

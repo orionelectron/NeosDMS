@@ -257,7 +257,7 @@ export function ItemTable() {
                 <TableHead>Category</TableHead>
                 <TableHead>Brand</TableHead>
                 <TableHead>Base UOM</TableHead>
-                <TableHead className="text-right">Sale price</TableHead>
+                <TableHead className="text-right">RLP</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Updated</TableHead>
                 {canUpdate && (
@@ -364,7 +364,7 @@ export function ItemTable() {
                       {item.baseUom?.shortName ?? "—"}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {formatMoney(item.salePrice)}
+                      {formatMoney(item.rlp)}
                     </TableCell>
                     <TableCell>
                       <Badge

@@ -95,7 +95,7 @@ const createDefaults: ItemValues = {
   valuationMethod: "FIFO",
   taxCodeId: NO_SELECT,
   mrp: "",
-  salePrice: "",
+  rlp: "",
   standardCost: "",
   reorderLevel: "",
   inventoryTracking: "QUANTITY",
@@ -186,7 +186,7 @@ export function ItemFormSheet({
               valuationMethod: item.valuationMethod,
               taxCodeId: item.taxCodeId ?? NO_SELECT,
               mrp: item.mrp,
-              salePrice: item.salePrice,
+              rlp: item.rlp,
               standardCost: item.standardCost,
               reorderLevel: String(item.reorderLevel),
               inventoryTracking: item.inventoryTracking,
@@ -220,8 +220,7 @@ export function ItemFormSheet({
         valuationMethod: values.valuationMethod,
         taxCodeId: values.taxCodeId === NO_SELECT ? null : values.taxCodeId,
         mrp: values.mrp === "" ? undefined : Number(values.mrp),
-        salePrice:
-          values.salePrice === "" ? undefined : Number(values.salePrice),
+        rlp: values.rlp === "" ? undefined : Number(values.rlp),
         standardCost:
           values.standardCost === "" ? undefined : Number(values.standardCost),
         reorderLevel:
@@ -485,10 +484,10 @@ export function ItemFormSheet({
               />
               <FormField
                 control={form.control}
-                name="salePrice"
+                name="rlp"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Sale price</FormLabel>
+                    <FormLabel>RLP</FormLabel>
                     <FormControl>
                       <Input inputMode="decimal" placeholder="0.00" {...field} />
                     </FormControl>

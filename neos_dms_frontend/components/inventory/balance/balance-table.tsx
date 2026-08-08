@@ -290,7 +290,7 @@ export function BalanceTable() {
                         {formatMoney(balance.item?.mrp ?? 0)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {formatMoney(balance.item?.salePrice ?? 0)}
+                        {formatMoney(balance.item?.rlp ?? 0)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums font-medium">
                         {formatMoney(value)}

@@ -85,7 +85,7 @@ export async function seedInventoryBaseline(
     valuationMethod: 'FIFO',
     taxCodeId: null,
     mrp: '0',
-    salePrice: '0',
+    rlp: '0',
     standardCost: '0',
     reorderLevel: 10,
     inventoryTracking: 'QUANTITY',

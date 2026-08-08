@@ -62,7 +62,7 @@ export class CreateItemDto {
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
-  salePrice?: number;
+  rlp?: number;
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
@@ -160,7 +160,7 @@ export class UpdateItemDto {
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
-  salePrice?: number;
+  rlp?: number;
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })

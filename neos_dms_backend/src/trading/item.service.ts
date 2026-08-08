@@ -38,7 +38,7 @@ export interface CreateItemInput {
   valuationMethod?: ValuationMethod;
   taxCodeId?: string | null;
   mrp?: string | number;
-  salePrice?: string | number;
+  rlp?: string | number;
   standardCost?: string | number;
   reorderLevel?: number;
   inventoryTracking?: InventoryTracking;
@@ -64,7 +64,7 @@ export interface UpdateItemInput {
   valuationMethod?: ValuationMethod;
   taxCodeId?: string | null;
   mrp?: string | number;
-  salePrice?: string | number;
+  rlp?: string | number;
   standardCost?: string | number;
   reorderLevel?: number;
   inventoryTracking?: InventoryTracking;
@@ -148,8 +148,7 @@ export class ItemService {
           valuationMethod: input.valuationMethod ?? 'FIFO',
           taxCodeId: input.taxCodeId ?? null,
           mrp: input.mrp === undefined ? '0' : String(input.mrp),
-          salePrice:
-            input.salePrice === undefined ? '0' : String(input.salePrice),
+          rlp: input.rlp === undefined ? '0' : String(input.rlp),
           standardCost:
             input.standardCost === undefined ? '0' : String(input.standardCost),
           reorderLevel: input.reorderLevel ?? 0,
@@ -307,9 +306,7 @@ export class ItemService {
           ? { taxCodeId: input.taxCodeId }
           : {}),
         ...(input.mrp !== undefined ? { mrp: String(input.mrp) } : {}),
-        ...(input.salePrice !== undefined
-          ? { salePrice: String(input.salePrice) }
-          : {}),
+        ...(input.rlp !== undefined ? { rlp: String(input.rlp) } : {}),
         ...(input.standardCost !== undefined
           ? { standardCost: String(input.standardCost) }
           : {}),

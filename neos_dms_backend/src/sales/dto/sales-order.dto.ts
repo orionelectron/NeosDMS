@@ -34,7 +34,7 @@ export class SalesOrderLineDto {
   @Max(999999999999.999)
   freeQuantity?: number;
 
-  /** Defaults to the item's `sale_price` when omitted. */
+  /** Defaults to the item's `rlp` when omitted. */
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)

@@ -483,7 +483,7 @@ export class SalesOrderService {
         line.uomId,
         quantity + freeQuantity,
       );
-      const unitPrice = line.unitPrice ?? Number(item.salePrice ?? 0);
+      const unitPrice = line.unitPrice ?? Number(item.rlp ?? 0);
       const discountPercent = line.discountPercent ?? 0;
       // free units are never billed; percent discount applies to billed qty
       const lineTotal = Math.max(

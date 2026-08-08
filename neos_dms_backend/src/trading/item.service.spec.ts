@@ -255,12 +255,12 @@ describe('ItemService', () => {
       const updated = await service.updateItem(
         orgId,
         'item-1',
-        { name: 'Coca Cola 1.25L', salePrice: 95 },
+        { name: 'Coca Cola 1.25L', rlp: 95 },
         actorId,
       );
       expect(updated).toMatchObject({
         name: 'Coca Cola 1.25L',
-        salePrice: '95',
+        rlp: '95',
         code: 'CC1L',
       });
       expect(audit.record).toHaveBeenCalledWith(

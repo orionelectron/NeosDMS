@@ -8,6 +8,7 @@ import { HrTravel1786200000000 } from '../database/migrations/1786200000000-HrTr
 import { HrAttendance1786300000000 } from '../database/migrations/1786300000000-HrAttendance';
 import { Inventory1786500000000 } from '../database/migrations/1786500000000-Inventory';
 import { MovingAverageCost1786900000000 } from '../database/migrations/1786900000000-MovingAverageCost';
+import { RenameItemSalePriceToRlp1787700000000 } from '../database/migrations/1787700000000-RenameItemSalePriceToRlp';
 import { PurchaseBill1787000000000 } from '../database/migrations/1787000000000-PurchaseBill';
 import { PurchaseReturn1787100000000 } from '../database/migrations/1787100000000-PurchaseReturn';
 import { SalesInvoice1786700000000 } from '../database/migrations/1786700000000-SalesInvoice';
@@ -66,6 +67,7 @@ export const TEST_DB_OPTIONS: DataSourceOptions = {
     CustomerReceipt1787400000000,
     Expense1787500000000,
     Dispatch1787600000000,
+    RenameItemSalePriceToRlp1787700000000,
   ],
   synchronize: false,
   logging: false,

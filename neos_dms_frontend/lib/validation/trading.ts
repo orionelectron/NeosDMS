@@ -59,7 +59,7 @@ export const itemSchema = z.object({
   valuationMethod: z.enum(VALUATION_METHODS),
   taxCodeId: z.string(),
   mrp: moneyOrEmpty,
-  salePrice: moneyOrEmpty,
+  rlp: moneyOrEmpty,
   standardCost: moneyOrEmpty,
   reorderLevel: wholeOrEmpty,
   inventoryTracking: z.enum(INVENTORY_TRACKINGS),

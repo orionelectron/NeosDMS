@@ -117,7 +117,7 @@ export function ItemSummary({ item }: { item: Item }) {
 
         <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-3">
           <Field label="MRP" value={formatMoney(item.mrp)} />
-          <Field label="Sale price" value={formatMoney(item.salePrice)} />
+          <Field label="RLP" value={formatMoney(item.rlp)} />
           <Field label="Standard cost" value={formatMoney(item.standardCost)} />
         </dl>
 

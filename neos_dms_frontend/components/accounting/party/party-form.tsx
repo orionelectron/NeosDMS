@@ -9,10 +9,8 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetDescription,
-  SheetFooter,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
@@ -49,6 +47,22 @@ import {
 } from "@/lib/validation/accounting";
 
 const NO_BRANCH = "none";
+
+const PARTY_KIND_LABELS: Record<string, string> = {
+  BUSINESS: "Business",
+  INDIVIDUAL: "Individual",
+};
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 pt-1">
+      <Separator className="flex-1" />
+      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {children}
+      </span>
+    </div>
+  );
+}
 
 interface PartyFormSheetProps {
   open: boolean;
@@ -185,9 +199,11 @@ export function PartyFormSheet({
     mutation.mutate(values);
   }
 
+  const roleError = form.formState.errors.isCustomer?.message;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+      <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>{editing ? "Edit party" : "New party"}</SheetTitle>
           <SheetDescription>
@@ -199,107 +215,182 @@ export function PartyFormSheet({
             onSubmit={form.handleSubmit(onSubmit)}
             className="flex flex-1 flex-col gap-4 px-4"
           >
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. Himalayan Traders" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="partyKind"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Party type</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {PARTY_KINDS.map((kind) => (
-                        <SelectItem key={kind} value={kind}>
-                          {kind}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="flex flex-col gap-3 rounded-lg border p-3">
-              <p className="text-xs font-medium text-muted-foreground">
-                Role
-              </p>
+            <div className="space-y-3">
               <FormField
                 control={form.control}
-                name="isCustomer"
+                name="name"
                 render={({ field }) => (
-                  <FormItem className="flex items-center justify-between gap-4">
-                    <FormLabel>Customer</FormLabel>
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
                     <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
+                      <Input
+                        placeholder="e.g. Himalayan Traders"
+                        {...field}
                       />
                     </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
               <FormField
                 control={form.control}
-                name="isSupplier"
+                name="partyKind"
                 render={({ field }) => (
-                  <FormItem className="flex items-center justify-between gap-4">
-                    <FormLabel>Supplier</FormLabel>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
+                  <FormItem>
+                    <FormLabel>Party type</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {PARTY_KINDS.map((kind) => (
+                          <SelectItem key={kind} value={kind}>
+                            {PARTY_KIND_LABELS[kind] ?? kind}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="isLead"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between gap-4">
-                    <FormLabel>Lead</FormLabel>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              {form.formState.errors.isCustomer && (
+            </div>
+
+            <SectionTitle>Role</SectionTitle>
+            <div className="space-y-2">
+              <div className="grid grid-cols-3 gap-2">
+                <FormField
+                  control={form.control}
+                  name="isCustomer"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col items-center gap-2 rounded-lg border p-3">
+                      <FormLabel className="mb-0 text-xs">
+                        Customer
+                      </FormLabel>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="isSupplier"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col items-center gap-2 rounded-lg border p-3">
+                      <FormLabel className="mb-0 text-xs">
+                        Supplier
+                      </FormLabel>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="isLead"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col items-center gap-2 rounded-lg border p-3">
+                      <FormLabel className="mb-0 text-xs">Lead</FormLabel>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+              {roleError && (
                 <p className="text-xs font-medium text-destructive">
-                  {form.formState.errors.isCustomer.message}
+                  {roleError}
                 </p>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+
+            <SectionTitle>Contact</SectionTitle>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name="panNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>PAN</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. 302345678" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="vatNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>VAT</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. 400123456" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. 98XXXXXXXX" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="e.g. hello@acme.com"
+                          type="email"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <FormField
                 control={form.control}
-                name="panNumber"
+                name="address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>PAN</FormLabel>
+                    <FormLabel>Address</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. 302345678" {...field} />
+                      <Input
+                        placeholder="e.g. New Road, Kathmandu"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -307,89 +398,37 @@ export function PartyFormSheet({
               />
               <FormField
                 control={form.control}
-                name="vatNumber"
+                name="branchId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>VAT</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. 400123456" {...field} />
-                    </FormControl>
+                    <FormLabel>Branch</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={branches.length === 0}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="No branch" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value={NO_BRANCH}>None</SelectItem>
+                        {branches.map((branch) => (
+                          <SelectItem key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. 98XXXXXXXX" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. hello@acme.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <FormField
-              control={form.control}
-              name="address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Address</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. New Road, Kathmandu" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="branchId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Branch</FormLabel>
-                  <Select
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    disabled={branches.length === 0}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="No branch" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value={NO_BRANCH}>None</SelectItem>
-                      {branches.map((branch) => (
-                        <SelectItem key={branch.id} value={branch.id}>
-                          {branch.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="grid grid-cols-2 gap-4">
+
+            <SectionTitle>Accounting</SectionTitle>
+            <div className="grid grid-cols-2 gap-3">
               <FormField
                 control={form.control}
                 name="creditLimit"
@@ -425,11 +464,14 @@ export function PartyFormSheet({
                 )}
               />
             </div>
+
             {!editing && (
-              <div className="space-y-3">
-                <Separator />
+              <div className="space-y-2">
+                <SectionTitle>Addresses</SectionTitle>
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">Addresses</p>
+                  <p className="text-xs text-muted-foreground">
+                    Billing and shipping addresses (optional).
+                  </p>
                   <Button
                     type="button"
                     variant="outline"
@@ -449,10 +491,7 @@ export function PartyFormSheet({
                   </Button>
                 </div>
                 {fields.map((field, index) => (
-                  <div
-                    key={field.id}
-                    className="space-y-3 rounded-lg border p-3"
-                  >
+                  <div key={field.id} className="space-y-2 rounded-lg border p-3">
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-medium text-muted-foreground">
                         Address {index + 1}
@@ -460,67 +499,38 @@ export function PartyFormSheet({
                       <Button
                         type="button"
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         onClick={() => remove(index)}
-                        className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        className="h-6 w-6 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        title="Remove address"
                       >
-                        <Trash2 className="size-4" aria-hidden />
-                        Remove
+                        <Trash2 className="size-3.5" aria-hidden />
                       </Button>
                     </div>
-                    <FormField
-                      control={form.control}
-                      name={`addresses.${index}.addressType`}
-                      render={({ field: subField }) => (
-                        <FormItem>
-                          <FormLabel>Type</FormLabel>
-                          <Select
-                            value={subField.value}
-                            onValueChange={subField.onChange}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {PARTY_ADDRESS_TYPES.map((type) => (
-                                <SelectItem key={type} value={type}>
-                                  {type}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name={`addresses.${index}.addressLine1`}
-                      render={({ field: subField }) => (
-                        <FormItem>
-                          <FormLabel>Address line 1</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="e.g. Ward 4, New Road"
-                              {...subField}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-2">
                       <FormField
                         control={form.control}
-                        name={`addresses.${index}.city`}
+                        name={`addresses.${index}.addressType`}
                         render={({ field: subField }) => (
                           <FormItem>
-                            <FormLabel>City</FormLabel>
-                            <FormControl>
-                              <Input placeholder="e.g. Kathmandu" {...subField} />
-                            </FormControl>
+                            <FormLabel>Type</FormLabel>
+                            <Select
+                              value={subField.value}
+                              onValueChange={subField.onChange}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {PARTY_ADDRESS_TYPES.map((type) => (
+                                  <SelectItem key={type} value={type}>
+                                    {type}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -529,7 +539,7 @@ export function PartyFormSheet({
                         control={form.control}
                         name={`addresses.${index}.isDefault`}
                         render={({ field: subField }) => (
-                          <FormItem className="flex items-center justify-between gap-4 pt-6">
+                          <FormItem className="flex items-center justify-between gap-2 pt-6">
                             <FormLabel>Default</FormLabel>
                             <FormControl>
                               <Switch
@@ -541,23 +551,79 @@ export function PartyFormSheet({
                         )}
                       />
                     </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <FormField
+                        control={form.control}
+                        name={`addresses.${index}.addressLine1`}
+                        render={({ field: subField }) => (
+                          <FormItem>
+                            <FormLabel>Line 1</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="e.g. Ward 4, New Road"
+                                {...subField}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`addresses.${index}.addressLine2`}
+                        render={({ field: subField }) => (
+                          <FormItem>
+                            <FormLabel>Line 2</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="e.g. 2nd floor"
+                                {...subField}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name={`addresses.${index}.city`}
+                      render={({ field: subField }) => (
+                        <FormItem>
+                          <FormLabel>City</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g. Kathmandu" {...subField} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                 ))}
               </div>
             )}
-            <SheetFooter className="pt-2">
-              <SheetClose asChild>
-                <Button type="button" variant="outline">
+
+            <div className="sticky bottom-0 -mx-4 border-t bg-background/95 px-4 py-3 backdrop-blur">
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                >
                   Cancel
                 </Button>
-              </SheetClose>
-              <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending && (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                )}
-                {editing ? "Save changes" : "Create party"}
-              </Button>
-            </SheetFooter>
+                <Button
+                  type="submit"
+                  disabled={mutation.isPending}
+                  className="ml-auto"
+                >
+                  {mutation.isPending && (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  )}
+                  {editing ? "Save changes" : "Create party"}
+                </Button>
+              </div>
+            </div>
           </form>
         </Form>
       </SheetContent>

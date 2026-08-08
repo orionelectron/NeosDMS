@@ -3,9 +3,19 @@
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Pencil, Plus, Power, PowerOff, Ruler, Search } from "lucide-react";
+import { Pencil, Plus, Power, PowerOff, Ruler, Search, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import {
   Card,
@@ -42,12 +52,15 @@ export function UomTable() {
   const queryClient = useQueryClient();
   const canCreate = can("trading.uom.create");
   const canUpdate = can("trading.uom.update");
+  const canDelete = can("trading.uom.delete");
+  const canManageActions = canUpdate || canDelete;
 
   const [searchInput, setSearchInput] = React.useState("");
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [formOpen, setFormOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Uom | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<Uom | null>(null);
 
   React.useEffect(() => {
     const id = window.setTimeout(() => {
@@ -73,6 +86,18 @@ export function UomTable() {
     },
     onError: (error: unknown) => {
       toast.error(getErrorMessage(error, "Could not update the unit."));
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (uom: Uom) => uomApi.remove(uom.id),
+    onSuccess: (_data, uom) => {
+      toast.success(`Unit "${uom.name}" deleted.`);
+      queryClient.invalidateQueries({ queryKey: ["trading", "uoms"] });
+      setDeleteTarget(null);
+    },
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "Could not delete the unit."));
     },
   });
 
@@ -135,7 +160,7 @@ export function UomTable() {
                 <TableHead>Short name</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Updated</TableHead>
-                {canUpdate && <TableHead className="text-right">Actions</TableHead>}
+                {canManageActions && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -154,16 +179,16 @@ export function UomTable() {
                     <TableCell>
                       <Skeleton className="h-4 w-24" />
                     </TableCell>
-                    {canUpdate && (
+                    {canManageActions && (
                       <TableCell>
-                        <Skeleton className="ml-auto h-8 w-16" />
+                        <Skeleton className="ml-auto h-8 w-24" />
                       </TableCell>
                     )}
                   </TableRow>
                 ))
               ) : rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canUpdate ? 5 : 4} className="h-40 text-center">
+                  <TableCell colSpan={canManageActions ? 5 : 4} className="h-40 text-center">
                     <div className="mx-auto flex max-w-sm flex-col items-center gap-2 px-6">
                       <span className="flex size-10 items-center justify-center rounded-full bg-muted">
                         <Ruler className="size-5 text-muted-foreground" aria-hidden />
@@ -211,30 +236,46 @@ export function UomTable() {
                     <TableCell className="text-muted-foreground">
                       {formatDateTime(uom.updatedAt)}
                     </TableCell>
-                    {canUpdate && (
+                    {canManageActions && (
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEdit(uom)}
-                          >
-                            <Pencil className="size-4" aria-hidden />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleMutation.mutate(uom)}
-                            disabled={toggleMutation.isPending}
-                          >
-                            {uom.isActive ? (
-                              <PowerOff className="size-4" aria-hidden />
-                            ) : (
-                              <Power className="size-4" aria-hidden />
-                            )}
-                            {uom.isActive ? "Deactivate" : "Activate"}
-                          </Button>
+                          {canUpdate && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEdit(uom)}
+                            >
+                              <Pencil className="size-4" aria-hidden />
+                              Edit
+                            </Button>
+                          )}
+                          {canUpdate && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleMutation.mutate(uom)}
+                              disabled={toggleMutation.isPending}
+                            >
+                              {uom.isActive ? (
+                                <PowerOff className="size-4" aria-hidden />
+                              ) : (
+                                <Power className="size-4" aria-hidden />
+                              )}
+                              {uom.isActive ? "Deactivate" : "Activate"}
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setDeleteTarget(uom)}
+                              disabled={deleteMutation.isPending}
+                              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 className="size-4" aria-hidden />
+                              Delete
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     )}
@@ -261,6 +302,34 @@ export function UomTable() {
         onOpenChange={setFormOpen}
         uom={editing}
       />
+
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {deleteTarget?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This unit of measure will be permanently removed. This action
+              cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (deleteTarget) deleteMutation.mutate(deleteTarget);
+              }}
+            >
+              {deleteMutation.isPending ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

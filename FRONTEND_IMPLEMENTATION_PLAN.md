@@ -109,12 +109,12 @@ Convention: each feature = list page (server-state table) + sheet/dialog form (r
 - [x] Backend trading surface confirmed against live API (controllers, DTOs, permission codes, pagination shape, `GET /tax/codes` + `GET /accounts` for item-form refs)
 - [x] **Phase T1 — Trading shell + UOMs** — `lib/api/trading.ts` (shared pagination types + `uomApi`), `lib/validation/trading.ts` `uomSchema`, `trading.*` query keys; `app/(org)/trading/` layout with sub-nav + overview cards; UOM list page (debounced search, pagination, active badge, edit/activate-deactivate actions, empty + loading states, `trading.uom.*` gating) + create/edit form sheet (react-hook-form + zod). `tsc --noEmit` + `eslint` + `next build` clean; `/trading` + `/trading/uoms` return 200; backend `/api/v1/uoms` confirmed live (401 unauthenticated). User smoke pending
 - [x] **Phase T2 — Brands** — `brandApi` (list/create/update) + `Brand`/dto types, `brandSchema` (`name`), `trading.brandList` query key; `trading/brands` list page (debounced search, pagination, active badge, edit/activate-deactivate actions, empty + loading states, `trading.brand.*` gating, duplicate-name 409 → backend `BRAND_NAME_ALREADY_USED` message surfaced via `getErrorMessage`) + create/edit form sheet (react-hook-form + zod, name only). No delete UI (toggle only). `tsc --noEmit` + `eslint` + `next build` clean; `/trading/brands` returns 200. User smoke pending
+- [x] **Phase T3 — Item categories** — `categoryApi` (list/create/update) + `ItemCategory`/dto types (embedded `parentCategory` from list join), `categorySchema` (`name` required, `code` optional, `parentCategoryId` with `"none"` sentinel), `trading.categoryList` query key; `trading/categories` list page (search matches name+code, pagination, parent-name column with `—` fallback, active badge, edit/activate-deactivate, empty + loading states, `trading.item-category.*` gating) + create/edit sheet with parent-category select (excludes self, clear-parent via None, `code:null`/`parentCategoryId:null` clears on update, 409 duplicate code surfaced). No delete UI (toggle only). `tsc` + `eslint` + `next build` clean; `/trading/categories` returns 200. User smoke pending
 
 ### In Progress
 - (none)
 
 ### Next up
-- [ ] Phase T3 — Item categories
 - [ ] Phase T4 — Items (+ item detail page)
 - [ ] Phase T5 — UOM conversions
 - [ ] Phase T6 — Sales/Inventory wiring (deferred)

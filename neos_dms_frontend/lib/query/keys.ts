@@ -1,4 +1,8 @@
-import type { BrandListQuery, UomListQuery } from "@/lib/api/trading";
+import type {
+  BrandListQuery,
+  CategoryListQuery,
+  UomListQuery,
+} from "@/lib/api/trading";
 
 export const queryKeys = {
   auth: {
@@ -12,5 +16,7 @@ export const queryKeys = {
       ["trading", "uoms", "list", query] as const,
     brandList: (query: BrandListQuery) =>
       ["trading", "brands", "list", query] as const,
+    categoryList: (query: CategoryListQuery) =>
+      ["trading", "categories", "list", query] as const,
   },
 };

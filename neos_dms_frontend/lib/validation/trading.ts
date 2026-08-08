@@ -14,3 +14,14 @@ export const brandSchema = z.object({
 });
 
 export type BrandValues = z.infer<typeof brandSchema>;
+
+// Mirrors backend `CreateItemCategoryDto`. The form uses "" (code) and "none"
+// (parentCategoryId sentinel) to mean "unset"; the form maps those to
+// undefined/null when building the DTO.
+export const categorySchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+  code: z.string().trim(),
+  parentCategoryId: z.string(),
+});
+
+export type CategoryValues = z.infer<typeof categorySchema>;

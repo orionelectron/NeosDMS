@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Pencil, Plus, Power, PowerOff, Search, Tags, Trash2 } from "lucide-react";
+import { FolderTree, Pencil, Plus, Power, PowerOff, Search, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,28 +39,28 @@ import {
 import { TablePagination } from "@/components/ui/table-pagination";
 import { useAuth } from "@/components/providers/auth-provider";
 import { getErrorMessage } from "@/lib/api/http";
-import { brandApi, type Brand } from "@/lib/api/trading";
+import { categoryApi, type ItemCategory } from "@/lib/api/trading";
 import { queryKeys } from "@/lib/query/keys";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { BrandFormSheet } from "@/components/trading/brand/brand-form";
+import { CategoryFormSheet } from "@/components/trading/category/category-form";
 
 const PAGE_SIZE = 20;
 
-export function BrandTable() {
+export function CategoryTable() {
   const { can } = useAuth();
   const queryClient = useQueryClient();
-  const canCreate = can("trading.brand.create");
-  const canUpdate = can("trading.brand.update");
-  const canDelete = can("trading.brand.delete");
+  const canCreate = can("trading.item-category.create");
+  const canUpdate = can("trading.item-category.update");
+  const canDelete = can("trading.item-category.delete");
   const canManageActions = canUpdate || canDelete;
 
   const [searchInput, setSearchInput] = React.useState("");
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [formOpen, setFormOpen] = React.useState(false);
-  const [editing, setEditing] = React.useState<Brand | null>(null);
-  const [deleteTarget, setDeleteTarget] = React.useState<Brand | null>(null);
+  const [editing, setEditing] = React.useState<ItemCategory | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<ItemCategory | null>(null);
 
   React.useEffect(() => {
     const id = window.setTimeout(() => {
@@ -71,33 +71,35 @@ export function BrandTable() {
   }, [searchInput]);
 
   const { data, isPending } = useQuery({
-    queryKey: queryKeys.trading.brandList({ search, page, limit: PAGE_SIZE }),
-    queryFn: () => brandApi.list({ search, page, limit: PAGE_SIZE }),
+    queryKey: queryKeys.trading.categoryList({ search, page, limit: PAGE_SIZE }),
+    queryFn: () => categoryApi.list({ search, page, limit: PAGE_SIZE }),
   });
 
   const total = data?.meta.total ?? 0;
 
   const toggleMutation = useMutation({
-    mutationFn: (brand: Brand) =>
-      brandApi.update(brand.id, { isActive: !brand.isActive }),
-    onSuccess: (_data, brand) => {
-      toast.success(brand.isActive ? "Brand deactivated." : "Brand activated.");
-      queryClient.invalidateQueries({ queryKey: ["trading", "brands"] });
+    mutationFn: (category: ItemCategory) =>
+      categoryApi.update(category.id, { isActive: !category.isActive }),
+    onSuccess: (_data, category) => {
+      toast.success(
+        category.isActive ? "Category deactivated." : "Category activated.",
+      );
+      queryClient.invalidateQueries({ queryKey: ["trading", "categories"] });
     },
     onError: (error: unknown) => {
-      toast.error(getErrorMessage(error, "Could not update the brand."));
+      toast.error(getErrorMessage(error, "Could not update the category."));
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (brand: Brand) => brandApi.remove(brand.id),
-    onSuccess: (_data, brand) => {
-      toast.success(`Brand "${brand.name}" deleted.`);
-      queryClient.invalidateQueries({ queryKey: ["trading", "brands"] });
+    mutationFn: (category: ItemCategory) => categoryApi.remove(category.id),
+    onSuccess: (_data, category) => {
+      toast.success(`Category "${category.name}" deleted.`);
+      queryClient.invalidateQueries({ queryKey: ["trading", "categories"] });
       setDeleteTarget(null);
     },
     onError: (error: unknown) => {
-      toast.error(getErrorMessage(error, "Could not delete the brand."));
+      toast.error(getErrorMessage(error, "Could not delete the category."));
     },
   });
 
@@ -106,8 +108,8 @@ export function BrandTable() {
     setFormOpen(true);
   }
 
-  function openEdit(brand: Brand) {
-    setEditing(brand);
+  function openEdit(category: ItemCategory) {
+    setEditing(category);
     setFormOpen(true);
   }
 
@@ -116,13 +118,13 @@ export function BrandTable() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Brands"
-        description="Brands you distribute, assigned to items as needed."
+        title="Item categories"
+        description="Group items into a hierarchy for reporting and pricing."
         actions={
           canCreate ? (
             <Button onClick={openCreate}>
               <Plus className="size-4" aria-hidden />
-              New brand
+              New category
             </Button>
           ) : undefined
         }
@@ -131,9 +133,11 @@ export function BrandTable() {
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>All brands</CardTitle>
+            <CardTitle>All categories</CardTitle>
             <CardDescription>
-              {isPending ? "Loading…" : `${total} brand${total === 1 ? "" : "s"}`}
+              {isPending
+                ? "Loading…"
+                : `${total} categor${total === 1 ? "y" : "ies"}`}
             </CardDescription>
           </div>
           <CardAction>
@@ -145,9 +149,9 @@ export function BrandTable() {
               <Input
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Search brands…"
+                placeholder="Search categories…"
                 className="w-56 pl-9"
-                aria-label="Search brands"
+                aria-label="Search categories"
               />
             </div>
           </CardAction>
@@ -157,9 +161,13 @@ export function BrandTable() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>Code</TableHead>
+                <TableHead>Parent</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Updated</TableHead>
-                {canManageActions && <TableHead className="text-right">Actions</TableHead>}
+                {canManageActions && (
+                  <TableHead className="text-right">Actions</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -168,6 +176,12 @@ export function BrandTable() {
                   <TableRow key={index}>
                     <TableCell>
                       <Skeleton className="h-4 w-40" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-12" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-28" />
                     </TableCell>
                     <TableCell>
                       <Skeleton className="h-5 w-16 rounded-full" />
@@ -184,25 +198,34 @@ export function BrandTable() {
                 ))
               ) : rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={canManageActions ? 4 : 3} className="h-40 text-center">
+                  <TableCell
+                    colSpan={canManageActions ? 6 : 5}
+                    className="h-40 text-center"
+                  >
                     <div className="mx-auto flex max-w-sm flex-col items-center gap-2 px-6">
                       <span className="flex size-10 items-center justify-center rounded-full bg-muted">
-                        <Tags className="size-5 text-muted-foreground" aria-hidden />
+                        <FolderTree
+                          className="size-5 text-muted-foreground"
+                          aria-hidden
+                        />
                       </span>
                       {search ? (
                         <p className="text-sm font-medium">
-                          No brands match “{search}”
+                          No categories match “{search}”
                         </p>
                       ) : (
                         <>
-                          <p className="text-sm font-medium">No brands yet</p>
+                          <p className="text-sm font-medium">
+                            No categories yet
+                          </p>
                           <p className="text-xs text-muted-foreground">
-                            Create your first brand, e.g. Acme or Orion.
+                            Create your first category, e.g. Beverages or
+                            Electronics.
                           </p>
                           {canCreate && (
                             <Button size="sm" onClick={openCreate}>
                               <Plus className="size-4" aria-hidden />
-                              Create brand
+                              Create category
                             </Button>
                           )}
                         </>
@@ -211,22 +234,30 @@ export function BrandTable() {
                   </TableCell>
                 </TableRow>
               ) : (
-                rows.map((brand) => (
-                  <TableRow key={brand.id}>
-                    <TableCell className="font-medium">{brand.name}</TableCell>
+                rows.map((category) => (
+                  <TableRow key={category.id}>
+                    <TableCell className="font-medium">
+                      {category.name}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {category.code || "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {category.parentCategory?.name ?? "—"}
+                    </TableCell>
                     <TableCell>
                       <Badge
-                        variant={brand.isActive ? "default" : "outline"}
+                        variant={category.isActive ? "default" : "outline"}
                         className={cn(
-                          brand.isActive &&
+                          category.isActive &&
                             "bg-success/10 text-success hover:bg-success/10",
                         )}
                       >
-                        {brand.isActive ? "Active" : "Inactive"}
+                        {category.isActive ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatDateTime(brand.updatedAt)}
+                      {formatDateTime(category.updatedAt)}
                     </TableCell>
                     {canManageActions && (
                       <TableCell>
@@ -235,7 +266,7 @@ export function BrandTable() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => openEdit(brand)}
+                              onClick={() => openEdit(category)}
                             >
                               <Pencil className="size-4" aria-hidden />
                               Edit
@@ -245,22 +276,22 @@ export function BrandTable() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => toggleMutation.mutate(brand)}
+                              onClick={() => toggleMutation.mutate(category)}
                               disabled={toggleMutation.isPending}
                             >
-                              {brand.isActive ? (
+                              {category.isActive ? (
                                 <PowerOff className="size-4" aria-hidden />
                               ) : (
                                 <Power className="size-4" aria-hidden />
                               )}
-                              {brand.isActive ? "Deactivate" : "Activate"}
+                              {category.isActive ? "Deactivate" : "Activate"}
                             </Button>
                           )}
                           {canDelete && (
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => setDeleteTarget(brand)}
+                              onClick={() => setDeleteTarget(category)}
                               disabled={deleteMutation.isPending}
                               className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                             >
@@ -289,10 +320,10 @@ export function BrandTable() {
         )}
       </Card>
 
-      <BrandFormSheet
+      <CategoryFormSheet
         open={formOpen}
         onOpenChange={setFormOpen}
-        brand={editing}
+        category={editing}
       />
 
       <AlertDialog
@@ -305,7 +336,8 @@ export function BrandTable() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {deleteTarget?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This brand will be permanently removed. This action cannot be
+              This category will be permanently removed. Child categories and
+              items referencing it will be unlinked. This action cannot be
               undone.
             </AlertDialogDescription>
           </AlertDialogHeader>

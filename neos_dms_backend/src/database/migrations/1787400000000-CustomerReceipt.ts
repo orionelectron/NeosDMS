@@ -119,7 +119,9 @@ export class CustomerReceipt1787400000000 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "customer_receipt_invoice_allocations" DROP CONSTRAINT "chk_receipt_allocations_amount"`,
     );
-    await queryRunner.query(`DROP TABLE "customer_receipt_invoice_allocations"`);
+    await queryRunner.query(
+      `DROP TABLE "customer_receipt_invoice_allocations"`,
+    );
     await queryRunner.query(
       `ALTER TABLE "customer_receipts" DROP CONSTRAINT "chk_customer_receipts_amount"`,
     );

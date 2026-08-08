@@ -102,67 +102,85 @@ export class SalesReturnService {
     actorId: string,
     dto: CreateSalesReturnDto,
   ): Promise<SalesReturnEntity> {
-    return this.dataSource.transaction(async (manager) => {
-      const customer = await this.requireCustomer(
-        manager,
-        organizationId,
-        dto.partyId,
-      );
-      const prepared = await this.prepareReturn(
-        manager,
-        organizationId,
-        customer.id,
-        dto.lines,
-      );
+    return this.dataSource.transaction((manager) =>
+      this.createDraftIn(manager, organizationId, actorId, dto),
+    );
+  }
 
-      const returnRepo = manager.getRepository(SalesReturnEntity);
-      const salesReturn = await returnRepo.save(
-        returnRepo.create({
-          organizationId,
-          branchId: dto.branchId ?? null,
-          returnNumber: null,
-          partyId: customer.id,
+  /**
+   * Manager-scoped draft creation (runs inside the caller's transaction).
+   * The dispatch engine calls this when a failed stop returns stock to the
+   * source location; the draft is posted by the dispatcher via the normal
+   * flow. The caller is already authorized via `dispatch.dispatch.update`.
+   */
+  async createDraftIn(
+    manager: EntityManager,
+    organizationId: string,
+    actorId: string,
+    dto: CreateSalesReturnDto,
+    opts: { dispatchStopId?: string } = {},
+  ): Promise<SalesReturnEntity> {
+    const customer = await this.requireCustomer(
+      manager,
+      organizationId,
+      dto.partyId,
+    );
+    const prepared = await this.prepareReturn(
+      manager,
+      organizationId,
+      customer.id,
+      dto.lines,
+    );
+
+    const returnRepo = manager.getRepository(SalesReturnEntity);
+    const salesReturn = await returnRepo.save(
+      returnRepo.create({
+        organizationId,
+        branchId: dto.branchId ?? null,
+        returnNumber: null,
+        partyId: customer.id,
+        status: 'DRAFT',
+        inventoryLocationId: null,
+        dispatchStopId: opts.dispatchStopId ?? null,
+        taxableTotal: prepared.taxableTotal.toFixed(2),
+        nonTaxableTotal: prepared.nonTaxableTotal.toFixed(2),
+        subtotal: prepared.subtotal.toFixed(2),
+        discountTotal: '0.00',
+        taxTotal: prepared.taxTotal.toFixed(2),
+        cogsTotal: prepared.cogsTotal.toFixed(2),
+        total: prepared.total.toFixed(2),
+        returnReason: dto.returnReason ?? null,
+        notes: dto.notes ?? null,
+      }),
+    );
+
+    await this.saveLines(
+      manager,
+      organizationId,
+      salesReturn.id,
+      prepared.lines,
+    );
+
+    await this.audit.record(
+      {
+        organizationId,
+        branchId: salesReturn.branchId,
+        userId: actorId,
+        action: SALES_AUDIT_ACTIONS.RETURN_CREATE,
+        entityType: 'sales_return',
+        entityId: salesReturn.id,
+        newData: {
           status: 'DRAFT',
-          inventoryLocationId: null,
-          taxableTotal: prepared.taxableTotal.toFixed(2),
-          nonTaxableTotal: prepared.nonTaxableTotal.toFixed(2),
-          subtotal: prepared.subtotal.toFixed(2),
-          discountTotal: '0.00',
-          taxTotal: prepared.taxTotal.toFixed(2),
-          cogsTotal: prepared.cogsTotal.toFixed(2),
+          partyId: customer.id,
           total: prepared.total.toFixed(2),
-          returnReason: dto.returnReason ?? null,
-          notes: dto.notes ?? null,
-        }),
-      );
-
-      await this.saveLines(
-        manager,
-        organizationId,
-        salesReturn.id,
-        prepared.lines,
-      );
-
-      await this.audit.record(
-        {
-          organizationId,
-          branchId: salesReturn.branchId,
-          userId: actorId,
-          action: SALES_AUDIT_ACTIONS.RETURN_CREATE,
-          entityType: 'sales_return',
-          entityId: salesReturn.id,
-          newData: {
-            status: 'DRAFT',
-            partyId: customer.id,
-            total: prepared.total.toFixed(2),
-            lineCount: prepared.lines.length,
-          },
+          lineCount: prepared.lines.length,
+          dispatchStopId: opts.dispatchStopId ?? null,
         },
-        manager,
-      );
+      },
+      manager,
+    );
 
-      return this.buildReturnView(manager, organizationId, salesReturn.id);
-    });
+    return this.buildReturnView(manager, organizationId, salesReturn.id);
   }
 
   async update(

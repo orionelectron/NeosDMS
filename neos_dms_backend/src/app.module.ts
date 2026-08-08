@@ -7,6 +7,7 @@ import { AuditModule } from './audit/audit.module';
 import { AppConfig, configuration } from './config/configuration';
 import { CommonModule } from './common/common.module';
 import { clsModuleOptions } from './common/request-context';
+import { DispatchModule } from './dispatch/dispatch.module';
 import { FieldModule } from './field/field.module';
 import { HealthModule } from './health/health.module';
 import { HrModule } from './hr/hr.module';
@@ -53,6 +54,7 @@ import { TradingModule } from './trading/trading.module';
     HrModule,
     InventoryModule,
     SalesModule,
+    DispatchModule,
     PurchaseModule,
   ],
 })

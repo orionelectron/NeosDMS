@@ -137,6 +137,11 @@ const PERMISSION_DEFS: readonly PermissionDef[] = [
     actions: ['create', 'read', 'update', 'complete'],
   },
   {
+    module: 'dispatch',
+    resource: 'vehicle',
+    actions: CRUD_ACTIONS,
+  },
+  {
     module: 'hr',
     resource: 'leave_type',
     actions: CRUD_ACTIONS,
@@ -256,7 +261,8 @@ export const BASE_ROLES: readonly RoleDefinition[] = [
       'sales.route.read',
       'sales.route_assignment.*',
       'sales.visit.read',
-      'dispatch.dispatch.read',
+      'dispatch.dispatch.*',
+      'dispatch.vehicle.*',
     ],
   },
   {
@@ -274,6 +280,8 @@ export const BASE_ROLES: readonly RoleDefinition[] = [
       'inventory.location.read',
       'inventory.transaction.read',
       'inventory.balance.read',
+      'dispatch.dispatch.*',
+      'dispatch.vehicle.*',
     ],
   },
 ];

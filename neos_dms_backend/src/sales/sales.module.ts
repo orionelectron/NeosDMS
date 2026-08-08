@@ -98,5 +98,11 @@ const CbmsClientProvider = {
     DocumentSequenceService,
     CbmsClientProvider,
   ],
+  exports: [
+    SalesOrderService,
+    SalesInvoiceService,
+    SalesReturnService,
+    DocumentSequenceService,
+  ],
 })
 export class SalesModule {}

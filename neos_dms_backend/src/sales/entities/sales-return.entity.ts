@@ -164,4 +164,8 @@ export class SalesReturnEntity extends BaseEntity {
 
   @OneToMany(() => SalesReturnLineEntity, (line) => line.return)
   lines: SalesReturnLineEntity[];
+
+  /** Stamped by dispatch `complete` for auto-drafted shortfall credit notes. */
+  @Column({ name: 'dispatch_stop_id', type: 'uuid', nullable: true })
+  dispatchStopId: string | null;
 }

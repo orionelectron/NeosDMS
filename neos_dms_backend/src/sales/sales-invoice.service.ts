@@ -123,110 +123,128 @@ export class SalesInvoiceService {
     actor: OrderActor,
     dto: CreateSalesInvoiceDto,
   ): Promise<SalesInvoiceEntity> {
-    return this.dataSource.transaction(async (manager) => {
-      const order = await this.requireOrder(
-        manager,
-        organizationId,
-        dto.salesOrderId,
-      );
-      this.assertOrderInvoicable(order);
+    return this.dataSource.transaction((manager) =>
+      this.createIn(manager, organizationId, actor, dto),
+    );
+  }
+
+  /**
+   * Manager-scoped draft creation (runs inside the caller's transaction).
+   * `skipAccessCheck` lets the dispatch engine create invoices on behalf of a
+   * stop without the dispatcher owning the salesperson chain — the dispatcher
+   * is already authorized via `dispatch.dispatch.update`.
+   */
+  private async createIn(
+    manager: EntityManager,
+    organizationId: string,
+    actor: OrderActor,
+    dto: CreateSalesInvoiceDto,
+    opts: { skipAccessCheck?: boolean } = {},
+  ): Promise<SalesInvoiceEntity> {
+    const order = await this.requireOrder(
+      manager,
+      organizationId,
+      dto.salesOrderId,
+    );
+    this.assertOrderInvoicable(order);
+    if (!opts.skipAccessCheck) {
       await this.assertCanAccessInvoice(organizationId, actor, {
         salespersonId: order.salespersonId,
       } as SalesInvoiceEntity);
+    }
 
-      const prepared = await this.prepareInvoice(
-        manager,
+    const prepared = await this.prepareInvoice(
+      manager,
+      organizationId,
+      order,
+      dto.lines,
+      dto.discountAmount,
+    );
+    const buyer = order.party;
+
+    const invoiceRepo = manager.getRepository(SalesInvoiceEntity);
+    const invoice = await invoiceRepo.save(
+      invoiceRepo.create({
         organizationId,
-        order,
-        dto.lines,
-        dto.discountAmount,
-      );
-      const buyer = order.party;
+        branchId: dto.branchId ?? null,
+        invoiceNumber: null,
+        orderId: order.id,
+        partyId: buyer.id,
+        salespersonId: order.salespersonId,
+        status: 'DRAFT',
+        buyerName: buyer.name ?? null,
+        buyerAddress: buyer.address ?? null,
+        buyerPan: buyer.panNumber ?? null,
+        buyerVat: buyer.vatNumber ?? null,
+        taxableTotal: prepared.taxableTotal.toFixed(2),
+        nonTaxableTotal: prepared.nonTaxableTotal.toFixed(2),
+        subtotal: prepared.subtotal.toFixed(2),
+        discountTotal: prepared.discountTotal.toFixed(2),
+        taxTotal: prepared.taxTotal.toFixed(2),
+        roundingAdjustment: prepared.roundingAdjustment.toFixed(2),
+        total: prepared.total.toFixed(2),
+        excisableAmount: '0.00',
+        exciseTotal: '0.00',
+        hstTotal: '0.00',
+        esfTotal: '0.00',
+        exportTotal: '0.00',
+        paidAmount: '0.00',
+        balanceAmount: prepared.total.toFixed(2),
+        cbmsStatus: 'NOT_REQUIRED',
+        notes: dto.notes ?? null,
+      }),
+    );
 
-      const invoiceRepo = manager.getRepository(SalesInvoiceEntity);
-      const invoice = await invoiceRepo.save(
-        invoiceRepo.create({
+    const lineRepo = manager.getRepository(SalesInvoiceLineEntity);
+    await lineRepo.save(
+      prepared.lines.map((line) =>
+        lineRepo.create({
           organizationId,
-          branchId: dto.branchId ?? null,
-          invoiceNumber: null,
+          invoiceId: invoice.id,
+          lineNo: line.lineNo,
+          sourceSalesOrderLineId: line.sourceSalesOrderLineId,
+          itemId: line.itemId,
+          uomId: line.uomId,
+          quantity: line.quantity.toFixed(3),
+          freeQuantity: line.freeQuantity.toFixed(3),
+          baseQuantity: line.baseQuantity.toFixed(3),
+          unitPrice: line.unitPrice.toFixed(2),
+          isTaxInclusive: false,
+          grossAmount: line.billedGross.toFixed(2),
+          discountPercent: line.discountPercent.toFixed(2),
+          discountAmount: ROUND2(
+            line.billedGross * (line.discountPercent / 100),
+          ).toFixed(2),
+          taxCodeId: line.taxCodeId,
+          irdCategory: line.irdCategory,
+          taxRate: line.taxRate.toFixed(4),
+          taxableAmount: line.taxableAmount.toFixed(2),
+          taxAmount: line.taxAmount.toFixed(2),
+          lineTotal: line.lineTotal.toFixed(2),
+        }),
+      ),
+    );
+
+    await this.audit.record(
+      {
+        organizationId,
+        userId: actor.id,
+        action: SALES_INVOICE_AUDIT_ACTIONS.CREATE,
+        entityType: 'sales_invoice',
+        entityId: invoice.id,
+        newData: {
+          status: 'DRAFT',
           orderId: order.id,
           partyId: buyer.id,
-          salespersonId: order.salespersonId,
-          status: 'DRAFT',
-          buyerName: buyer.name ?? null,
-          buyerAddress: buyer.address ?? null,
-          buyerPan: buyer.panNumber ?? null,
-          buyerVat: buyer.vatNumber ?? null,
-          taxableTotal: prepared.taxableTotal.toFixed(2),
-          nonTaxableTotal: prepared.nonTaxableTotal.toFixed(2),
-          subtotal: prepared.subtotal.toFixed(2),
-          discountTotal: prepared.discountTotal.toFixed(2),
-          taxTotal: prepared.taxTotal.toFixed(2),
-          roundingAdjustment: prepared.roundingAdjustment.toFixed(2),
           total: prepared.total.toFixed(2),
-          excisableAmount: '0.00',
-          exciseTotal: '0.00',
-          hstTotal: '0.00',
-          esfTotal: '0.00',
-          exportTotal: '0.00',
-          paidAmount: '0.00',
-          balanceAmount: prepared.total.toFixed(2),
-          cbmsStatus: 'NOT_REQUIRED',
-          notes: dto.notes ?? null,
-        }),
-      );
-
-      const lineRepo = manager.getRepository(SalesInvoiceLineEntity);
-      await lineRepo.save(
-        prepared.lines.map((line) =>
-          lineRepo.create({
-            organizationId,
-            invoiceId: invoice.id,
-            lineNo: line.lineNo,
-            sourceSalesOrderLineId: line.sourceSalesOrderLineId,
-            itemId: line.itemId,
-            uomId: line.uomId,
-            quantity: line.quantity.toFixed(3),
-            freeQuantity: line.freeQuantity.toFixed(3),
-            baseQuantity: line.baseQuantity.toFixed(3),
-            unitPrice: line.unitPrice.toFixed(2),
-            isTaxInclusive: false,
-            grossAmount: line.billedGross.toFixed(2),
-            discountPercent: line.discountPercent.toFixed(2),
-            discountAmount: ROUND2(
-              line.billedGross * (line.discountPercent / 100),
-            ).toFixed(2),
-            taxCodeId: line.taxCodeId,
-            irdCategory: line.irdCategory,
-            taxRate: line.taxRate.toFixed(4),
-            taxableAmount: line.taxableAmount.toFixed(2),
-            taxAmount: line.taxAmount.toFixed(2),
-            lineTotal: line.lineTotal.toFixed(2),
-          }),
-        ),
-      );
-
-      await this.audit.record(
-        {
-          organizationId,
-          userId: actor.id,
-          action: SALES_INVOICE_AUDIT_ACTIONS.CREATE,
-          entityType: 'sales_invoice',
-          entityId: invoice.id,
-          newData: {
-            status: 'DRAFT',
-            orderId: order.id,
-            partyId: buyer.id,
-            total: prepared.total.toFixed(2),
-            taxTotal: prepared.taxTotal.toFixed(2),
-            lineCount: prepared.lines.length,
-          },
+          taxTotal: prepared.taxTotal.toFixed(2),
+          lineCount: prepared.lines.length,
         },
-        manager,
-      );
+      },
+      manager,
+    );
 
-      return this.buildInvoiceView(manager, organizationId, invoice.id);
-    });
+    return this.buildInvoiceView(manager, organizationId, invoice.id);
   }
 
   async update(
@@ -337,177 +355,242 @@ export class SalesInvoiceService {
   ): Promise<SalesInvoiceEntity> {
     const postedId = await this.dataSource.transaction(async (manager) => {
       const invoice = await this.requireInvoice(manager, organizationId, id);
-      if (invoice.status !== 'DRAFT')
-        throw new SalesInvoiceNotDraftException(id, invoice.status, 'post');
-      await this.assertCanAccessInvoice(organizationId, actor, invoice);
-
-      const order = await this.requireOrder(
+      const posted = await this.postIn(
         manager,
         organizationId,
-        invoice.orderId,
-      );
-      this.assertOrderInvoicable(order);
-      if (!dto.inventoryLocationId)
-        throw new SalesInvoiceLocationRequiredException();
-
-      await this.validateStoredLinesRemaining(manager, organizationId, invoice);
-
-      const today = new Date();
-      const todayBs = this.toBs(today);
-      const fiscalYear = await this.resolveFiscalYear(
-        manager,
-        organizationId,
-        today,
-      );
-
-      const invoiceNumber = await this.documentSequenceService.nextNumber(
-        {
-          organizationId,
-          branchId: invoice.branchId,
-          fiscalYearId: fiscalYear.id,
-          documentType: SALES_INVOICE_DOCUMENT_TYPE,
-          prefix: 'INV-',
-        },
-        manager,
-      );
-
-      const dueDays = await this.dueDays(
-        manager,
-        organizationId,
-        invoice.partyId,
-      );
-      const dueDate = new Date(today);
-      dueDate.setDate(dueDate.getDate() + dueDays);
-
-      const lines = await manager.getRepository(SalesInvoiceLineEntity).find({
-        where: { invoiceId: invoice.id },
-        order: { lineNo: 'ASC' },
-      });
-
-      const costSnapshots = await this.inventoryService.averageCostForOut(
-        manager,
-        organizationId,
-        dto.inventoryLocationId,
-        lines.map((line) => ({
-          itemId: line.itemId,
-          baseQuantity: Number(line.baseQuantity),
-        })),
-      );
-      const avgCostByItem = new Map(
-        costSnapshots.map((snapshot) => [snapshot.itemId, snapshot.avgCost]),
-      );
-      const cogsTotal = ROUND2(
-        costSnapshots.reduce((sum, snapshot) => sum + snapshot.value, 0),
-      );
-
-      const journal = await this.journalFor(
-        manager,
-        organizationId,
+        actor,
         invoice,
-        cogsTotal,
+        dto.inventoryLocationId,
       );
-      const journalBranchId =
-        invoice.branchId ??
-        order.branchId ??
-        (await this.requireDefaultBranch(manager, organizationId));
-      const entry = await this.journalService.createDraftIn(
-        manager,
-        organizationId,
-        {
-          branchId: journalBranchId,
-          entryDate: today.toISOString().slice(0, 10),
-          description: `Sales invoice ${invoiceNumber}`,
-          lines: journal,
-        },
-        actor.id,
-      );
-      await this.journalService.postIn(
-        manager,
-        organizationId,
-        entry.id,
-        actor.id,
-      );
-
-      const inventoryTxn = await this.inventoryService.issueForSalesInvoice(
-        manager,
-        organizationId,
-        {
-          locationId: dto.inventoryLocationId,
-          invoiceId: invoice.id,
-          notes: `Sales invoice ${invoiceNumber}`,
-          lines: lines.map((line) => ({
-            itemId: line.itemId,
-            uomId: line.uomId,
-            baseQuantity: Number(line.baseQuantity),
-            unitCost: avgCostByItem.get(line.itemId) ?? 0,
-          })),
-        },
-        actor.id,
-      );
-
-      const invoiceLineRepo = manager.getRepository(SalesInvoiceLineEntity);
-      for (const line of lines) {
-        line.cogsUnitCost = (avgCostByItem.get(line.itemId) ?? 0).toFixed(2);
-        await invoiceLineRepo.save(line);
-      }
-
-      const orderLineRepo = manager.getRepository(SalesOrderLineEntity);
-      const lockedLines = await this.lockOrderLines(
-        manager,
-        organizationId,
-        order.id,
-      );
-      const lockedById = new Map(lockedLines.map((line) => [line.id, line]));
-      for (const line of lines) {
-        const orderLine = lockedById.get(line.sourceSalesOrderLineId);
-        if (!orderLine) continue;
-        orderLine.invoicedQuantity = ROUND3(
-          Number(orderLine.invoicedQuantity) + Number(line.quantity),
-        ).toFixed(3);
-        await orderLineRepo.save(orderLine);
-      }
-
-      await this.planLimitService.consumePeriodic(
-        organizationId,
-        'invoices_per_month',
-        manager,
-      );
-
-      invoice.status = 'POSTED';
-      invoice.invoiceNumber = invoiceNumber;
-      invoice.invoiceDate = today.toISOString().slice(0, 10);
-      invoice.invoiceDateBs = todayBs;
-      invoice.dueDate = dueDate.toISOString().slice(0, 10);
-      invoice.dueDateBs = this.toBs(dueDate);
-      invoice.fiscalYearId = fiscalYear.id;
-      invoice.journalEntryId = entry.id;
-      invoice.inventoryTransactionId = inventoryTxn.id;
-      await manager.getRepository(SalesInvoiceEntity).save(invoice);
-
-      await this.audit.record(
-        {
-          organizationId,
-          branchId: invoice.branchId,
-          userId: actor.id,
-          action: SALES_INVOICE_AUDIT_ACTIONS.POST,
-          entityType: 'sales_invoice',
-          entityId: invoice.id,
-          newData: {
-            invoiceNumber,
-            status: 'POSTED',
-            journalEntryId: entry.id,
-            inventoryTransactionId: inventoryTxn.id,
-            total: invoice.total,
-          },
-        },
-        manager,
-      );
-
-      return invoice.id;
+      return posted.id;
     });
 
     await this.pushToCbms(organizationId, postedId);
     return this.get(organizationId, actor, postedId);
+  }
+
+  /**
+   * Manager-scoped draft → posted (runs inside the caller's transaction).
+   * `dispatchId` stamps the originating dispatch for stop-level reconciliation.
+   */
+  private async postIn(
+    manager: EntityManager,
+    organizationId: string,
+    actor: OrderActor,
+    invoice: SalesInvoiceEntity,
+    locationId: string,
+    opts: { skipAccessCheck?: boolean; dispatchId?: string } = {},
+  ): Promise<SalesInvoiceEntity> {
+    if (invoice.status !== 'DRAFT')
+      throw new SalesInvoiceNotDraftException(
+        invoice.id,
+        invoice.status,
+        'post',
+      );
+    if (!opts.skipAccessCheck) {
+      await this.assertCanAccessInvoice(organizationId, actor, invoice);
+    }
+
+    const order = await this.requireOrder(
+      manager,
+      organizationId,
+      invoice.orderId,
+    );
+    this.assertOrderInvoicable(order);
+    if (!locationId) throw new SalesInvoiceLocationRequiredException();
+
+    await this.validateStoredLinesRemaining(manager, organizationId, invoice);
+
+    const today = new Date();
+    const todayBs = this.toBs(today);
+    const fiscalYear = await this.resolveFiscalYear(
+      manager,
+      organizationId,
+      today,
+    );
+
+    const invoiceNumber = await this.documentSequenceService.nextNumber(
+      {
+        organizationId,
+        branchId: invoice.branchId,
+        fiscalYearId: fiscalYear.id,
+        documentType: SALES_INVOICE_DOCUMENT_TYPE,
+        prefix: 'INV-',
+      },
+      manager,
+    );
+
+    const dueDays = await this.dueDays(
+      manager,
+      organizationId,
+      invoice.partyId,
+    );
+    const dueDate = new Date(today);
+    dueDate.setDate(dueDate.getDate() + dueDays);
+
+    const lines = await manager.getRepository(SalesInvoiceLineEntity).find({
+      where: { invoiceId: invoice.id },
+      order: { lineNo: 'ASC' },
+    });
+
+    const costSnapshots = await this.inventoryService.averageCostForOut(
+      manager,
+      organizationId,
+      locationId,
+      lines.map((line) => ({
+        itemId: line.itemId,
+        baseQuantity: Number(line.baseQuantity),
+      })),
+    );
+    const avgCostByItem = new Map(
+      costSnapshots.map((snapshot) => [snapshot.itemId, snapshot.avgCost]),
+    );
+    const cogsTotal = ROUND2(
+      costSnapshots.reduce((sum, snapshot) => sum + snapshot.value, 0),
+    );
+
+    const journal = await this.journalFor(
+      manager,
+      organizationId,
+      invoice,
+      cogsTotal,
+    );
+    const journalBranchId =
+      invoice.branchId ??
+      order.branchId ??
+      (await this.requireDefaultBranch(manager, organizationId));
+    const entry = await this.journalService.createDraftIn(
+      manager,
+      organizationId,
+      {
+        branchId: journalBranchId,
+        entryDate: today.toISOString().slice(0, 10),
+        description: `Sales invoice ${invoiceNumber}`,
+        lines: journal,
+      },
+      actor.id,
+    );
+    await this.journalService.postIn(
+      manager,
+      organizationId,
+      entry.id,
+      actor.id,
+    );
+
+    const inventoryTxn = await this.inventoryService.issueForSalesInvoice(
+      manager,
+      organizationId,
+      {
+        locationId,
+        invoiceId: invoice.id,
+        notes: `Sales invoice ${invoiceNumber}`,
+        lines: lines.map((line) => ({
+          itemId: line.itemId,
+          uomId: line.uomId,
+          baseQuantity: Number(line.baseQuantity),
+          unitCost: avgCostByItem.get(line.itemId) ?? 0,
+        })),
+      },
+      actor.id,
+    );
+
+    const invoiceLineRepo = manager.getRepository(SalesInvoiceLineEntity);
+    for (const line of lines) {
+      line.cogsUnitCost = (avgCostByItem.get(line.itemId) ?? 0).toFixed(2);
+      await invoiceLineRepo.save(line);
+    }
+
+    const orderLineRepo = manager.getRepository(SalesOrderLineEntity);
+    const lockedLines = await this.lockOrderLines(
+      manager,
+      organizationId,
+      order.id,
+    );
+    const lockedById = new Map(lockedLines.map((line) => [line.id, line]));
+    for (const line of lines) {
+      const orderLine = lockedById.get(line.sourceSalesOrderLineId);
+      if (!orderLine) continue;
+      orderLine.invoicedQuantity = ROUND3(
+        Number(orderLine.invoicedQuantity) + Number(line.quantity),
+      ).toFixed(3);
+      await orderLineRepo.save(orderLine);
+    }
+
+    await this.planLimitService.consumePeriodic(
+      organizationId,
+      'invoices_per_month',
+      manager,
+    );
+
+    invoice.status = 'POSTED';
+    invoice.invoiceNumber = invoiceNumber;
+    invoice.invoiceDate = today.toISOString().slice(0, 10);
+    invoice.invoiceDateBs = todayBs;
+    invoice.dueDate = dueDate.toISOString().slice(0, 10);
+    invoice.dueDateBs = this.toBs(dueDate);
+    invoice.fiscalYearId = fiscalYear.id;
+    invoice.journalEntryId = entry.id;
+    invoice.inventoryTransactionId = inventoryTxn.id;
+    if (opts.dispatchId) invoice.dispatchId = opts.dispatchId;
+    await manager.getRepository(SalesInvoiceEntity).save(invoice);
+
+    await this.audit.record(
+      {
+        organizationId,
+        branchId: invoice.branchId,
+        userId: actor.id,
+        action: SALES_INVOICE_AUDIT_ACTIONS.POST,
+        entityType: 'sales_invoice',
+        entityId: invoice.id,
+        newData: {
+          invoiceNumber,
+          status: 'POSTED',
+          journalEntryId: entry.id,
+          inventoryTransactionId: inventoryTxn.id,
+          dispatchId: opts.dispatchId ?? null,
+          total: invoice.total,
+        },
+      },
+      manager,
+    );
+
+    return invoice;
+  }
+
+  /**
+   * Create + post an invoice inside the caller's transaction for a dispatch
+   * stop. Called only from the dispatch engine, which has already authorized
+   * the actor via `dispatch.dispatch.update`; the invoice inherits the
+   * order's salesperson for sales attribution.
+   */
+  async createAndPostForDispatch(
+    manager: EntityManager,
+    organizationId: string,
+    actor: OrderActor,
+    dto: CreateSalesInvoiceDto,
+    locationId: string,
+    dispatchId: string,
+  ): Promise<SalesInvoiceEntity> {
+    const draft = await this.createIn(manager, organizationId, actor, dto, {
+      skipAccessCheck: true,
+    });
+    return this.postIn(manager, organizationId, actor, draft, locationId, {
+      skipAccessCheck: true,
+      dispatchId,
+    });
+  }
+
+  /**
+   * Replay CBMS pushes for already-posted invoices. The dispatch engine calls
+   * this after its commit with the invoices created during `depart`.
+   */
+  async pushCbmsForInvoices(
+    organizationId: string,
+    invoiceIds: string[],
+  ): Promise<void> {
+    for (const invoiceId of invoiceIds) {
+      await this.pushToCbms(organizationId, invoiceId);
+    }
   }
 
   async voidInvoice(

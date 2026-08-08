@@ -232,4 +232,8 @@ export class SalesInvoiceEntity extends BaseEntity {
 
   @OneToMany(() => SalesInvoiceLineEntity, (line) => line.invoice)
   lines: SalesInvoiceLineEntity[];
+
+  /** Stamped by dispatch `depart` when this invoice shipped a dispatch stop. */
+  @Column({ name: 'dispatch_id', type: 'uuid', nullable: true })
+  dispatchId: string | null;
 }

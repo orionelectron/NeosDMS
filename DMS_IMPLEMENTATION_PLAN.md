@@ -58,6 +58,7 @@
 | 43 | Purchase TDS | **Per-line, recognized at bill time; 2103 becomes a system-purpose account** | A purchase line carries two independent taxes: its VAT tax code (TAXABLE/EXEMPT) **and** an optional per-line TDS (`tds_tax_code_id` nullable + `tds_rate` + `tds_amount`) — a service line can be both (freight ₹1000 + 13% VAT + 1.5% TDS → pay supplier 1113, remit ₹15). `tds_amount = taxable_amount × tds_rate` (VAT-exclusive base, **after** discount) — **TDS never changes inventory value** (a payable split, not a discount; avg_cost stays `taxable ÷ qty`). Bill journal: DR Inventory Σtaxable, DR VAT Recv 1105 ΣVAT, CR AP 2101 (total − TDS), CR TDS Payable 2103 Σtds; AP + TDS = bill total (JournalService balance guard). Recognized at bill time (Nepal: payment-or-credit-whichever-earlier; AP = amount actually paid, so `supplier_payments` pays exactly AP). `SYSTEM_PURPOSE` gains `TDS_PAYABLE`, 2103 marked in `default-coa`, provisioning seeds per-org TDS codes (1.5% services, 15% professional, 5% rent, 10% interest) with `account_id` → 2103. Return lines snapshot the original `tds_*` so reversals are exact (DR AP net, DR TDS Payable). Remittance = manual journal (DR 2103 / CR Bank) in MVP; TDS-return report by section = Phase 8. Sales invoice **rejects** `TDS_WITHHOLDING` lines (its journal hardcodes CR VAT Payable); `expenses` reuses the same per-line TDS model when it lands (§13) |
 | 44 | Sales return MVP scope | **Credit note reversing the invoice at full price** | `sales_returns`(+lines) source posted `sales_invoice_lines`; a line reverses the source line's snapshotted unit price/VAT/`cogs_unit_cost` at full price (the money-side mirror of decision 43 returns). `returned_quantity` accumulates per source line (`remaining = base − returned`, `≤ 0` → `SALES_RETURN_NO_REMAINING`), so partial returns are allowed and the invoice can never be over-returned. `CN-` reserved at POST (FY+branch doc sequences), drafts numberless/`CANCELLED`-only, `POSTED` immutable. POST atomically posts the reverse journal (CR AR 1103 + party / DR Sales 4101 / DR VAT Payable 2102 / DR Inventory 1104 / CR COGS 5101 at the `cogs_unit_cost` snapshot), re-enters stock (`sales_return` IN inventory txn at the invoiced avg cost), stamps the source line, and decrements the invoice's `balance_amount` — source lines + invoices locked FOR UPDATE so a concurrent receipt can never collect against returned amount (§11.3) |
 | 45 | Customer receipt MVP scope | **Allocated partial payments, no advances** | `customer_receipts`(+`customer_receipt_allocations`) allocate a paid amount across one or more posted `sales_invoices`; `received_amount` is always the server-derived Σ of allocations (pre-payments/advances are out of MVP scope). `RCV-` reserved at POST (FY+branch doc sequences), drafts numberless/`CANCELLED`-only, `POSTED` immutable. POST re-validates each invoice FOR UPDATE (POSTED, same customer, allocated ≤ live `balance_amount`), posts DR receipt account (active, non-group ASSET) / CR AR 1103 (party), and stamps `paid_amount`/`balance_amount` — the money-in mirror of `supplier_payments` (decision 40) (§11.4) |
+| 46 | Dispatch = pure orchestration, **invoice-at-depart (Model A/X)** | **Dispatch never moves stock and never posts a journal; the only stock event is the sales-invoice POST** | One dispatch = one delivery run (vehicle + driver) carrying several allocated orders as stops. `dispatches` (`dispatch_number` via `document_sequences`, `source_inventory_location_id`, `vehicle_id`, `driver_id`, `route_id` nullable, `planned_departure_at`) with states `ALLOCATED → LOADED → IN_TRANSIT → DELIVERED` / `CANCELLED` (pre-departure only); the single warehouse gate `LOADED` **collapses PICKING/PACKED/LOADED** (§12.2). `dispatch_stops` (one per order; partial unique index `(organization_id, order_id)` on non-cancelled dispatches → an order can never sit on two active runs) + `dispatch_stop_lines` (delivery actuals). Allocation lives in stops — the order state machine (`DRAFT→CONFIRMED→COMPLETED`) is untouched. **`depart` (`LOADED → IN_TRANSIT`) posts one invoice per stop in one atomic txn** via the Phase 6 invoice machinery (stock-out + AR/VAT journal + `INV-` + quota), stamping `sales_invoices.dispatch_id` + `dispatch_stops.invoice_id` — all-or-nothing, so a stock short at load aborts the whole run. Stops resolve `DELIVERED/PARTIAL/FAILED` with per-line `delivered_quantity`/`returned_quantity` + POD (receiver, signature `photo_key`, GPS, notes); `failure_reason` includes `ROAD_BLOCKED`; deliver POSTs idempotent via client `delivery_event_id` (offline-sync safe, decision 26). `complete` → shortfalls auto-create **numberless `sales_return` DRAFTs** (stamped `dispatch_stop_id`) for the accountant to review + post — **never auto-posted** (refunds need a human). Pick list / loading sheet are computed reads of stop/order lines, no document lifecycle. Accepted tradeoffs: failed stops routinely generate credit notes; goods can sit loaded with AR posted if departure slips; `vehicles.capacity_*` stays decorative until items carry weight/volume (P1). RBAC: seed `dispatch.vehicle.*`; warehouse_manager full; driver read+update own dispatch; salesman never touches dispatch. Split-order-across-dispatches = P1 (§12) |
 
 ## 3. Target Backend Structure
 
@@ -74,7 +75,7 @@ neos_dms_backend/src/
     iam/             users, roles, permissions, role_permission_mappings, audit_logs, auth
     trading/         items, item_categories, uoms, uom_conversions, brands
     field/           outlets, routes, outlet_routes, route_assignments, outlet_visits (DMS §9)
-    dispatch/        vehicles, dispatches, dispatch_stops, dispatch_documents (DMS §12)
+    dispatch/        vehicles, dispatches, dispatch_stops, dispatch_stop_lines, dispatch_documents (DMS §12)
     inventory/       locations, inventory_transactions, inventory_balances
     sales/           sales_orders, sales_invoices, sales_returns, customer_receipts
     purchase/        purchase_orders, purchase_receipts (GRN), purchase_bills, purchase_returns,
@@ -333,31 +334,32 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 
 ## 12. DMS Phase B — Dispatch & Delivery (order fulfillment)
 
-> **Design (decision 24):** dispatch is the **orchestration layer** between sales and delivery — it fulfills **allocated orders**, it is not vehicle tracking. One dispatch = one delivery run (vehicle + driver) carrying several allocated orders as stops. Depends on Phase 5 (inventory) + Phase 6 (orders/invoices). Live GPS tracking deferred to P1.
+> **Design (decisions 24 + 46):** dispatch is the **orchestration layer** between sales and delivery — it fulfills **allocated orders**, it is not vehicle tracking. One dispatch = one delivery run (vehicle + driver) carrying several allocated orders as stops. **Dispatch never moves stock and never posts a journal itself** (decision 46, Model A/X): the only stock event is the sales-invoice POST — `depart` posts one invoice per stop via Phase 6 machinery; failed/partial stops later produce `sales_return` credit notes (the only reversal path). Depends on Phase 5 (inventory) + Phase 6 (orders/invoices). Live GPS tracking deferred to P1.
 
 ### 12.1 Tables
 
-- [ ] `vehicles` — org-scoped; `name`, `registration_number` (unique per org), `vehicle_type` (`van|truck|pickup|motorbike`), `capacity_weight_kg`, `capacity_volume_cbm`, `is_active`, `current_driver_id` (nullable FK → users, reassigned per dispatch)
-- [ ] `dispatches` — org-scoped; `dispatch_number` (via `document_sequences`, decision 25), `vehicle_id`, `driver_id`, `route_id` (nullable), `status` (`allocated → picking → packed → loaded → in_transit → delivered / cancelled`), `planned_departure_at`, `departed_at`, `completed_at`, `notes`
-- [ ] `dispatch_stops` — (dispatch_id, order_id) one stop per order; `stop_sequence`, `status` (`pending|delivered|partial|failed`), `delivered_at`, `failure_reason` (`customer_unavailable|rejected|wrong_address|damaged`), `pod_receiver_name`, `pod_signature_photo_key`, `pod_gps_latitude/longitude`, `pod_notes`
-- [ ] `dispatch_documents` — generated reads/PDFs: pick list, loading sheet, delivery challan, POD (P1: printable). MVP: computed endpoints (`GET /dispatches/:id/pick-list`, `/loading-sheet`)
+- [x] `vehicles` — org-scoped; `name`, `registration_number` (unique per org), `vehicle_type` (`van|truck|pickup|motorbike`), `capacity_weight_kg`, `capacity_volume_cbm` (decorative until items carry weight/volume — P1), `is_active`, `current_driver_id` (nullable FK → users, reassigned per dispatch)
+- [x] `dispatches` — org-scoped; `dispatch_number` (via `document_sequences`, decision 25), `vehicle_id`, `driver_id`, `route_id` (nullable), `source_inventory_location_id` (stock-out location for depart-invoicing), `status` (`allocated → loaded → in_transit → delivered / cancelled`), `planned_departure_at`, `departed_at`, `completed_at`, `notes`
+- [x] `dispatch_stops` — (dispatch_id, order_id) one stop per order; `stop_sequence`, `status` (`pending|delivered|partial|failed`), `delivered_at`, `failure_reason` (`customer_unavailable|road_blocked|rejected|wrong_address|damaged`), POD fields (`pod_receiver_name`, `pod_signature_photo_key`, `pod_gps_latitude/longitude`, `pod_notes`), `invoice_id` (nullable FK, stamped at depart); partial unique index `(organization_id, order_id)` on stops of non-cancelled dispatches → no double-dispatch
+- [x] `dispatch_stop_lines` — (stop_id, order_line_id) delivery actuals: `delivered_quantity`, `returned_quantity` (entry + base uom)
+- [x] `dispatch_documents` — computed reads only, no lifecycle: `GET /dispatches/:id/pick-list`, `GET /dispatches/:id/loading-sheet`; printable challan/POD = P1
 
 ### 12.2 Lifecycle (state machine, no invalid jumps)
-- [ ] `allocate` orders to a dispatch (from confirmed orders, same route/area) → status `allocated`
-- [ ] `assign` vehicle + driver + planned departure
-- [ ] `pick`/`pack` — warehouse picks per pick-list; stock moves warehouse → vehicle location (inventory txns, same txn as Phase 5)
-- [ ] `depart` → `in_transit`; per stop: `deliver` (full/partial with actual quantities → drives invoice finalization), `fail` (reason)
-- [ ] `complete` → goods received (POD captured) → **invoice finalization** links dispatch stop actuals to the Phase 6 invoice (partial = partial invoice)
-- [ ] returns: over/short/damaged at delivery → `sales_returns` credit note flow (reuses Phase 6) + stock back in (Phase 5 txn)
+- [x] `create`/`allocate` — group eligible CONFIRMED/COMPLETED orders into stops (one per order, warn-only stock check like order-confirm); assign vehicle + driver + `planned_departure_at` (reassignable before `loaded`) → status `allocated`
+- [x] `load` — the **single warehouse gate** (collapses PICKING/PACKED/LOADED; decision 46): warehouse confirms the van is loaded → `loaded`
+- [x] `depart` (`loaded → in_transit`) — the financial event: **one atomic txn**, re-validate stock for all stops, then post one sales invoice per stop via the Phase 6 machinery (stock-out + AR/VAT journal + `INV-` + quota), stamping `dispatch_id`/`invoice_id`. All-or-nothing; a stock short at load aborts the whole run
+- [x] per stop: `deliver` (full/partial with actual `delivered_quantity`/`returned_quantity`) or `fail` (`failure_reason`) + POD fields; idempotent POSTs (client `delivery_event_id`) safe for queued/offline sync (decision 26)
+- [x] `complete` (`→ delivered`) — only when every stop is resolved; shortfalls (partial/failed) auto-create **numberless `sales_return` DRAFTs** (stamped `dispatch_stop_id`) for the accountant to review + post — never auto-pasted
+- [x] returns: the Phase 6 credit-note flow reverses AR/VAT and re-enters stock — the only stock reversal path; dispatch itself moves nothing
 
 ### 12.3 API + permissions
-- [ ] `vehicles` CRUD → `dispatch.vehicle.{create,read,update,delete}`
-- [ ] `dispatches` create/read/update + lifecycle transitions → `dispatch.dispatch.{create,read,update,complete}` (already in catalog)
-- [ ] `stops` deliver/fail → `dispatch.dispatch.update`
-- [ ] Driver role: `dispatch.dispatch.read/update` only (existing); warehouse_manager: full
-- [ ] Seed: bump version to add `dispatch.vehicle.*` + module row for `dispatch` already present (line ~110)
+- [x] `vehicles` CRUD → `dispatch.vehicle.{create,read,update,delete}` (seed)
+- [x] `dispatches` create/read/update + lifecycle transitions (`load`, `depart`, `complete`) → `dispatch.dispatch.{create,read,update,complete}` (already in catalog)
+- [x] `stops` deliver/fail → `dispatch.dispatch.update`
+- [x] Driver role: `dispatch.dispatch.read/update` on **their own dispatch only** (existing mapping); warehouse_manager full; admin superuser; salesman untouched (never touches dispatch)
+- [x] Seed: bump version to add `dispatch.vehicle.*` (module row for `dispatch` already present)
 
-**Acceptance:** allocated orders → one run with pick list + loading sheet; stock moves with the dispatch txn; per-stop partial/full/fail with POD; invoice finalizes from delivered quantities; driver sees only their dispatch; no invalid status jumps.
+**Acceptance:** allocated orders → one run; `depart` posts one invoice per stop atomically (stock-out + AR journal + `INV-`); a stock short at load aborts the whole run; per-stop full/partial/fail with POD and reasons; `complete` auto-drafts credit notes for shortfalls (never auto-posts); driver sees only their dispatch; no invalid status jumps; dispatch never moves stock or posts its own journal.
 
 ## 13. Phase 7 — Purchase & AP
 
@@ -508,7 +510,7 @@ The posting engine that sales/purchase/inventory post into. Reuses `nepali-date`
 - [~] Phase 3 — Accounting engine (FMCG subset, NPR-only) per §7 — implemented + verified live (migration, seeds, backfill, tax uniqueness migration, 151 tests); reports foundation left for Phase 8
 - [x] **Phase 4 complete** — Trading masters per §8 — implemented + verified live (see In Progress above)
 - [ ] **DMS Phase A (new §9)** — Field sales: outlets, routes, outlet_routes, route_assignments, outlet_visits from `dms_routes_outlets_reference`; salesman-scoped reads; check-in/out with haversine distance + off-route flag; outlet create auto-provisions customer party. No dependency on inventory/orders — build immediately.
-- [ ] **DMS Phase B (new §12)** — Dispatch & delivery: vehicles, dispatches, dispatch_stops, pick/loading-sheet reads; per-stop deliver/partial/fail with POD; invoice finalization from delivered quantities; driver-scoped view.
+- [x] **DMS Phase B (new §12)** — Dispatch & delivery (decision 46): vehicles, dispatches, dispatch_stops, dispatch_stop_lines; `depart` posts one invoice per stop (stock-out + AR journal), shortfalls auto-draft `sales_return` credit notes; per-stop deliver/partial/fail with POD; driver-scoped view.
 - [ ] **Phase 5+** — DMS Dispatch, Purchase/AP (`supplier_payments`), Reports per plan order (§12–14)
 
 ## 20. Reference Migration Inventory (for translation)

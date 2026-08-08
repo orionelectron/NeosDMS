@@ -122,6 +122,8 @@ describe('OutletService', () => {
         }),
       );
 
+      const beforeCount = await dataSource.getRepository(PartyEntity).count();
+
       const created = await service.createOutlet(
         TEST_ORG_ID,
         { name: 'New Outlet', partyId: party.id },
@@ -130,7 +132,7 @@ describe('OutletService', () => {
 
       expect(created.partyId).toBe(party.id);
       const count = await dataSource.getRepository(PartyEntity).count();
-      expect(count).toBe(1);
+      expect(count).toBe(beforeCount);
     });
   });
 

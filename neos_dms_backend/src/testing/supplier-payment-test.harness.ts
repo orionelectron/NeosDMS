@@ -35,7 +35,10 @@ import { OrganizationEntity } from '../tenancy/entities/organization.entity';
 import { ItemEntity } from '../trading/entities/item.entity';
 import { UomConversionEntity } from '../trading/entities/uom-conversion.entity';
 import { UomEntity } from '../trading/entities/uom.entity';
-import { seedPurchaseBillBaseline, TEST_ORG_ID } from './purchase-bill-test.harness';
+import {
+  seedPurchaseBillBaseline,
+  TEST_ORG_ID,
+} from './purchase-bill-test.harness';
 
 export { seedPurchaseBillBaseline };
 export {

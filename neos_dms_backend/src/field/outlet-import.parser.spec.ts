@@ -127,6 +127,15 @@ describe('outlet-import parser (unit)', () => {
         /Required column 'name' not found/,
       );
     });
+
+    it('maps route_name and its aliases', () => {
+      expect(
+        mapHeaders(['name', 'route_name']).routeName,
+      ).toBe(1);
+      expect(mapHeaders(['name', 'route name']).routeName).toBe(1);
+      expect(mapHeaders(['name', 'beat']).routeName).toBe(1);
+      expect(mapHeaders(['name', 'routing']).routeName).toBe(1);
+    });
   });
 
   describe('normalizeOutletRow', () => {
@@ -174,6 +183,7 @@ describe('outlet-import parser (unit)', () => {
         longitude: 85.3136,
         channel: 'GENERAL_TRADE',
         category: 'Supermarket',
+        routeName: null,
       });
     });
 
@@ -198,6 +208,29 @@ describe('outlet-import parser (unit)', () => {
       expect(result.value?.latitude).toBe(27.7);
       expect(result.value?.longitude).toBe(85.3);
       expect(result.value?.channel).toBe('GENERAL_TRADE');
+    });
+
+    it('parses route_name when the column is present', () => {
+      const routeIndex = mapHeaders([
+        'name',
+        'owner_name',
+        'email',
+        'phone',
+        'address',
+        'province',
+        'district',
+        'latitude',
+        'longitude',
+        'channel',
+        'category',
+        'route_name',
+      ]);
+      const result = normalizeOutletRow(
+        ['Routed Store', null, null, null, null, null, null, null, null, null, null, 'Valley Core'],
+        routeIndex,
+      );
+      expect(result.issues).toEqual([]);
+      expect(result.value?.routeName).toBe('Valley Core');
     });
 
     it('reports a missing name', () => {
@@ -268,6 +301,7 @@ describe('outlet-import parser (unit)', () => {
         longitude: null,
         channel: 'GENERAL_TRADE',
         category: null,
+        routeName: null,
       });
     });
   });

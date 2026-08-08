@@ -82,9 +82,7 @@ interface ApiRequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
   auth?: boolean;
   retryOnAuth?: boolean;
-}
-
-let refreshInFlight: Promise<string> | null = null;
+}let refreshInFlight: Promise<string> | null = null;
 
 async function refreshAccessToken(): Promise<string> {
   if (refreshInFlight) return refreshInFlight;
@@ -123,7 +121,8 @@ async function requestRaw(
 
   const finalHeaders = new Headers(headers);
   finalHeaders.set("Accept", "application/json");
-  if (body !== undefined) {
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+  if (body !== undefined && !isFormData) {
     finalHeaders.set("Content-Type", "application/json");
   }
   if (auth) {
@@ -134,7 +133,7 @@ async function requestRaw(
   }
 
   const url = `${env.apiUrl}${path}`;
-  const requestBody = body !== undefined ? JSON.stringify(body) : undefined;
+  const requestBody = isFormData ? (body as FormData) : body !== undefined ? JSON.stringify(body) : undefined;
 
   const response = await fetch(url, {
     ...rest,
@@ -187,4 +186,55 @@ export async function apiFetchPaginated<T>(
     return { data: body.data as T[], meta: body.meta };
   }
   throw new ApiError(500, "Malformed paginated response from the server.");
+}
+
+export interface DownloadedFile {
+  blob: Blob;
+  fileName: string;
+}
+
+function contentDispositionFileName(value: string | null): string {
+  if (!value) return "download";
+  const utf8 = /filename\*=UTF-8''([^;]+)/i.exec(value);
+  if (utf8) return decodeURIComponent(utf8[1]);
+  const plain = /filename="?([^";]+)"?/i.exec(value);
+  return plain ? plain[1] : "download";
+}
+
+/** Downloads a binary response (e.g. an import template) as a Blob. */
+export async function apiFetchBlob(
+  path: string,
+  options: Omit<ApiRequestOptions, "body"> = {},
+): Promise<DownloadedFile> {
+  const { auth = true, retryOnAuth = true, headers, ...rest } = options;
+
+  const finalHeaders = new Headers(headers);
+  if (auth) {
+    const token = tokenStore.getAccessToken();
+    if (token) {
+      finalHeaders.set("Authorization", `Bearer ${token}`);
+    }
+  }
+
+  const url = `${env.apiUrl}${path}`;
+  let response = await fetch(url, { ...rest, headers: finalHeaders });
+
+  if (response.status === 401 && auth && retryOnAuth) {
+    const newToken = await refreshAccessToken();
+    finalHeaders.set("Authorization", `Bearer ${newToken}`);
+    response = await fetch(url, { ...rest, headers: finalHeaders });
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw normalizeError(response.status, errorBody);
+  }
+
+  const blob = await response.blob();
+  return {
+    blob,
+    fileName: contentDispositionFileName(
+      response.headers.get("content-disposition"),
+    ),
+  };
 }

@@ -52,6 +52,15 @@ export const OUTLET_FIELD_ALIASES: Record<string, string[]> = {
     'category_type',
     'category type',
   ],
+  routeName: [
+    'route_name',
+    'route name',
+    'route',
+    'routing',
+    'beat',
+    'beat_name',
+    'beat name',
+  ],
 };
 
 export interface OutletHeaderIndex {
@@ -66,6 +75,7 @@ export interface OutletHeaderIndex {
   longitude?: number;
   channel?: number;
   category?: number;
+  routeName?: number;
 }
 
 export interface OutletImportRow {
@@ -80,6 +90,7 @@ export interface OutletImportRow {
   longitude?: number | null;
   channel: OutletChannel;
   category?: string | null;
+  routeName?: string | null;
 }
 
 export interface NormalizedRowResult {
@@ -385,6 +396,7 @@ export function normalizeOutletRow(
       longitude: longitude ?? null,
       channel,
       category: optional(index.category) ?? null,
+      routeName: optional(index.routeName) ?? null,
     },
   };
 }

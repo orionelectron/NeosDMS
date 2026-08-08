@@ -2,7 +2,9 @@ import * as ExcelJS from 'exceljs';
 import { DataSource } from 'typeorm';
 import { AuditLogEntity } from '../audit/audit-log.entity';
 import { PartyEntity } from '../accounting/entities/party.entity';
+import { OutletRouteEntity } from './entities/outlet-route.entity';
 import { OutletEntity } from './entities/outlet.entity';
+import { RouteEntity } from './entities/route.entity';
 import { OutletImportException } from './field.errors';
 import { OutletImportService } from './outlet-import.service';
 import {
@@ -127,6 +129,115 @@ describe('OutletImportService (real DB)', () => {
       expect(audits).toHaveLength(1);
       expect(audits[0].userId).toBe(actorId);
       expect(audits[0].newData).toMatchObject({ imported: 3 });
+    });
+
+    it('creates a route from route_name and links each outlet to it', async () => {
+      const buffer = await xlsxBuffer([
+        [...HEADER, 'route_name'],
+        [...outletRow('Routed A'), 'Kathmandu Valley Core'],
+        [...outletRow('Routed B'), 'Kathmandu Valley Core'],
+        [...outletRow('Routed C'), 'Pokhara Loop'],
+      ]);
+
+      const report = await service.importOutlets(
+        TEST_ORG_ID,
+        actorId,
+        'routed.xlsx',
+        buffer,
+        'xlsx',
+      );
+
+      expect(report.imported).toBe(3);
+      expect(report.errorCount).toBe(0);
+      expect(report.routesCreated).toBe(2);
+
+      const routes = await dataSource
+        .getRepository(RouteEntity)
+        .find({ where: { organizationId: TEST_ORG_ID } });
+      expect(routes).toHaveLength(2);
+      const byName = new Map(routes.map((r) => [r.name, r]));
+      expect(byName.get('Kathmandu Valley Core')).toBeDefined();
+      expect(byName.get('Pokhara Loop')).toBeDefined();
+      for (const route of routes) {
+        expect(route.status).toBe('ACTIVE');
+        expect(route.code).toBeTruthy();
+      }
+
+      const linkRepo = dataSource.getRepository(OutletRouteEntity);
+      const links = await linkRepo.find({
+        where: { organizationId: TEST_ORG_ID },
+      });
+      expect(links).toHaveLength(3);
+      const outlets = await outletRepo().find();
+      const valley = byName.get('Kathmandu Valley Core')!;
+      const valleyOutlets = links
+        .filter((l) => l.routeId === valley.id)
+        .map((l) => outlets.find((o) => o.id === l.outletId)?.name)
+        .sort();
+      expect(valleyOutlets).toEqual(['Routed A', 'Routed B']);
+    });
+
+    it('reuses an existing route by name instead of creating a duplicate', async () => {
+      const routeRepo = dataSource.getRepository(RouteEntity);
+      const existing = await routeRepo.save(
+        routeRepo.create({
+          organizationId: TEST_ORG_ID,
+          name: 'Shared Route',
+          code: 'SHARED',
+          status: 'ACTIVE',
+        }),
+      );
+
+      const buffer = await xlsxBuffer([
+        [...HEADER, 'route_name'],
+        [...outletRow('On Shared'), 'Shared Route'],
+      ]);
+
+      const report = await service.importOutlets(
+        TEST_ORG_ID,
+        actorId,
+        'shared.xlsx',
+        buffer,
+        'xlsx',
+      );
+
+      expect(report.routesCreated).toBe(0);
+      const routes = await routeRepo.find({
+        where: { organizationId: TEST_ORG_ID },
+      });
+      expect(routes).toHaveLength(1);
+      expect(routes[0].id).toBe(existing.id);
+
+      const link = await dataSource
+        .getRepository(OutletRouteEntity)
+        .findOneBy({ organizationId: TEST_ORG_ID });
+      expect(link?.routeId).toBe(existing.id);
+    });
+
+    it('does not create routes when route_name is blank', async () => {
+      const buffer = await xlsxBuffer([
+        [...HEADER, 'route_name'],
+        [...outletRow('No Route'), '   '],
+      ]);
+
+      const report = await service.importOutlets(
+        TEST_ORG_ID,
+        actorId,
+        'noroute.xlsx',
+        buffer,
+        'xlsx',
+      );
+
+      expect(report.imported).toBe(1);
+      expect(report.routesCreated).toBe(0);
+      expect(
+        await dataSource.getRepository(RouteEntity).count({
+          where: { organizationId: TEST_ORG_ID },
+        }),
+      ).toBe(0);
+      expect(
+        await dataSource.getRepository(OutletRouteEntity).count(),
+      ).toBe(0);
     });
 
     it('skips duplicate rows within the file', async () => {
@@ -418,6 +529,33 @@ describe('OutletImportService (real DB)', () => {
       expect(report.errorCount).toBe(1);
       expect(await outletRepo().count()).toBe(0);
     });
+
+    it('previews routesCreated without writing routes or links', async () => {
+      const buffer = await xlsxBuffer([
+        [...HEADER, 'route_name'],
+        [...outletRow('Dry Routed'), 'Dry Route'],
+      ]);
+
+      const report = await service.importOutlets(
+        TEST_ORG_ID,
+        actorId,
+        'dry.xlsx',
+        buffer,
+        'xlsx',
+        { dryRun: true },
+      );
+
+      expect(report.dryRun).toBe(true);
+      expect(report.routesCreated).toBe(1);
+      expect(
+        await dataSource.getRepository(RouteEntity).count({
+          where: { organizationId: TEST_ORG_ID },
+        }),
+      ).toBe(0);
+      expect(
+        await dataSource.getRepository(OutletRouteEntity).count(),
+      ).toBe(0);
+    });
   });
 
   describe('mode=update', () => {
@@ -659,7 +797,7 @@ describe('OutletImportService (real DB)', () => {
       sheet?.getRow(1).eachCell({ includeEmpty: true }, (cell, col) => {
         headers[col - 1] = (cell.value as string | number | null) ?? null;
       });
-      expect(headers).toEqual(HEADER);
+      expect(headers).toEqual([...HEADER, 'route_name']);
       expect(wb.getWorksheet('Instructions')).toBeDefined();
     });
   });

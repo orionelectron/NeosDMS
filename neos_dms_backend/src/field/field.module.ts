@@ -18,6 +18,9 @@ import { OutletVisitService } from './outlet-visit.service';
 import { RouteAssignmentController } from './route-assignment.controller';
 import { RouteAssignmentService } from './route-assignment.service';
 import { RouteController } from './route.controller';
+import { RouteImportService } from './route-import.service';
+import { RoutePlannerController } from './route-planner.controller';
+import { RoutePlannerService } from './route-planner.service';
 import { RouteService } from './route.service';
 import { SalesTargetController } from './sales-target.controller';
 import { SalesTargetService } from './sales-target.service';
@@ -42,6 +45,7 @@ import { VisitController } from './visit.controller';
   controllers: [
     OutletController,
     RouteController,
+    RoutePlannerController,
     RouteAssignmentController,
     VisitController,
     SalesTargetController,
@@ -50,6 +54,8 @@ import { VisitController } from './visit.controller';
     OutletService,
     OutletImportService,
     RouteService,
+    RouteImportService,
+    RoutePlannerService,
     RouteAssignmentService,
     OutletVisitService,
     SalesTargetService,

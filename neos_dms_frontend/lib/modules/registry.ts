@@ -5,6 +5,7 @@ import {
   Building2,
   CreditCard,
   LayoutDashboard,
+  MapPinned,
   PackagePlus,
   ShoppingCart,
   Tags,
@@ -39,6 +40,8 @@ export interface NavChild {
   label: string;
   /** Route. Must map to a real page. */
   href: string;
+  /** Required permission to see this child. Defaults to the module prefix. */
+  permission?: string;
 }
 
 export interface ModuleConfig {
@@ -165,6 +168,53 @@ export const ORG_MODULES: ModuleConfig[] = [
     ],
   },
   {
+    key: "field",
+    label: "Field",
+    description: "Outlets, routes, visits and sales targets",
+    href: "/field",
+    module: "sales",
+    icon: MapPinned,
+    order: 55,
+    children: [
+      {
+        key: "outlets",
+        label: "Outlets",
+        href: "/field/outlets",
+        permission: "sales.outlet.read",
+      },
+      {
+        key: "routes",
+        label: "Routes",
+        href: "/field/routes",
+        permission: "sales.route.read",
+      },
+      {
+        key: "route-planner",
+        label: "Route planner",
+        href: "/field/route-planner",
+        permission: "sales.route.create",
+      },
+      {
+        key: "route-assignments",
+        label: "Route assignments",
+        href: "/field/route-assignments",
+        permission: "sales.route_assignment.read",
+      },
+      {
+        key: "visits",
+        label: "Visits",
+        href: "/field/visits",
+        permission: "sales.visit.read",
+      },
+      {
+        key: "sales-targets",
+        label: "Sales targets",
+        href: "/field/sales-targets",
+        permission: "sales.target.read",
+      },
+    ],
+  },
+  {
     key: "accounting",
     label: "Accounting",
     description: "Chart of accounts, journals, parties and taxes",
@@ -218,6 +268,20 @@ export const ORG_MODULES: ModuleConfig[] = [
     module: "iam",
     icon: Users,
     order: 70,
+    children: [
+      {
+        key: "users",
+        label: "Users",
+        href: "/iam/users",
+        permission: "iam.user.read",
+      },
+      {
+        key: "audit-logs",
+        label: "Audit log",
+        href: "/iam/audit-logs",
+        permission: "iam.audit-log.read",
+      },
+    ],
   },
   {
     key: "hr",
@@ -298,6 +362,12 @@ export function getAuthorizedModules(
 ): ModuleConfig[] {
   return getModules(scope)
     .filter((module) => isModuleAccessible(module, permissions))
+    .map((module) => ({
+      ...module,
+      children: module.children?.filter(
+        (child) => !child.permission || permissions.includes(child.permission),
+      ),
+    }))
     .sort((a, b) => a.order - b.order);
 }
 

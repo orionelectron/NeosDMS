@@ -9,6 +9,7 @@ import {
   Min,
 } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination.dto';
+import { ParseBooleanQuery } from '../../common/transforms/boolean-query.transform';
 import { OUTLET_CHANNEL, OUTLET_STATUS } from '../field.constants';
 
 export class CreateOutletDto {
@@ -159,6 +160,7 @@ export class OutletImportQueryDto {
 
   @IsOptional()
   @IsBoolean()
+  @ParseBooleanQuery()
   dryRun?: boolean;
 
   @IsOptional()

@@ -9,6 +9,8 @@ import type {
   LowStockQuery,
   TransactionListQuery,
 } from "@/lib/api/inventory";
+import type { UserListQuery } from "@/lib/api/iam";
+import type { AuditLogListQuery } from "@/lib/api/iam";
 import type {
   BrandListQuery,
   CategoryListQuery,
@@ -16,6 +18,13 @@ import type {
   UomConversionListQuery,
   UomListQuery,
 } from "@/lib/api/trading";
+import type {
+  OutletListQuery,
+  RouteAssignmentListQuery,
+  RouteListQuery,
+  SalesTargetListQuery,
+  VisitListQuery,
+} from "@/lib/api/field";
 
 export const queryKeys = {
   auth: {
@@ -68,5 +77,35 @@ export const queryKeys = {
       ["inventory", "transactions", "list", query] as const,
     transactionDetail: (id: string) =>
       ["inventory", "transactions", "detail", id] as const,
+  },
+  iam: {
+    userList: (query: UserListQuery) =>
+      ["iam", "users", "list", query] as const,
+    roleList: ["iam", "roles", "list"] as const,
+    permissionCatalog: ["iam", "permissions", "catalog"] as const,
+    auditLogList: (query: AuditLogListQuery) =>
+      ["iam", "audit-logs", "list", query] as const,
+  },
+  field: {
+    outletList: (query: OutletListQuery) =>
+      ["field", "outlets", "list", query] as const,
+    outletDetail: (id: string) =>
+      ["field", "outlets", "detail", id] as const,
+    routeList: (query: RouteListQuery) =>
+      ["field", "routes", "list", query] as const,
+    routeOutlets: (id: string) =>
+      ["field", "routes", "outlets", id] as const,
+    routePlannerOutlets: ["field", "route-planner", "outlets"] as const,
+    assignmentList: (query: RouteAssignmentListQuery) =>
+      ["field", "assignments", "list", query] as const,
+    visitList: (query: VisitListQuery) =>
+      ["field", "visits", "list", query] as const,
+    salesTargetList: (query: SalesTargetListQuery) =>
+      ["field", "sales-targets", "list", query] as const,
+    salesTargetReport: (query: {
+      scope?: "mine" | "team" | "all";
+      bsYear?: number;
+      bsMonth?: number;
+    }) => ["field", "sales-targets", "report", query] as const,
   },
 };

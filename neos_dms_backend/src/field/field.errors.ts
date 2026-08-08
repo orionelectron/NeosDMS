@@ -12,6 +12,18 @@ export class OutletImportException extends HttpException {
   }
 }
 
+export class RouteImportException extends HttpException {
+  constructor(message: string) {
+    super(
+      {
+        code: 'ROUTE_IMPORT_INVALID',
+        message,
+      },
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
 export class OutletNotFoundException extends HttpException {
   constructor(id: string) {
     super(

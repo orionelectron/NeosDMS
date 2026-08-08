@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,8 +8,17 @@ import {
   Patch,
   Post,
   Query,
+  StreamableFile,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CurrentTenant } from '../common/decorators/current-tenant.decorator';
 import type { TenantContext } from '../common/decorators/current-tenant.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -17,16 +27,23 @@ import { Paginated, paginate } from '../common/dto/pagination.dto';
 import { RequirePermission } from '../iam/decorators/require-permission.decorator';
 import {
   CreateRouteDto,
+  RouteImportQueryDto,
   RouteListQueryDto,
   UpdateRouteDto,
 } from './dto/route.dto';
+import { RouteImportService } from './route-import.service';
 import { RouteService } from './route.service';
+
+const IMPORT_MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 @ApiBearerAuth()
 @ApiTags('field')
 @Controller()
 export class RouteController {
-  constructor(private readonly routeService: RouteService) {}
+  constructor(
+    private readonly routeService: RouteService,
+    private readonly routeImportService: RouteImportService,
+  ) {}
 
   @RequirePermission('sales.route.read')
   @Get('routes')
@@ -67,6 +84,60 @@ export class RouteController {
   @ApiOperation({ summary: 'List outlets on a route' })
   listOutlets(@CurrentTenant() tenant: TenantContext, @Param('id') id: string) {
     return this.routeService.listRouteOutlets(tenant.id, id);
+  }
+
+  @RequirePermission('sales.route.create')
+  @Post('routes/import')
+  @ApiOperation({
+    summary:
+      'Bulk-import routes from an .xlsx/.csv spreadsheet (migration). Skips duplicates, reports per-row errors. Query options: dryRun=true (validate only), mode=update (update existing), format=csv (download error file).',
+  })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: IMPORT_MAX_FILE_SIZE } }),
+  )
+  async importRoutes(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() actor: AuthenticatedUser,
+    @Query() query: RouteImportQueryDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException(
+        'A spreadsheet file is required (multipart field "file")',
+      );
+    }
+    const extension = this.routeImportService.resolveExtension(
+      file.originalname,
+    );
+    const report = await this.routeImportService.importRoutes(
+      tenant.id,
+      actor.id,
+      file.originalname,
+      file.buffer,
+      extension,
+      { mode: query.mode, dryRun: query.dryRun },
+    );
+    if (query.format === 'csv') {
+      const baseName = file.originalname.replace(/\.[^.]+$/, '');
+      return new StreamableFile(Buffer.from(report.errorsCsv, 'utf8'), {
+        type: 'text/csv',
+        disposition: `attachment; filename="${baseName}-errors.csv"`,
+      });
+    }
+    return report;
+  }
+
+  @RequirePermission('sales.route.read')
+  @Get('routes/import/template')
+  @ApiOperation({ summary: 'Download a route import template (.xlsx)' })
+  async importTemplate(): Promise<StreamableFile> {
+    const { buffer, fileName } =
+      await this.routeImportService.generateTemplate();
+    return new StreamableFile(buffer, {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      disposition: `attachment; filename="${fileName}"`,
+    });
   }
 
   @RequirePermission('sales.route.create')

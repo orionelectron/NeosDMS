@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { usePathname } from "next/navigation";
 import { Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,11 +17,7 @@ import { TabBar } from "@/components/app-shell/tab-bar";
 import { UserMenu } from "@/components/app-shell/user-menu";
 import { Notifications } from "@/components/app-shell/notifications";
 import { ThemeToggle } from "@/components/theme-toggle";
-import {
-  getModuleByPath,
-  type AppScope,
-  type ModuleConfig,
-} from "@/lib/modules/registry";
+import type { ModuleConfig } from "@/lib/modules/registry";
 
 function useIsMac(): boolean {
   return React.useSyncExternalStore(
@@ -36,18 +31,14 @@ function useIsMac(): boolean {
 }
 
 export function TopBar({
-  scope,
   modules,
   onOpenCommand,
 }: {
-  scope: AppScope;
   modules: ModuleConfig[];
   onOpenCommand: () => void;
 }) {
-  const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const isMac = useIsMac();
-  const currentModule = getModuleByPath(scope, pathname);
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-sm">
@@ -84,8 +75,6 @@ export function TopBar({
         <span className="lg:hidden">
           <Brand />
         </span>
-
-        
 
         <TabBar />
 

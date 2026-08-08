@@ -16,6 +16,7 @@ interface TabsContextValue {
   tabs: NavTab[];
   activeHref: string | null;
   closeTab: (href: string) => void;
+  closeAllTabs: () => void;
 }
 
 const TabsContext = React.createContext<TabsContextValue | null>(null);
@@ -116,9 +117,16 @@ export function TabsProvider({
     [tabs, pathname, router, homeHref],
   );
 
+  const closeAllTabs = React.useCallback(() => {
+    setTabs([]);
+    if (pathname !== homeHref) {
+      router.push(homeHref);
+    }
+  }, [pathname, router, homeHref]);
+
   const value = React.useMemo(
-    () => ({ tabs, activeHref: pathname, closeTab }),
-    [tabs, pathname, closeTab],
+    () => ({ tabs, activeHref: pathname, closeTab, closeAllTabs }),
+    [tabs, pathname, closeTab, closeAllTabs],
   );
 
   return (

@@ -38,7 +38,6 @@ export function AppShell({
           <Sidebar modules={modules} />
           <div className="flex min-w-0 flex-1 flex-col">
             <TopBar
-              scope={scope}
               modules={modules}
               onOpenCommand={() => setCommandOpen(true)}
             />

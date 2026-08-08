@@ -10,7 +10,10 @@ import {
 } from 'typeorm';
 import { PartyEntity } from '../accounting/entities/party.entity';
 import { AuditService } from '../audit/audit.service';
+import { OutletRouteEntity } from './entities/outlet-route.entity';
 import { OutletEntity } from './entities/outlet.entity';
+import { RouteEntity } from './entities/route.entity';
+import { generateRouteCode } from './route-code.util';
 import { OutletImportException } from './field.errors';
 import {
   mapHeaders,
@@ -65,6 +68,7 @@ export interface OutletImportReport {
   updates: OutletImportUpdate[];
   errors: OutletImportRowError[];
   errorsCsv: string;
+  routesCreated: number;
 }
 
 interface PendingRow {
@@ -153,18 +157,19 @@ export class OutletImportService {
       mode,
     );
 
-    const { imported, updated, dbErrors, errorsCsv } = await this.importRows(
-      organizationId,
-      actorId,
-      fileName,
-      parsed.header,
-      parsed.rows.length,
-      duplicates.length,
-      issues,
-      toCreate,
-      toUpdate,
-      dryRun,
-    );
+    const { imported, updated, dbErrors, errorsCsv, routesCreated } =
+      await this.importRows(
+        organizationId,
+        actorId,
+        fileName,
+        parsed.header,
+        parsed.rows.length,
+        duplicates.length,
+        issues,
+        toCreate,
+        toUpdate,
+        dryRun,
+      );
 
     const errors = [...issues, ...dbErrors].map((issue) => ({
       row: issue.row,
@@ -184,6 +189,7 @@ export class OutletImportService {
       updates: toUpdate.map(({ row, value }) => ({ row, name: value.name })),
       errors,
       errorsCsv,
+      routesCreated,
     };
   }
 
@@ -204,6 +210,7 @@ export class OutletImportService {
       { header: 'longitude', key: 'longitude', width: 12 },
       { header: 'channel', key: 'channel', width: 18 },
       { header: 'category', key: 'category', width: 18 },
+      { header: 'route_name', key: 'routeName', width: 24 },
     ];
     sheet.getRow(1).font = { bold: true };
     sheet.addRow({
@@ -218,6 +225,7 @@ export class OutletImportService {
       longitude: 85.3136,
       channel: 'GENERAL_TRADE',
       category: 'Supermarket',
+      routeName: 'Kathmandu Valley Core',
     });
 
     const instructions = workbook.addWorksheet('Instructions');
@@ -242,6 +250,10 @@ export class OutletImportService {
         'Optional. One of GENERAL_TRADE, MODERN_TRADE, HORECA, INSTITUTION. Defaults to GENERAL_TRADE.',
       ],
       ['category', 'Optional free text.'],
+      [
+        'route_name',
+        'Optional. If present, a route with this name is created (or the existing route is reused) and the outlet is linked to it. Outlets sharing the same route name are grouped onto the same route. Leave blank to skip route linking.',
+      ],
       ['', ''],
       [
         '',
@@ -398,17 +410,27 @@ export class OutletImportService {
     updated: number;
     dbErrors: RowIssue[];
     errorsCsv: string;
+    routesCreated: number;
   }> {
     const dbErrors: RowIssue[] = [];
     let imported = 0;
     let updated = 0;
+    let routesCreated = 0;
+
+    const ops: ImportOp[] = [
+      ...toCreate.map((item) => ({ kind: 'create' as const, item })),
+      ...toUpdate.map((item) => ({ kind: 'update' as const, item })),
+    ];
 
     if (!dryRun) {
       await this.dataSource.transaction(async (manager) => {
-        const ops: ImportOp[] = [
-          ...toCreate.map((item) => ({ kind: 'create' as const, item })),
-          ...toUpdate.map((item) => ({ kind: 'update' as const, item })),
-        ];
+        const routeIdByName = await this.resolveRoutes(
+          manager,
+          organizationId,
+          ops,
+          true,
+        );
+        routesCreated = routeIdByName.created;
         for (let i = 0; i < ops.length; i += BATCH_SIZE) {
           const batch = ops.slice(i, i + BATCH_SIZE);
           try {
@@ -416,7 +438,12 @@ export class OutletImportService {
             // this batch and leaves the outer transaction usable (PG aborts the
             // whole transaction on an error outside a savepoint).
             await manager.transaction(async (txn) => {
-              await this.applyBatch(txn, organizationId, batch);
+              await this.applyBatch(
+                txn,
+                organizationId,
+                batch,
+                routeIdByName.routeIdByName,
+              );
             });
             imported += batch.filter((op) => op.kind === 'create').length;
             updated += batch.filter((op) => op.kind === 'update').length;
@@ -424,7 +451,12 @@ export class OutletImportService {
             for (const op of batch) {
               try {
                 await manager.transaction(async (txn) => {
-                  await this.applyBatch(txn, organizationId, [op]);
+                  await this.applyBatch(
+                    txn,
+                    organizationId,
+                    [op],
+                    routeIdByName.routeIdByName,
+                  );
                 });
                 if (op.kind === 'create') imported += 1;
                 else updated += 1;
@@ -453,6 +485,7 @@ export class OutletImportService {
               updated,
               ignoredDuplicates: duplicateCount,
               failed: issues.length + dbErrors.length,
+              routesCreated,
             },
           },
           manager,
@@ -461,19 +494,85 @@ export class OutletImportService {
     } else {
       imported = toCreate.length;
       updated = toUpdate.length;
+      const preview = await this.resolveRoutes(
+        this.dataSource.manager,
+        organizationId,
+        ops,
+        false,
+      );
+      routesCreated = preview.created;
     }
 
     const errorsCsv = this.buildErrorCsv(header, [...issues, ...dbErrors]);
-    return { imported, updated, dbErrors, errorsCsv };
+    return { imported, updated, dbErrors, errorsCsv, routesCreated };
+  }
+
+  /**
+   * Ensures a RouteEntity exists for every route name referenced by the rows.
+   * Reuses an existing route with the same name; otherwise creates one with an
+   * auto-generated unique code. When `persist` is false (dry run) nothing is
+   * written but `created` still reports how many routes would be created.
+   */
+  private async resolveRoutes(
+    manager: EntityManager,
+    organizationId: string,
+    ops: ImportOp[],
+    persist: boolean,
+  ): Promise<{ routeIdByName: Map<string, string>; created: number }> {
+    const routeRepo = manager.getRepository(RouteEntity);
+    const names = new Map<string, string>();
+    for (const op of ops) {
+      const name = op.item.value.routeName?.trim();
+      if (name) names.set(name.toLowerCase(), name);
+    }
+    if (names.size === 0) {
+      return { routeIdByName: new Map(), created: 0 };
+    }
+
+    const existing = await routeRepo.find({
+      where: { organizationId },
+      select: { id: true, name: true, code: true },
+    });
+    const routeIdByName = new Map<string, string>();
+    const usedCodes = new Set<string>();
+    for (const route of existing) {
+      routeIdByName.set(route.name.trim().toLowerCase(), route.id);
+      usedCodes.add(route.code.toUpperCase());
+    }
+
+    let created = 0;
+    for (const [key, displayName] of names) {
+      if (routeIdByName.has(key)) continue;
+      const code = generateRouteCode(displayName, usedCodes);
+      usedCodes.add(code.toUpperCase());
+      created += 1;
+      if (persist) {
+        const saved = await routeRepo.save(
+          routeRepo.create({
+            organizationId,
+            name: displayName,
+            code,
+            description: null,
+            province: null,
+            district: null,
+            status: 'ACTIVE',
+          }),
+        );
+        routeIdByName.set(key, saved.id);
+      }
+    }
+    return { routeIdByName, created };
   }
 
   private async applyBatch(
     manager: EntityManager,
     organizationId: string,
     ops: ImportOp[],
+    routeIdByName: Map<string, string>,
   ): Promise<void> {
     const partyRepo = manager.getRepository(PartyEntity);
     const outletRepo = manager.getRepository(OutletEntity);
+    const routeLinkRepo = manager.getRepository(OutletRouteEntity);
 
     const creates = ops.filter((op) => op.kind === 'create');
     if (creates.length > 0) {
@@ -484,13 +583,28 @@ export class OutletImportService {
           ),
         ),
       );
-      await outletRepo.save(
+      const outlets = await outletRepo.save(
         outletRepo.create(
           creates.map((op, index) =>
             this.outletFields(organizationId, op.item.value, parties[index].id),
           ),
         ),
       );
+
+      const links = creates.flatMap((op, index) => {
+        const routeId = this.routeIdFor(op.item.value, routeIdByName);
+        return routeId
+          ? [{ organizationId, outletId: outlets[index].id, routeId }]
+          : [];
+      });
+      if (links.length > 0) {
+        await routeLinkRepo
+          .createQueryBuilder()
+          .insert()
+          .values(links)
+          .orIgnore()
+          .execute();
+      }
     }
 
     for (const op of ops) {
@@ -505,7 +619,26 @@ export class OutletImportService {
         op.item.outletId,
         this.outletUpdateFields(op.item.value),
       );
+
+      const routeId = this.routeIdFor(op.item.value, routeIdByName);
+      if (routeId) {
+        await routeLinkRepo
+          .createQueryBuilder()
+          .insert()
+          .values({ organizationId, outletId: op.item.outletId, routeId })
+          .orIgnore()
+          .execute();
+      }
     }
+  }
+
+  private routeIdFor(
+    row: OutletImportRow,
+    routeIdByName: Map<string, string>,
+  ): string | undefined {
+    const name = row.routeName?.trim();
+    if (!name) return undefined;
+    return routeIdByName.get(name.toLowerCase());
   }
 
   private buildErrorCsv(header: string[], errors: RowIssue[]): string {

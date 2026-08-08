@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { SerwistProvider } from "@serwist/turbopack/react";
+import "leaflet/dist/leaflet.css";
 import "./globals.css";
 
 const inter = Inter({

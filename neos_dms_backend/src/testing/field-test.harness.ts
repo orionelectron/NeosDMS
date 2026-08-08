@@ -16,6 +16,7 @@ import { OutletService } from '../field/outlet.service';
 import { OutletImportService } from '../field/outlet-import.service';
 import { OutletVisitService } from '../field/outlet-visit.service';
 import { RouteAssignmentService } from '../field/route-assignment.service';
+import { RouteImportService } from '../field/route-import.service';
 import { RouteService } from '../field/route.service';
 import { UserEntity } from '../iam/entities/user.entity';
 import { NepaliDateConverter } from '../nepali-date/nepali-date-converter';
@@ -171,6 +172,7 @@ export async function createFieldTestingModule(
       OutletService,
       OutletImportService,
       RouteService,
+      RouteImportService,
       RouteAssignmentService,
       OutletVisitService,
       SalesTargetService,

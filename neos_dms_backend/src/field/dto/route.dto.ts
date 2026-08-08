@@ -1,5 +1,6 @@
-import { IsIn, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination.dto';
+import { ParseBooleanQuery } from '../../common/transforms/boolean-query.transform';
 import { ROUTE_STATUS } from '../field.constants';
 
 export class CreateRouteDto {
@@ -56,4 +57,19 @@ export class RouteListQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsIn(ROUTE_STATUS)
   status?: (typeof ROUTE_STATUS)[number];
+}
+
+export class RouteImportQueryDto {
+  @IsOptional()
+  @IsIn(['skip', 'update'])
+  mode?: 'skip' | 'update';
+
+  @IsOptional()
+  @IsBoolean()
+  @ParseBooleanQuery()
+  dryRun?: boolean;
+
+  @IsOptional()
+  @IsIn(['json', 'csv'])
+  format?: 'json' | 'csv';
 }

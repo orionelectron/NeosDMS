@@ -197,6 +197,8 @@ export function BalanceTable() {
                 <TableHead>Item</TableHead>
                 <TableHead className="text-right">On hand</TableHead>
                 <TableHead className="text-right">Avg cost</TableHead>
+                <TableHead className="text-right">MRP</TableHead>
+                <TableHead className="text-right">Retail list price</TableHead>
                 <TableHead className="text-right">Value</TableHead>
                 {canAdjust && <TableHead className="text-right"></TableHead>}
               </TableRow>
@@ -218,6 +220,9 @@ export function BalanceTable() {
                       <Skeleton className="ml-auto h-4 w-16" />
                     </TableCell>
                     <TableCell>
+                      <Skeleton className="ml-auto h-4 w-16" />
+                    </TableCell>
+                    <TableCell>
                       <Skeleton className="ml-auto h-4 w-20" />
                     </TableCell>
                     {canAdjust && (
@@ -230,7 +235,7 @@ export function BalanceTable() {
               ) : rows.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={canAdjust ? 6 : 5}
+                    colSpan={canAdjust ? 7 : 6}
                     className="h-40 text-center"
                   >
                     <div className="mx-auto flex max-w-sm flex-col items-center gap-2 px-6">
@@ -280,6 +285,12 @@ export function BalanceTable() {
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {formatMoney(balance.avgCost)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatMoney(balance.item?.mrp ?? 0)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatMoney(balance.item?.salePrice ?? 0)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums font-medium">
                         {formatMoney(value)}

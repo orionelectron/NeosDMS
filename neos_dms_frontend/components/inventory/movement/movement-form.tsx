@@ -400,6 +400,13 @@ export function MovementFormSheet({
               <p className="text-xs text-muted-foreground">
                 Only quantity-tracked items can be moved.
               </p>
+              {showCost && (
+                <p className="text-xs text-muted-foreground">
+                  {mode === "opening"
+                    ? "Unit cost is the per-unit cost you paid (e.g. from the purchase invoice) — pre-filled from the item's standard cost when available. It becomes the moving-average cost used to value stock, shown as Avg cost in Stock balances."
+                    : "Unit cost is optional — leave blank to keep the current average cost."}
+                </p>
+              )}
               {fields.map((field, index) => (
                 <MovementLineEditor
                   key={field.id}

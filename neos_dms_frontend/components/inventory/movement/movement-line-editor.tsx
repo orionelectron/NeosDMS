@@ -44,6 +44,13 @@ export function MovementLineEditor({
     const item = items.find((candidate) => candidate.id === itemId);
     if (item) {
       form.setValue(`lines.${index}.uomId`, item.baseUomId);
+      if (showCost) {
+        const currentCost = form.getValues(`lines.${index}.unitCost`) ?? "";
+        const standardCost = Number(item.standardCost);
+        if (currentCost === "" && standardCost > 0) {
+          form.setValue(`lines.${index}.unitCost`, String(standardCost));
+        }
+      }
     }
   }
 

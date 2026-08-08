@@ -60,7 +60,7 @@ export function ConversionFormSheet({
 }: ConversionFormSheetProps) {
   const queryClient = useQueryClient();
 
-  const { data: itemData } = useQuery({
+  const itemQuery = useQuery({
     queryKey: queryKeys.trading.itemList({ limit: 100 }),
     queryFn: () => itemApi.list({ limit: 100 }),
   });
@@ -69,7 +69,7 @@ export function ConversionFormSheet({
     queryFn: () => uomApi.list({ limit: 100 }),
   });
 
-  const items = itemData?.data ?? [];
+  const items = itemQuery.data?.data ?? [];
   const uoms = uomData?.data ?? [];
 
   const form = useForm<ConversionValues>({
@@ -176,6 +176,19 @@ export function ConversionFormSheet({
                       Leave global to apply to every item.
                     </FormDescription>
                     <FormMessage />
+                    {itemQuery.isError && (
+                      <div className="flex items-center justify-between gap-2 text-xs text-destructive">
+                        <span>Couldn’t load items.</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => itemQuery.refetch()}
+                        >
+                          Retry
+                        </Button>
+                      </div>
+                    )}
                   </FormItem>
                 )}
               />

@@ -14,6 +14,7 @@ import {
   InvalidConversionFactorException,
   ItemNotFoundException,
   SameUomConversionException,
+  UomConversionAlreadyExistsException,
   UomConversionNotFoundException,
   UomNotFoundException,
 } from './trading.errors';
@@ -163,6 +164,57 @@ describe('UomConversionService', () => {
           actorId,
         ),
       ).rejects.toThrow(ItemNotFoundException);
+    });
+
+    it('rejects an existing global conversion (including soft-deleted rows)', async () => {
+      getRepo(UomEntity).rows.push(
+        makeEntity(UomEntity, { id: 'uom-1', organizationId: orgId }),
+        makeEntity(UomEntity, { id: 'uom-2', organizationId: orgId }),
+      );
+      conversionRepo.rows.push(
+        conversion({ id: 'conv-old', deletedAt: new Date() }),
+      );
+
+      await expect(
+        service.createUomConversion(
+          orgId,
+          { fromUomId: 'uom-1', toUomId: 'uom-2', conversionFactor: 2 },
+          actorId,
+        ),
+      ).rejects.toThrow(UomConversionAlreadyExistsException);
+      expect(conversionRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects an existing per-item conversion with the same units', async () => {
+      getRepo(UomEntity).rows.push(
+        makeEntity(UomEntity, { id: 'uom-1', organizationId: orgId }),
+        makeEntity(UomEntity, { id: 'uom-2', organizationId: orgId }),
+      );
+      getRepo(ItemEntity).rows.push(
+        makeEntity(ItemEntity, { id: 'item-1', organizationId: orgId }),
+      );
+      conversionRepo.rows.push(
+        conversion({
+          id: 'conv-item',
+          itemId: 'item-1',
+          fromUomId: 'uom-1',
+          toUomId: 'uom-2',
+        }),
+      );
+
+      await expect(
+        service.createUomConversion(
+          orgId,
+          {
+            itemId: 'item-1',
+            fromUomId: 'uom-1',
+            toUomId: 'uom-2',
+            conversionFactor: 2,
+          },
+          actorId,
+        ),
+      ).rejects.toThrow(UomConversionAlreadyExistsException);
+      expect(conversionRepo.save).not.toHaveBeenCalled();
     });
   });
 

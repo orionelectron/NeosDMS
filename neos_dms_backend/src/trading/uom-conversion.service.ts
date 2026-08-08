@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import { ItemEntity } from './entities/item.entity';
 import { UomConversionEntity } from './entities/uom-conversion.entity';
@@ -9,6 +9,7 @@ import {
   InvalidConversionFactorException,
   ItemNotFoundException,
   SameUomConversionException,
+  UomConversionAlreadyExistsException,
   UomConversionNotFoundException,
   UomNotFoundException,
 } from './trading.errors';
@@ -63,6 +64,23 @@ export class UomConversionService {
           .getRepository(ItemEntity)
           .findOne({ where: { id: input.itemId, organizationId } });
         if (!item) throw new ItemNotFoundException(input.itemId);
+      }
+
+      const duplicate = await conversionRepo.findOne({
+        where: {
+          organizationId,
+          itemId: input.itemId ? input.itemId : IsNull(),
+          fromUomId: input.fromUomId,
+          toUomId: input.toUomId,
+        },
+        withDeleted: true,
+      });
+      if (duplicate) {
+        throw new UomConversionAlreadyExistsException(
+          input.fromUomId,
+          input.toUomId,
+          input.itemId ?? null,
+        );
       }
 
       const conversion = await conversionRepo.save(

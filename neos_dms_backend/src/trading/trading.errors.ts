@@ -108,6 +108,20 @@ export class UomConversionNotFoundException extends HttpException {
   }
 }
 
+export class UomConversionAlreadyExistsException extends HttpException {
+  constructor(fromUomId: string, toUomId: string, itemId: string | null) {
+    const scope = itemId ? 'for this item' : 'globally';
+    super(
+      {
+        code: 'UOM_CONVERSION_ALREADY_EXISTS',
+        message: `A conversion between these units already exists ${scope}`,
+        data: { fromUomId, toUomId, itemId },
+      },
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
 export class SameUomConversionException extends HttpException {
   constructor() {
     super(

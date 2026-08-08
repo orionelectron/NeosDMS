@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import type { Item, Uom } from "@/lib/api/trading";
 import { INVENTORY_DIRECTIONS } from "@/lib/api/inventory";
+import { formatNumber } from "@/lib/format";
 
 interface MovementLineEditorProps {
   index: number;
@@ -27,6 +28,12 @@ interface MovementLineEditorProps {
   showDirection?: boolean;
   showCost?: boolean;
   onRemove: () => void;
+  /** When set, shows the current on-hand for the line's item + location. */
+  showOnHand?: boolean;
+  /** Form field holding the location (locationId vs fromLocationId). */
+  locationFieldName?: string;
+  /** On-hand lookup keyed by `${locationId}:${itemId}` (base-UOM qty). */
+  onHandByKey?: Map<string, string>;
 }
 
 export function MovementLineEditor({
@@ -36,8 +43,19 @@ export function MovementLineEditor({
   showDirection = false,
   showCost = false,
   onRemove,
+  showOnHand = false,
+  locationFieldName = "locationId",
+  onHandByKey,
 }: MovementLineEditorProps) {
   const form = useFormContext();
+
+  const locationId = form.watch(locationFieldName);
+  const itemId = form.watch(`lines.${index}.itemId`);
+  const selectedItem = items.find((candidate) => candidate.id === itemId);
+  const onHand =
+    showOnHand && locationId && itemId
+      ? onHandByKey?.get(`${locationId}:${itemId}`)
+      : undefined;
 
   function handleItemChange(itemId: string, onChange: (value: string) => void) {
     onChange(itemId);
@@ -181,6 +199,15 @@ export function MovementLineEditor({
           <Trash2 className="size-4" aria-hidden />
         </Button>
       </div>
+      {showOnHand && locationId && itemId && (
+        <div className="flex items-center justify-between border-t border-dashed px-1 pb-0.5 pt-1 text-xs text-muted-foreground">
+          <span>On hand at this location</span>
+          <span className="font-medium tabular-nums text-foreground">
+            {formatNumber(onHand ?? "0")}{" "}
+            {selectedItem?.baseUom?.shortName ?? ""}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

@@ -36,6 +36,7 @@ import { getErrorMessage } from "@/lib/api/http";
 import {
   locationApi,
   movementApi,
+  balanceApi,
   type InventoryLineDto,
 } from "@/lib/api/inventory";
 import { itemApi, uomApi, type Item } from "@/lib/api/trading";
@@ -173,12 +174,25 @@ export function MovementFormSheet({
     queryKey: queryKeys.trading.uomList({ limit: 100 }),
     queryFn: () => uomApi.list({ limit: 100 }),
   });
+  const { data: balanceData } = useQuery({
+    queryKey: queryKeys.inventory.balanceList({ limit: 1000 }),
+    queryFn: () => balanceApi.list({ limit: 1000 }),
+    enabled: mode === "adjustment" || mode === "transfer",
+  });
 
   const locations = React.useMemo(
     () =>
       (locationData?.data ?? []).filter((location) => location.isActive),
     [locationData],
   );
+
+  const onHandByKey = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const balance of balanceData?.data ?? []) {
+      map.set(`${balance.locationId}:${balance.itemId}`, balance.quantity);
+    }
+    return map;
+  }, [balanceData]);
 
   const items = React.useMemo(
     () =>
@@ -416,6 +430,11 @@ export function MovementFormSheet({
                   showDirection={showDirection}
                   showCost={showCost}
                   onRemove={() => remove(index)}
+                  showOnHand={mode === "adjustment" || mode === "transfer"}
+                  locationFieldName={
+                    mode === "transfer" ? "fromLocationId" : "locationId"
+                  }
+                  onHandByKey={onHandByKey}
                 />
               ))}
               {errors.lines?.root?.message && (

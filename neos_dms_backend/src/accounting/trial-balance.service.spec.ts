@@ -181,6 +181,35 @@ describe('TrialBalanceService', () => {
     expect((params[3] as Date).getTime()).toBe(new Date(2027, 6, 16).getTime());
   });
 
+  it('handles fiscal-year startDate/endDate serialized as date strings (Postgres date columns)', async () => {
+    fyRepo.rows.push(
+      makeEntity(FiscalYearEntity, {
+        id: 'fy-1',
+        organizationId: orgId,
+        name: '2083/84',
+        startDate: '2026-07-17',
+        endDate: '2027-07-16',
+        isActive: true,
+        isClosed: false,
+      }),
+    );
+    accountRepo.rows.push(cash());
+    query.mockResolvedValue([]);
+
+    const tb = await service.trialBalance(orgId, {
+      from: '2026-01-01',
+      to: '2028-01-01',
+    });
+
+    const [, params] = query.mock.calls[0] as [string, unknown[]];
+    expect((params[2] as Date).getTime()).toBe(new Date(2026, 6, 17).getTime());
+    expect((params[3] as Date).getTime()).toBe(new Date(2027, 6, 16).getTime());
+    expect(tb).toMatchObject({
+      from: '2026-07-17',
+      to: '2027-07-16',
+    });
+  });
+
   it('skips zero-balance rows and rows whose account is missing', async () => {
     fyRepo.rows.push(fiscalYear());
     accountRepo.rows.push(cash());

@@ -169,7 +169,9 @@ export function TaxReference() {
                         {code.rate}%
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {code.account.code} — {code.account.name}
+                        {code.account
+                          ? `${code.account.code} — ${code.account.name}`
+                          : "—"}
                       </TableCell>
                       <TableCell>
                         <Badge

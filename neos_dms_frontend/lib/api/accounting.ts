@@ -432,8 +432,8 @@ export interface TaxCode {
   name: string;
   rate: string;
   irdCategory: IrdCategory;
-  accountId: string;
-  account: Account;
+  accountId: string | null;
+  account: Account | null;
   isActive: boolean;
 }
 

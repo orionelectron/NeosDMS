@@ -50,7 +50,8 @@ export interface TrialBalance {
 
 const round4 = (n: number): number => Math.round(n * 10000) / 10000;
 
-function parseLocalDate(value: string): Date {
+function parseLocalDate(value: string | Date): Date {
+  if (value instanceof Date) return value;
   const [year, month, day] = value.split('-').map(Number);
   return new Date(year, month - 1, day);
 }
@@ -92,12 +93,15 @@ export class TrialBalanceService {
         });
     if (!fiscalYear) throw new FiscalYearNotFoundException(organizationId);
 
-    const from = query.from
-      ? parseLocalDate(query.from)
-      : new Date(fiscalYear.startDate);
-    const to = query.to
-      ? parseLocalDate(query.to)
-      : new Date(fiscalYear.endDate);
+    // `startDate`/`endDate` are Postgres `date` columns, serialized as
+    // "YYYY-MM-DD" strings — parse them with the same local-date helper used
+    // for query dates (never `new Date(...)`, which parses date-only strings
+    // as UTC midnight).
+    const fiscalYearStart = parseLocalDate(fiscalYear.startDate);
+    const fiscalYearEnd = parseLocalDate(fiscalYear.endDate);
+
+    const from = query.from ? parseLocalDate(query.from) : fiscalYearStart;
+    const to = query.to ? parseLocalDate(query.to) : fiscalYearEnd;
     if (from.getTime() > to.getTime()) {
       throw new InvalidReportRangeException(
         toDateString(from),
@@ -106,13 +110,9 @@ export class TrialBalanceService {
     }
 
     const fromClamped =
-      from.getTime() < fiscalYear.startDate.getTime()
-        ? new Date(fiscalYear.startDate)
-        : from;
+      from.getTime() < fiscalYearStart.getTime() ? fiscalYearStart : from;
     const toClamped =
-      to.getTime() > fiscalYear.endDate.getTime()
-        ? new Date(fiscalYear.endDate)
-        : to;
+      to.getTime() > fiscalYearEnd.getTime() ? fiscalYearEnd : to;
 
     const rows: Array<{
       account_id: string;

@@ -32,6 +32,15 @@ export type AppScope = "org" | "platform";
  * `(org)` route group; platform routes are prefixed with `/platform` so the two
  * scopes never collide in the URL space.
  */
+export interface NavChild {
+  /** Stable, unique key (used for command-palette ids). */
+  key: string;
+  /** Nav label. */
+  label: string;
+  /** Route. Must map to a real page. */
+  href: string;
+}
+
 export interface ModuleConfig {
   /** Stable, unique key. Never change once shipped (used for nav/persistence). */
   key: string;
@@ -47,6 +56,8 @@ export interface ModuleConfig {
   icon: LucideIcon;
   /** Sort order in navigation. */
   order: number;
+  /** Optional sub-pages rendered as a collapsible group in the sidebar. */
+  children?: NavChild[];
 }
 
 export const ORG_MODULES: ModuleConfig[] = [
@@ -85,6 +96,28 @@ export const ORG_MODULES: ModuleConfig[] = [
     module: "inventory",
     icon: Boxes,
     order: 30,
+    children: [
+      {
+        key: "balances",
+        label: "Stock balances",
+        href: "/inventory/balances",
+      },
+      {
+        key: "locations",
+        label: "Locations",
+        href: "/inventory/locations",
+      },
+      {
+        key: "movements",
+        label: "Movements",
+        href: "/inventory/transactions",
+      },
+      {
+        key: "low-stock",
+        label: "Low stock",
+        href: "/inventory/low-stock",
+      },
+    ],
   },
   {
     key: "dispatch",
@@ -103,6 +136,33 @@ export const ORG_MODULES: ModuleConfig[] = [
     module: "trading",
     icon: Tags,
     order: 50,
+    children: [
+      {
+        key: "items",
+        label: "Items",
+        href: "/trading/items",
+      },
+      {
+        key: "categories",
+        label: "Categories",
+        href: "/trading/categories",
+      },
+      {
+        key: "brands",
+        label: "Brands",
+        href: "/trading/brands",
+      },
+      {
+        key: "uoms",
+        label: "Units of measure",
+        href: "/trading/uoms",
+      },
+      {
+        key: "conversions",
+        label: "UOM conversions",
+        href: "/trading/conversions",
+      },
+    ],
   },
   {
     key: "accounting",
@@ -112,6 +172,43 @@ export const ORG_MODULES: ModuleConfig[] = [
     module: "accounting",
     icon: Wallet,
     order: 60,
+    children: [
+      {
+        key: "accounts",
+        label: "Chart of accounts",
+        href: "/accounting/accounts",
+      },
+      {
+        key: "journal-entries",
+        label: "Journal entries",
+        href: "/accounting/journal-entries",
+      },
+      {
+        key: "parties",
+        label: "Parties",
+        href: "/accounting/parties",
+      },
+      {
+        key: "fiscal-years",
+        label: "Fiscal years",
+        href: "/accounting/fiscal-years",
+      },
+      {
+        key: "document-sequences",
+        label: "Document sequences",
+        href: "/accounting/document-sequences",
+      },
+      {
+        key: "tax",
+        label: "Tax",
+        href: "/accounting/tax",
+      },
+      {
+        key: "trial-balance",
+        label: "Trial balance",
+        href: "/accounting/trial-balance",
+      },
+    ],
   },
   {
     key: "iam",

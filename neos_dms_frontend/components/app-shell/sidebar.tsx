@@ -58,7 +58,11 @@ export function Sidebar({ modules }: { modules: ModuleConfig[] }) {
       <div
         className={cn("flex-1 overflow-y-auto", collapsed ? "px-2 py-4" : "px-3 py-4")}
       >
-        <NavItems modules={modules} collapsed={collapsed} />
+        <NavItems
+          modules={modules}
+          collapsed={collapsed}
+          onExpand={() => setCollapsed(false)}
+        />
       </div>
       {collapsed && (
         <div className="flex justify-center border-t border-border py-2">

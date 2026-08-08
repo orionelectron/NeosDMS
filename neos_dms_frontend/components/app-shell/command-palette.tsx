@@ -3,13 +3,8 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
-  Boxes,
   CornerDownLeft,
-  Package,
-  Scale,
   Search,
-  SlidersHorizontal,
-  Tags,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -21,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import type { AppScope, ModuleConfig } from "@/lib/modules/registry";
+import type { ModuleConfig } from "@/lib/modules/registry";
 
 interface CommandItem {
   id: string;
@@ -37,71 +32,33 @@ interface CommandGroup {
   items: CommandItem[];
 }
 
-function buildGroups(scope: AppScope, modules: ModuleConfig[]): CommandGroup[] {
+function buildGroups(modules: ModuleConfig[]): CommandGroup[] {
   const groups: CommandGroup[] = [];
 
   groups.push({
     title: "Go to",
-    items: modules.map((module) => ({
-      id: `module:${module.key}`,
-      label: module.label,
-      description: module.description,
-      href: module.href,
-      icon: module.icon,
-      keywords: [module.key],
-    })),
+    items: modules.flatMap((module) => {
+      const children = (module.children ?? []).map((child) => ({
+        id: `module:${module.key}:${child.key}`,
+        label: child.label,
+        description: module.label,
+        href: child.href,
+        icon: module.icon,
+        keywords: [module.key, child.key],
+      }));
+      return [
+        {
+          id: `module:${module.key}`,
+          label: module.label,
+          description: module.description,
+          href: module.href,
+          icon: module.icon,
+          keywords: [module.key],
+        },
+        ...children,
+      ];
+    }),
   });
-
-  const trading = modules.some(
-    (module) => module.key === "trading" && scope === "org",
-  );
-  if (trading) {
-    groups.push({
-      title: "Trading",
-      items: [
-        {
-          id: "trading:items",
-          label: "Items",
-          description: "Products, pricing and SKUs",
-          href: "/trading/items",
-          icon: Package,
-          keywords: ["product", "sku", "stock"],
-        },
-        {
-          id: "trading:categories",
-          label: "Categories",
-          description: "Group items into a hierarchy",
-          href: "/trading/categories",
-          icon: Boxes,
-          keywords: ["group"],
-        },
-        {
-          id: "trading:brands",
-          label: "Brands",
-          description: "Brands you distribute",
-          href: "/trading/brands",
-          icon: Tags,
-          keywords: [],
-        },
-        {
-          id: "trading:uoms",
-          label: "Units of measure",
-          description: "Case, box, piece",
-          href: "/trading/uoms",
-          icon: Scale,
-          keywords: ["uom", "units"],
-        },
-        {
-          id: "trading:conversions",
-          label: "UOM conversions",
-          description: "Convert between units",
-          href: "/trading/conversions",
-          icon: SlidersHorizontal,
-          keywords: ["uom", "factor"],
-        },
-      ],
-    });
-  }
 
   return groups;
 }
@@ -142,12 +99,10 @@ function Kbd({ children }: { children: React.ReactNode }) {
 }
 
 export function CommandPalette({
-  scope,
   modules,
   open,
   onOpenChange,
 }: {
-  scope: AppScope;
   modules: ModuleConfig[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -175,7 +130,7 @@ export function CommandPalette({
     }
   }, [open]);
 
-  const groups = filterGroups(query, buildGroups(scope, modules));
+  const groups = filterGroups(query, buildGroups(modules));
   const flat = groups.flatMap((group) => group.items);
   const flatIndex = new Map(flat.map((item, index) => [item.id, index]));
 

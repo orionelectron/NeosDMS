@@ -1,4 +1,5 @@
 import { apiFetch, apiFetchPaginated } from "@/lib/api/http";
+import type { TaxCode } from "@/lib/api/accounting";
 
 export interface ListQuery {
   page?: number;
@@ -148,5 +149,141 @@ export const categoryApi = {
     apiFetch<{ deleted: boolean }>(`/item-categories/${id}`, {
       method: "DELETE",
     }),
+};
+
+// ---------------------------------------------------------------------------
+// Items
+// ---------------------------------------------------------------------------
+
+export const ITEM_TYPES = ["GOODS", "SERVICE", "RAW", "ASSET"] as const;
+export type ItemType = (typeof ITEM_TYPES)[number];
+
+export const VALUATION_METHODS = ["FIFO", "WEIGHTED_AVERAGE"] as const;
+export type ValuationMethod = (typeof VALUATION_METHODS)[number];
+
+export const INVENTORY_TRACKINGS = [
+  "NONE",
+  "QUANTITY",
+  "BATCH",
+  "SERIAL",
+] as const;
+export type InventoryTracking = (typeof INVENTORY_TRACKINGS)[number];
+
+export interface Item {
+  id: string;
+  organizationId: string;
+  parentItemId: string | null;
+  name: string;
+  code: string | null;
+  sku: string | null;
+  barcode: string | null;
+  description: string | null;
+  type: ItemType;
+  categoryId: string | null;
+  category: ItemCategory | null;
+  brandId: string | null;
+  brand: Brand | null;
+  baseUomId: string;
+  baseUom: Uom;
+  hsnCode: string | null;
+  valuationMethod: ValuationMethod;
+  taxCodeId: string | null;
+  taxCode: TaxCode | null;
+  mrp: string;
+  salePrice: string;
+  standardCost: string;
+  reorderLevel: number;
+  inventoryTracking: InventoryTracking;
+  trackExpiry: boolean;
+  allowNegativeStock: boolean;
+  isActive: boolean;
+  salesAccountId: string | null;
+  purchaseAccountId: string | null;
+  salesReturnAccountId: string | null;
+  purchaseReturnAccountId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateItemDto {
+  name: string;
+  code?: string | null;
+  sku?: string | null;
+  barcode?: string | null;
+  description?: string | null;
+  type?: ItemType;
+  categoryId?: string | null;
+  brandId?: string | null;
+  baseUomId: string;
+  hsnCode?: string | null;
+  valuationMethod?: ValuationMethod;
+  taxCodeId?: string | null;
+  mrp?: number;
+  salePrice?: number;
+  standardCost?: number;
+  reorderLevel?: number;
+  inventoryTracking?: InventoryTracking;
+  trackExpiry?: boolean;
+  allowNegativeStock?: boolean;
+  salesAccountId?: string | null;
+  purchaseAccountId?: string | null;
+  salesReturnAccountId?: string | null;
+  purchaseReturnAccountId?: string | null;
+}
+
+export interface UpdateItemDto {
+  name?: string;
+  code?: string | null;
+  sku?: string | null;
+  barcode?: string | null;
+  description?: string | null;
+  type?: ItemType;
+  categoryId?: string | null;
+  brandId?: string | null;
+  baseUomId?: string;
+  hsnCode?: string | null;
+  valuationMethod?: ValuationMethod;
+  taxCodeId?: string | null;
+  mrp?: number;
+  salePrice?: number;
+  standardCost?: number;
+  reorderLevel?: number;
+  inventoryTracking?: InventoryTracking;
+  trackExpiry?: boolean;
+  allowNegativeStock?: boolean;
+  salesAccountId?: string | null;
+  purchaseAccountId?: string | null;
+  salesReturnAccountId?: string | null;
+  purchaseReturnAccountId?: string | null;
+  isActive?: boolean;
+}
+
+export interface ItemListQuery extends ListQuery {
+  categoryId?: string;
+  brandId?: string;
+  isActive?: boolean;
+}
+
+export const itemApi = {
+  list: (query: ItemListQuery = {}) => {
+    const { page, limit, search, categoryId, brandId, isActive } = query;
+    return apiFetchPaginated<Item>(
+      `/items?${toQuery({
+        page,
+        limit,
+        search,
+        categoryId,
+        brandId,
+        isActive,
+      })}`,
+    );
+  },
+  get: (id: string) => apiFetch<Item>(`/items/${id}`),
+  create: (dto: CreateItemDto) =>
+    apiFetch<Item>("/items", { method: "POST", body: dto }),
+  update: (id: string, dto: UpdateItemDto) =>
+    apiFetch<Item>(`/items/${id}`, { method: "PATCH", body: dto }),
+  remove: (id: string) =>
+    apiFetch<{ deleted: boolean }>(`/items/${id}`, { method: "DELETE" }),
 };
 

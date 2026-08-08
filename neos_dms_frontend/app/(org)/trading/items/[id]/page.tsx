@@ -12,6 +12,7 @@ import { itemApi } from "@/lib/api/trading";
 import { queryKeys } from "@/lib/query/keys";
 import { ItemSummary } from "@/components/trading/item/item-summary";
 import { ItemFormSheet } from "@/components/trading/item/item-form";
+import { ConversionTable } from "@/components/trading/conversion/conversion-table";
 
 export default function ItemDetailPage() {
   const params = useParams<{ id: string }>();
@@ -53,6 +54,7 @@ export default function ItemDetailPage() {
       ) : (
         <>
           <ItemSummary item={item} />
+          <ConversionTable itemId={item.id} itemName={item.name} />
           <ItemFormSheet
             open={formOpen}
             onOpenChange={setFormOpen}

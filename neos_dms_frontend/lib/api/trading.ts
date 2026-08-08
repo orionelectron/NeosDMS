@@ -287,3 +287,48 @@ export const itemApi = {
     apiFetch<{ deleted: boolean }>(`/items/${id}`, { method: "DELETE" }),
 };
 
+// ---------------------------------------------------------------------------
+// UOM conversions
+// ---------------------------------------------------------------------------
+
+export interface UomConversion {
+  id: string;
+  organizationId: string;
+  itemId: string | null;
+  item: Item | null;
+  fromUomId: string;
+  fromUom: Uom;
+  toUomId: string;
+  toUom: Uom;
+  conversionFactor: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateUomConversionDto {
+  itemId?: string | null;
+  fromUomId: string;
+  toUomId: string;
+  conversionFactor: number;
+}
+
+export interface UomConversionListQuery extends ListQuery {
+  itemId?: string;
+}
+
+export const conversionApi = {
+  list: (query: UomConversionListQuery = {}) => {
+    const { page, limit, itemId } = query;
+    return apiFetchPaginated<UomConversion>(
+      `/uom-conversions?${toQuery({ page, limit, itemId })}`,
+    );
+  },
+  get: (id: string) => apiFetch<UomConversion>(`/uom-conversions/${id}`),
+  create: (dto: CreateUomConversionDto) =>
+    apiFetch<UomConversion>("/uom-conversions", { method: "POST", body: dto }),
+  remove: (id: string) =>
+    apiFetch<{ deleted: boolean }>(`/uom-conversions/${id}`, {
+      method: "DELETE",
+    }),
+};
+

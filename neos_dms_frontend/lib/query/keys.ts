@@ -7,6 +7,7 @@ import type {
   BrandListQuery,
   CategoryListQuery,
   ItemListQuery,
+  UomConversionListQuery,
   UomListQuery,
 } from "@/lib/api/trading";
 
@@ -27,6 +28,8 @@ export const queryKeys = {
     itemList: (query: ItemListQuery) =>
       ["trading", "items", "list", query] as const,
     itemDetail: (id: string) => ["trading", "items", "detail", id] as const,
+    conversionList: (query: UomConversionListQuery) =>
+      ["trading", "conversions", "list", query] as const,
   },
   accounting: {
     accountList: (query: AccountListQuery) =>

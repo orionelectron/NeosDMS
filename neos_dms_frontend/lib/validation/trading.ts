@@ -73,3 +73,30 @@ export const itemSchema = z.object({
 });
 
 export type ItemValues = z.infer<typeof itemSchema>;
+
+// Mirrors backend `CreateUomConversionDto` (class-validator). The form uses
+// "none" (itemId sentinel) for an org-wide conversion and keeps the factor as
+// a string (up to 6dp) converted to a number on submit.
+export const conversionSchema = z
+  .object({
+    itemId: z.string(),
+    fromUomId: z.string().min(1, "From unit is required"),
+    toUomId: z.string().min(1, "To unit is required"),
+    conversionFactor: z
+      .string()
+      .trim()
+      .min(1, "Conversion factor is required")
+      .regex(/^\d+(?:\.\d{1,6})?$/, "Enter a factor with up to 6 decimals")
+      .refine((value) => Number(value) > 0, "Must be greater than zero"),
+  })
+  .superRefine((data, ctx) => {
+    if (data.fromUomId && data.fromUomId === data.toUomId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["toUomId"],
+        message: "Choose a different unit",
+      });
+    }
+  });
+
+export type ConversionValues = z.infer<typeof conversionSchema>;

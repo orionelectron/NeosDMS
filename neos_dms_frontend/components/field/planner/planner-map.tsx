@@ -165,7 +165,7 @@ function PointsLayer({
     <>
       {items.map((item) => {
         if (item.kind === "cluster") {
-          const radius = 10 + Math.min(10, Math.log10(item.count) * 6);
+          const radius = 13 + Math.min(12, Math.log10(item.count) * 7);
           return (
             <CircleMarker
               key={`cluster-${item.id}`}
@@ -201,7 +201,7 @@ function PointsLayer({
           <CircleMarker
             key={`point-${item.id}`}
             center={[item.lat, item.lng]}
-            radius={isSelected ? 7 : 5}
+            radius={isSelected ? 9 : 6}
             interactive={interactive}
             pathOptions={{
               color: "#ffffff",

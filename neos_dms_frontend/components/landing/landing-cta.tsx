@@ -1,3 +1,4 @@
+// components/landing/landing-cta.tsx
 import Link from "next/link";
 import {
   ArrowRight,
@@ -83,10 +84,7 @@ export function LandingCta() {
                 >
                   <Link href="/dashboard">
                     Open your workspace{" "}
-                    <ArrowRight
-                      className="size-4 transition-transform group-hover:translate-x-0.5"
-                      aria-hidden
-                    />
+                    <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
                   </Link>
                 </Button>
               ) : (
@@ -99,10 +97,7 @@ export function LandingCta() {
                   >
                     <Link href="/onboarding">
                       Create your workspace{" "}
-                      <ArrowRight
-                        className="size-4 transition-transform group-hover:translate-x-0.5"
-                        aria-hidden
-                      />
+                      <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
                     </Link>
                   </Button>
                   <Link
@@ -118,8 +113,7 @@ export function LandingCta() {
               Free for the first 3 days · No credit card · Cancel anytime
             </p>
 
-            <div className="mx-auto mt-10 flex max-w-md items-center gap-4">
-              <span className="h-px flex-1 bg-white/15" aria-hidden />
+            <div className="mx-auto mt-10 max-w-md rounded-xl border border-white/15 bg-white/5 px-5 py-4 text-left backdrop-blur-sm">
               <div className="flex items-center gap-3">
                 <div className="flex -space-x-2">
                   {AVATARS.map((initials) => (
@@ -131,29 +125,25 @@ export function LandingCta() {
                     </span>
                   ))}
                 </div>
-                <p className="text-left text-xs text-white/70">
-                  <span className="flex items-center gap-1">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star
-                        key={i}
-                        className="size-3 fill-marigold-300 text-marigold-300"
-                        aria-hidden
-                      />
-                    ))}
-                  </span>
-                  Trusted by{" "}
-                  <span className="font-semibold text-white">40+ distributors</span>
-                </p>
+                <span className="flex items-center gap-1">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} className="size-3 fill-marigold-300 text-marigold-300" aria-hidden />
+                  ))}
+                </span>
               </div>
-              <span className="h-px flex-1 bg-white/15" aria-hidden />
+              <p className="mt-3 text-sm leading-relaxed text-white/90">
+                "We used to close accounts three days after month-end. With
+                NEOS DMS it's same-day — CBMS sync alone saved us the most
+                time."
+              </p>
+              <p className="mt-2 text-xs font-medium text-white/60">
+                Operations lead, Himal Distributors
+              </p>
             </div>
 
             <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
               {TRUST_FEATURES.map(({ icon: Icon, label }) => (
-                <span
-                  key={label}
-                  className="inline-flex items-center gap-1.5 text-xs text-white/75"
-                >
+                <span key={label} className="inline-flex items-center gap-1.5 text-xs text-white/75">
                   <Icon className="size-3.5 text-white/60" aria-hidden />
                   {label}
                 </span>

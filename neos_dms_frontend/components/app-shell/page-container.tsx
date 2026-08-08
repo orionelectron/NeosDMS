@@ -6,7 +6,9 @@ import { cn } from "@/lib/utils";
 /**
  * Common page scaffold used by every CRUD/management page so headers and
  * spacing stay consistent. Pairs the (icon + title + description + actions)
- * header with the page content, over an ambient glassmorphism backdrop.
+ * header with the page content. The page fills the viewport height: the header
+ * stays fixed and the content region scrolls independently, letting table
+ * pages anchor their pagination at the bottom.
  */
 export function PageContainer({
   icon,
@@ -24,19 +26,17 @@ export function PageContainer({
   className?: string;
 }) {
   return (
-    <div className={cn("relative space-y-6", className)}>
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 -top-16 h-64 overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-transparent to-accent/10 blur-3xl"
-      />
+    <div className={cn("flex min-h-0 flex-1 flex-col gap-4", className)}>
       <PageHeader
         icon={icon}
         title={title}
         description={description}
         actions={actions}
-        className="relative"
+        className="shrink-0"
       />
-      <div className="relative space-y-6">{children}</div>
+      <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+        {children}
+      </div>
     </div>
   );
 }

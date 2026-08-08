@@ -1,3 +1,4 @@
+// components/landing/landing-hero.tsx
 import Link from "next/link";
 import {
   ArrowRight,
@@ -101,29 +102,11 @@ function DashboardPreview() {
                   +24.6%
                 </span>
               </div>
-              <svg
-                viewBox="0 0 320 96"
-                className="mt-3 h-24 w-full"
-                aria-hidden
-              >
+              <svg viewBox="0 0 320 96" className="mt-3 h-24 w-full" aria-hidden>
                 <defs>
-                  <linearGradient
-                    id="hero-fill"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop
-                      offset="0%"
-                      stopColor="var(--color-crimson-500)"
-                      stopOpacity="0.28"
-                    />
-                    <stop
-                      offset="100%"
-                      stopColor="var(--color-crimson-500)"
-                      stopOpacity="0"
-                    />
+                  <linearGradient id="hero-fill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--color-crimson-500)" stopOpacity="0.28" />
+                    <stop offset="100%" stopColor="var(--color-crimson-500)" stopOpacity="0" />
                   </linearGradient>
                 </defs>
                 {[24, 48, 72].map((y) => (
@@ -149,12 +132,7 @@ function DashboardPreview() {
                   strokeWidth="2.5"
                   strokeLinecap="round"
                 />
-                <circle
-                  cx="320"
-                  cy="10"
-                  r="3.5"
-                  fill="var(--color-crimson-500)"
-                />
+                <circle cx="320" cy="10" r="3.5" fill="var(--color-crimson-500)" />
               </svg>
             </div>
 
@@ -169,10 +147,7 @@ function DashboardPreview() {
                     { no: "INV-1041", amount: "Rs 12,150", ok: true },
                     { no: "INV-1040", amount: "Rs 5,980", ok: false },
                   ].map((row) => (
-                    <div
-                      key={row.no}
-                      className="flex items-center justify-between text-xs"
-                    >
+                    <div key={row.no} className="flex items-center justify-between text-xs">
                       <span className="tabular-nums text-muted-foreground">
                         {row.no}
                       </span>
@@ -211,6 +186,14 @@ function DashboardPreview() {
   );
 }
 
+const EARLY_CUSTOMERS = [
+  "Himal Distributors",
+  "Everest FMCG Supply",
+  "Kathmandu Trading Co.",
+  "Sagarmatha Traders",
+  "Bagmati Wholesale",
+];
+
 export function LandingHero() {
   const { isAuthenticated } = useAuth();
 
@@ -245,16 +228,14 @@ export function LandingHero() {
             {isAuthenticated ? (
               <Button asChild size="lg">
                 <Link href="/dashboard">
-                  Open your workspace{" "}
-                  <ArrowRight className="size-4" aria-hidden />
+                  Open your workspace <ArrowRight className="size-4" aria-hidden />
                 </Link>
               </Button>
             ) : (
               <>
                 <Button asChild size="lg">
                   <Link href="/onboarding">
-                    Start free trial{" "}
-                    <ArrowRight className="size-4" aria-hidden />
+                    Start free trial <ArrowRight className="size-4" aria-hidden />
                   </Link>
                 </Button>
                 <Button asChild size="lg" variant="outline">
@@ -276,7 +257,7 @@ export function LandingHero() {
           {[
             { icon: WifiOff, label: "Offline-first, syncs later" },
             { icon: ShieldCheck, label: "PAN/VAT + CBMS push" },
-            { icon: CalendarDays, label: "BS &amp; AD dates" },
+            { icon: CalendarDays, label: "BS & AD dates" },
             { icon: Landmark, label: "Double-entry accounting" },
           ].map((item) => (
             <span
@@ -287,6 +268,22 @@ export function LandingHero() {
               {item.label}
             </span>
           ))}
+        </div>
+
+        <div className="mt-16 border-t border-border pt-8">
+          <p className="text-center text-xs font-medium uppercase tracking-widest text-muted-foreground">
+            Trusted by distributors across Nepal
+          </p>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-10 gap-y-3">
+            {EARLY_CUSTOMERS.map((name) => (
+              <span
+                key={name}
+                className="text-sm font-semibold tracking-tight text-muted-foreground/70"
+              >
+                {name}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </section>

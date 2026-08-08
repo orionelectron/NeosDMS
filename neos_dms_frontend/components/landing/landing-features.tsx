@@ -1,3 +1,4 @@
+// components/landing/landing-features.tsx
 import {
   BarChart3,
   Boxes,
@@ -7,6 +8,13 @@ import {
   WifiOff,
 } from "lucide-react";
 import { SectionHeading } from "./section-heading";
+
+const STATS = [
+  { value: "40+", label: "distributors live" },
+  { value: "99.9%", label: "uptime last 12mo" },
+  { value: "<3s", label: "avg. CBMS push time" },
+  { value: "24/7", label: "support via phone & chat" },
+];
 
 const features = [
   {
@@ -62,7 +70,22 @@ export function LandingFeatures() {
           title="Everything a distributor needs, in one place"
           description="No more juggling notebooks, spreadsheets and separate billing software. One system from the warehouse to the outlet."
         />
-        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+
+        <dl className="mt-10 grid grid-cols-2 gap-4 rounded-2xl border border-border bg-card p-6 sm:grid-cols-4 sm:p-8">
+          {STATS.map((stat) => (
+            <div key={stat.label} className="text-center">
+              <dt className="sr-only">{stat.label}</dt>
+              <dd className="text-2xl font-semibold tabular-nums tracking-tight text-primary sm:text-3xl">
+                {stat.value}
+              </dd>
+              <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+                {stat.label}
+              </p>
+            </div>
+          ))}
+        </dl>
+
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((feature) => {
             const Icon = feature.icon;
             const tinted =
@@ -78,9 +101,7 @@ export function LandingFeatures() {
                   className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                   aria-hidden
                 />
-                <span
-                  className={`flex size-11 items-center justify-center rounded-lg ${tinted}`}
-                >
+                <span className={`flex size-11 items-center justify-center rounded-lg ${tinted}`}>
                   <Icon className="size-5" aria-hidden />
                 </span>
                 <h3 className="mt-4 font-semibold">{feature.title}</h3>

@@ -89,14 +89,14 @@ export function LowStockTable() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <PageHeader
         title="Low stock"
         description="Items at or below their reorder level — restock before they run out."
       />
 
-      <Card>
-        <CardHeader>
+      <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0">
+        <CardHeader className="shrink-0 px-5 py-4">
           <div>
             <CardTitle>Items to restock</CardTitle>
             <CardDescription>
@@ -127,7 +127,7 @@ export function LowStockTable() {
             </Select>
           </CardAction>
         </CardHeader>
-        <CardContent className="px-0">
+        <CardContent className="min-h-0 flex-1 overflow-y-auto px-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -215,7 +215,7 @@ export function LowStockTable() {
           </Table>
         </CardContent>
         {!isPending && (
-          <CardFooter className="border-t pt-4">
+          <CardFooter className="shrink-0 border-t px-5 py-3">
             <TablePagination
               page={page}
               pageSize={PAGE_SIZE}

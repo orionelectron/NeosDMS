@@ -1,9 +1,10 @@
+// components/landing/landing-pricing.tsx
 "use client";
 
 import Link from "next/link";
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Sparkles, ShieldCheck, LifeBuoy, RefreshCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,12 @@ import {
 } from "@/lib/plans";
 import { formatMoney } from "@/lib/format";
 import { SectionHeading } from "./section-heading";
+
+const TRUST_ROW = [
+  { icon: RefreshCcw, label: "Cancel anytime, no lock-in" },
+  { icon: ShieldCheck, label: "Data encrypted & hosted in-region" },
+  { icon: LifeBuoy, label: "Onboarding support included" },
+];
 
 export function LandingPricing() {
   const { data: plans = DEFAULT_PLANS } = useQuery({
@@ -113,17 +120,9 @@ export function LandingPricing() {
                 </p>
                 <ul className="mt-6 flex-1 space-y-2.5 border-t border-border pt-6">
                   {LIMIT_ROWS.map((row) => (
-                    <li
-                      key={row.key}
-                      className="flex items-center gap-2.5 text-sm"
-                    >
-                      <Check
-                        className="size-4 shrink-0 text-primary"
-                        aria-hidden
-                      />
-                      <span className="text-muted-foreground">
-                        {row.label}
-                      </span>
+                    <li key={row.key} className="flex items-center gap-2.5 text-sm">
+                      <Check className="size-4 shrink-0 text-primary" aria-hidden />
+                      <span className="text-muted-foreground">{row.label}</span>
                       <span className="ml-auto font-medium">
                         {formatLimit(Number(plan.limits[row.key]))}
                       </span>
@@ -143,9 +142,7 @@ export function LandingPricing() {
                   className="mt-7 w-full"
                   variant={featured ? "default" : "outline"}
                 >
-                  <Link
-                    href={`/onboarding?plan=${plan.code}&period=${period}`}
-                  >
+                  <Link href={`/onboarding?plan=${plan.code}&period=${period}`}>
                     {featured ? "Start free trial" : "Choose plan"}
                   </Link>
                 </Button>
@@ -155,6 +152,18 @@ export function LandingPricing() {
               </div>
             );
           })}
+        </div>
+
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-x-10 gap-y-3 rounded-xl border border-border bg-muted/40 px-6 py-5">
+          {TRUST_ROW.map(({ icon: Icon, label }) => (
+            <span
+              key={label}
+              className="flex items-center gap-2 text-sm font-medium text-muted-foreground"
+            >
+              <Icon className="size-4 text-primary" aria-hidden />
+              {label}
+            </span>
+          ))}
         </div>
       </div>
     </section>

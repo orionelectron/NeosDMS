@@ -29,7 +29,7 @@ export default function FiscalYearDetailPage() {
   const fiscalYear = data;
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div>
         <Link
           href="/accounting/fiscal-years"

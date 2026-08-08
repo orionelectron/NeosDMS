@@ -111,7 +111,7 @@ export function ConversionTable({ itemId, itemName }: ConversionTableProps) {
   const rows = data?.data ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <PageHeader
         title={itemName ? `Conversions for ${itemName}` : "UOM conversions"}
         description="Convert between units — globally or per item (e.g. case ↔ piece)."
@@ -125,8 +125,8 @@ export function ConversionTable({ itemId, itemName }: ConversionTableProps) {
         }
       />
 
-      <Card>
-        <CardHeader>
+      <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0">
+        <CardHeader className="shrink-0 px-5 py-4">
           <div>
             <CardTitle>
               {itemName ? "Unit conversions" : "All conversions"}
@@ -161,7 +161,7 @@ export function ConversionTable({ itemId, itemName }: ConversionTableProps) {
             </CardAction>
           )}
         </CardHeader>
-        <CardContent className="px-0">
+        <CardContent className="min-h-0 flex-1 overflow-y-auto px-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -290,7 +290,7 @@ export function ConversionTable({ itemId, itemName }: ConversionTableProps) {
           </Table>
         </CardContent>
         {!isPending && (
-          <CardFooter className="border-t pt-4">
+          <CardFooter className="shrink-0 border-t px-5 py-3">
             <TablePagination
               page={page}
               pageSize={PAGE_SIZE}

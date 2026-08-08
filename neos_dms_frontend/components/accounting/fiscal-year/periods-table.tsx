@@ -32,8 +32,8 @@ export function PeriodsTable({ fiscalYearId }: { fiscalYearId: string }) {
   const rows = data ?? [];
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0">
+      <CardHeader className="shrink-0 px-5 py-4">
         <div>
           <CardTitle>Periods</CardTitle>
           <CardDescription>
@@ -41,7 +41,7 @@ export function PeriodsTable({ fiscalYearId }: { fiscalYearId: string }) {
           </CardDescription>
         </div>
       </CardHeader>
-      <CardContent className="px-0">
+      <CardContent className="min-h-0 flex-1 overflow-y-auto px-0">
         <Table>
           <TableHeader>
             <TableRow>

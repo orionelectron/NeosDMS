@@ -34,14 +34,14 @@ export function AppShell({
   return (
     <RequireAuth scope={scope}>
       <TabsProvider scope={scope} modules={modules} homeHref={homeHref}>
-        <div className="flex min-h-dvh bg-muted/40">
+        <div className="flex h-dvh overflow-hidden bg-muted/40">
           <Sidebar modules={modules} />
-          <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             <TopBar
               modules={modules}
               onOpenCommand={() => setCommandOpen(true)}
             />
-            <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+            <main className="mx-auto flex min-h-0 w-full max-w-[1700px] flex-1 flex-col px-4 pt-4 pb-4 sm:px-6">
               {children}
             </main>
           </div>

@@ -131,7 +131,7 @@ export function FiscalYearTable() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <PageHeader
         title="Fiscal years"
         description="BS fiscal years with their twelve periods."
@@ -145,8 +145,8 @@ export function FiscalYearTable() {
         }
       />
 
-      <Card>
-        <CardHeader>
+      <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0">
+        <CardHeader className="shrink-0 px-5 py-4">
           <div>
             <CardTitle>All fiscal years</CardTitle>
             <CardDescription>
@@ -154,7 +154,7 @@ export function FiscalYearTable() {
             </CardDescription>
           </div>
         </CardHeader>
-        <CardContent className="px-0">
+        <CardContent className="min-h-0 flex-1 overflow-y-auto px-0">
           {isPending ? (
             <div className="flex flex-col gap-2 px-6">
               {Array.from({ length: 3 }).map((_, index) => (

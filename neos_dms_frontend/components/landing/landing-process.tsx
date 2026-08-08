@@ -1,3 +1,4 @@
+// components/landing/landing-process.tsx
 import { ClipboardList, Truck, Landmark } from "lucide-react";
 import { SectionHeading } from "./section-heading";
 

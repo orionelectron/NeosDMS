@@ -43,9 +43,21 @@ export function NavItems({
     });
   }
 
+  const leafItem = (active: boolean) =>
+    cn(
+      "group/nav flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150",
+      collapsed ? "w-full justify-center px-0 py-2" : "px-3 py-2",
+      active
+        ? "bg-primary text-primary-foreground shadow-sm"
+        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+    );
+
   return (
     <nav
-      className={cn("flex flex-col gap-1", collapsed && "items-center")}
+      className={cn(
+        "flex flex-col gap-1",
+        collapsed && "items-center",
+      )}
       aria-label="Primary"
     >
       {modules.map((mod) => {
@@ -70,15 +82,15 @@ export function NavItems({
                   ? `${mod.label} · ${mod.description}`
                   : mod.description
               }
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                collapsed && "w-full justify-center px-0",
-                active
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
+              className={leafItem(active)}
             >
-              <Icon className="size-4 shrink-0" aria-hidden />
+              <Icon
+                className={cn(
+                  "size-4 shrink-0 transition-transform duration-150 group-hover/nav:scale-110",
+                  collapsed && "mx-auto",
+                )}
+                aria-hidden
+              />
               {!collapsed && mod.label}
             </Link>
           );
@@ -94,7 +106,7 @@ export function NavItems({
               aria-label={`Open ${mod.label}`}
               title={`${mod.label} · ${mod.description}`}
               className={cn(
-                "flex w-full items-center justify-center rounded-lg px-0 py-2 text-sm font-medium transition-colors",
+                "flex w-full items-center justify-center rounded-lg py-2 text-sm font-medium transition-colors",
                 active
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -107,7 +119,7 @@ export function NavItems({
 
         // Expanded parent: collapsible accordion with child links.
         return (
-          <div key={mod.key} className="flex flex-col gap-1">
+          <div key={mod.key} className="flex flex-col">
             <button
               type="button"
               onClick={() => toggle(mod.key)}
@@ -116,7 +128,7 @@ export function NavItems({
               className={cn(
                 "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 active
-                  ? "bg-primary/10 text-primary"
+                  ? "bg-primary/10 font-semibold text-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
@@ -126,14 +138,18 @@ export function NavItems({
               </span>
               <ChevronDown
                 className={cn(
-                  "size-4 shrink-0 text-muted-foreground transition-transform",
+                  "size-4 shrink-0 text-muted-foreground transition-transform duration-150",
                   open ? "rotate-0" : "-rotate-90",
                 )}
                 aria-hidden
               />
             </button>
             {open && (
-              <div className="ml-6 flex flex-col gap-1 border-l border-border pl-2">
+              <div className="relative ml-[1.3rem] mt-1 flex flex-col gap-0.5 pl-4">
+                <span
+                  aria-hidden
+                  className="absolute inset-y-0 left-0 w-px bg-border"
+                />
                 {mod.children!.map((child) => {
                   const childActive = isPathActive(pathname, child.href);
                   return (
@@ -143,12 +159,19 @@ export function NavItems({
                       onClick={onNavigate}
                       aria-current={childActive ? "page" : undefined}
                       className={cn(
-                        "rounded-lg px-3 py-1.5 text-sm transition-colors",
+                        "relative rounded-lg py-1.5 pl-3 pr-3 text-sm transition-colors",
                         childActive
-                          ? "bg-primary/10 font-medium text-primary"
+                          ? "font-medium text-primary"
                           : "text-muted-foreground hover:bg-muted hover:text-foreground",
                       )}
                     >
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "absolute top-1/2 left-0 h-4 w-0.5 -translate-y-1/2 rounded-full bg-primary transition-all duration-150",
+                          childActive ? "opacity-100" : "opacity-0",
+                        )}
+                      />
                       {child.label}
                     </Link>
                   );

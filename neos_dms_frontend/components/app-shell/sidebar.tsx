@@ -33,7 +33,7 @@ export function Sidebar({ modules }: { modules: ModuleConfig[] }) {
   return (
     <aside
       className={cn(
-        "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-border bg-card transition-[width] duration-200 lg:flex",
+        "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-border bg-gradient-to-b from-card via-card to-card/90 transition-[width] duration-200 lg:flex",
         collapsed ? "w-16" : "w-64",
       )}
     >
@@ -47,7 +47,10 @@ export function Sidebar({ modules }: { modules: ModuleConfig[] }) {
         <Button
           variant="ghost"
           size="icon"
-          className={cn(collapsed && "hidden")}
+          className={cn(
+            "text-muted-foreground hover:bg-muted hover:text-foreground",
+            collapsed && "hidden",
+          )}
           onClick={() => setCollapsed(true)}
           aria-label="Collapse sidebar"
           title="Collapse sidebar"
@@ -56,7 +59,10 @@ export function Sidebar({ modules }: { modules: ModuleConfig[] }) {
         </Button>
       </div>
       <div
-        className={cn("flex-1 overflow-y-auto", collapsed ? "px-2 py-4" : "px-3 py-4")}
+        className={cn(
+          "flex-1 overflow-y-auto [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]",
+          collapsed ? "px-2 py-4" : "px-3 py-4",
+        )}
       >
         <NavItems
           modules={modules}
@@ -69,6 +75,7 @@ export function Sidebar({ modules }: { modules: ModuleConfig[] }) {
           <Button
             variant="ghost"
             size="icon"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground"
             onClick={() => setCollapsed(false)}
             aria-label="Expand sidebar"
             title="Expand sidebar"

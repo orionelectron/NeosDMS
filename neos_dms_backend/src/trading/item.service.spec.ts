@@ -123,6 +123,22 @@ describe('ItemService', () => {
       expect(itemRepo.rows).toHaveLength(1);
     });
 
+    it('treats a soft-deleted item code as still taken (no raw DB 500)', async () => {
+      getRepo(UomEntity).rows.push(
+        makeEntity(UomEntity, { id: 'uom-1', organizationId: orgId }),
+      );
+      itemRepo.rows.push(item({ deletedAt: new Date(), code: 'CC1L' }));
+
+      await expect(
+        service.createItem(
+          orgId,
+          { name: 'Pepsi 1L', code: 'CC1L', baseUomId: 'uom-1' },
+          actorId,
+        ),
+      ).rejects.toThrow(ItemCodeAlreadyUsedException);
+      expect(itemRepo.rows).toHaveLength(1);
+    });
+
     it('throws when base uom is not in the org', async () => {
       await expect(
         service.createItem(

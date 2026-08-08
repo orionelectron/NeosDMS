@@ -107,12 +107,14 @@ export class ItemService {
       if (input.code) {
         const dup = await repo.findOne({
           where: { organizationId, code: input.code },
+          withDeleted: true,
         });
         if (dup) throw new ItemCodeAlreadyUsedException('code', input.code);
       }
       if (input.sku) {
         const dup = await repo.findOne({
           where: { organizationId, sku: input.sku },
+          withDeleted: true,
         });
         if (dup) throw new ItemCodeAlreadyUsedException('SKU', input.sku);
       }
@@ -244,12 +246,14 @@ export class ItemService {
       if (input.code && input.code !== item.code) {
         const dup = await repo.findOne({
           where: { organizationId, code: input.code },
+          withDeleted: true,
         });
         if (dup) throw new ItemCodeAlreadyUsedException('code', input.code);
       }
       if (input.sku && input.sku !== item.sku) {
         const dup = await repo.findOne({
           where: { organizationId, sku: input.sku },
+          withDeleted: true,
         });
         if (dup) throw new ItemCodeAlreadyUsedException('SKU', input.sku);
       }

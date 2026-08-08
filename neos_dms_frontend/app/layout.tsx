@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   description:
     "Distribution management system for FMCG distributors — orders, inventory, dispatch, accounting.",
   applicationName: APP_NAME,
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

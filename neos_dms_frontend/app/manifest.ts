@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
-const THEME_COLOR = "#0f766e";
-const BACKGROUND_COLOR = "#f8fafc";
+const THEME_COLOR = "#c8102e";
+const BACKGROUND_COLOR = "#faf7f2";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {

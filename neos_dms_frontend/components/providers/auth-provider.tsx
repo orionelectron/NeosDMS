@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { authApi, type PublicUser } from "@/lib/api/auth";
+import { authApi, type PublicUser, type RegisterDto } from "@/lib/api/auth";
 import { tokenStore } from "@/lib/auth/token-store";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
@@ -14,6 +14,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   can: (permission: string) => boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (dto: RegisterDto) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -58,14 +59,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const login = React.useCallback(async (email: string, password: string) => {
-    const result = await authApi.login(email, password);
-    tokenStore.setTokens(result.tokens.accessToken, result.tokens.refreshToken);
+  const establishSession = React.useCallback(async (dto: {
+    accessToken: string;
+    refreshToken: string;
+  }) => {
+    tokenStore.setTokens(dto.accessToken, dto.refreshToken);
     const me = await authApi.me();
     setUser(me.user);
     setPermissions(me.permissions);
     setStatus("authenticated");
   }, []);
+
+  const login = React.useCallback(
+    async (email: string, password: string) => {
+      const result = await authApi.login(email, password);
+      await establishSession(result.tokens);
+    },
+    [establishSession],
+  );
+
+  const register = React.useCallback(
+    async (dto: RegisterDto) => {
+      const result = await authApi.register(dto);
+      await establishSession(result.tokens);
+    },
+    [establishSession],
+  );
 
   const logout = React.useCallback(async () => {
     try {
@@ -97,9 +116,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated: status === "authenticated",
       can,
       login,
+      register,
       logout,
     }),
-    [status, user, permissions, can, login, logout],
+    [status, user, permissions, can, login, register, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

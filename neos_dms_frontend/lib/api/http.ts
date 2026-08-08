@@ -23,6 +23,18 @@ export function getErrorMessage(
   return fallback;
 }
 
+function unwrap<T>(body: unknown): T {
+  if (
+    body &&
+    typeof body === "object" &&
+    "success" in body &&
+    "data" in body
+  ) {
+    return (body as { data: T }).data;
+  }
+  return body as T;
+}
+
 interface ApiErrorBody {
   statusCode?: number;
   message?: string | string[];
@@ -67,11 +79,12 @@ async function refreshAccessToken(): Promise<string> {
       const body = await response.json().catch(() => null);
       throw normalizeError(response.status, body);
     }
-    const data = (await response.json()) as {
-      tokens: { accessToken: string; refreshToken: string };
-    };
-    tokenStore.setTokens(data.tokens.accessToken, data.tokens.refreshToken);
-    return data.tokens.accessToken;
+    const data = unwrap<{
+      accessToken: string;
+      refreshToken: string;
+    }>(await response.json());
+    tokenStore.setTokens(data.accessToken, data.refreshToken);
+    return data.accessToken;
   })().finally(() => {
     refreshInFlight = null;
   });
@@ -116,7 +129,7 @@ export async function apiFetch<T>(
     if (retryResponse.status === 204) {
       return undefined as T;
     }
-    return (await retryResponse.json()) as T;
+    return unwrap<T>(await retryResponse.json());
   }
 
   if (!response.ok) {
@@ -127,5 +140,5 @@ export async function apiFetch<T>(
   if (response.status === 204) {
     return undefined as T;
   }
-  return (await response.json()) as T;
+  return unwrap<T>(await response.json());
 }

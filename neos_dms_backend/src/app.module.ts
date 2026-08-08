@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { ClsModule } from 'nestjs-cls';
+import { join } from 'path';
 import { AccountingModule } from './accounting/accounting.module';
 import { AuditModule } from './audit/audit.module';
 import { AppConfig, configuration } from './config/configuration';
@@ -38,7 +39,10 @@ import { TradingModule } from './trading/trading.module';
           database: db?.database,
           autoLoadEntities: true,
           synchronize: false,
-          migrationsRun: false,
+          migrationsRun: true,
+          migrations: [
+            join(__dirname, 'database', 'migrations', '*{.ts,.js}'),
+          ],
         };
       },
     }),

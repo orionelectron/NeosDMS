@@ -96,6 +96,27 @@ neos_dms_frontend/
   lib/query/keys.ts         accounting.* keys
 ```
 
+## 3c. Target Frontend Structure (inventory)
+
+```
+neos_dms_frontend/
+  app/(org)/inventory/
+    page.tsx                 overview — resource cards (primary navigation)
+    locations/page.tsx       Phase I1
+    balances/page.tsx        Phase I1 (on-hand + avg cost, location/item filters)
+    low-stock/page.tsx       Phase I1 (reorder-level report)
+    transactions/page.tsx    Phase I2 (movements ledger + Post stock actions)
+    transactions/[id]/page.tsx Phase I2 (lines + direction badges)
+  components/inventory/
+    location/               location-table.tsx, location-form.tsx
+    balance/                balance-table.tsx, low-stock-table.tsx
+    movement/               movement-form.tsx (mode: opening/adjustment/transfer), movement-line-editor.tsx
+    transaction/            transaction-table.tsx
+  lib/api/inventory.ts      typed clients + types (mirrors backend controllers)
+  lib/validation/inventory.ts zod schemas (mirrors backend DTOs)
+  lib/query/keys.ts         inventory.* keys
+```
+
 ## 4. Phases (implement one at a time, in order)
 
 > Each phase ends with: `tsc --noEmit` + `eslint` + `next build` green, and a dev-server smoke of the list/create/edit/toggle flows.
@@ -173,6 +194,22 @@ neos_dms_frontend/
 ### Phase T6 — Follow-on (out of trading module, tracked)
 - Wire items into Sales order/invoice forms, Inventory opening stock, Dispatch loading (each in its own module phase when built)
 
+### Phase I1 — Inventory shell + Locations + Stock levels (read)
+- `lib/api/inventory.ts` types + `locationApi` (list w/ `locationType` filter, create, update, soft-delete), `balanceApi` (list w/ `locationId`/`itemId`/`includeZero`), `lowStockApi` (flat low-stock rows); `lib/validation/inventory.ts` `locationSchema` (`name`, `code`, `locationType` enum, `branchId` nullable, `address`, `notes`, `isDefault`); `inventory.*` query keys
+- `app/(org)/inventory/` module; `/inventory` overview (cards linking to the four resources)
+- Locations list page: debounced search + type filter + pagination, name (+ Default badge), code, type, address, active badge, edit/activate-deactivate/delete-with-confirm (soft-delete), `inventory.location.*` gating
+- Location form sheet: `name`/`code` (code read-only on edit — PATCH drops it), `locationType`, branch select (`GET /organizations/me/branches`), `address`, `notes`, `isDefault` switch
+- `inventory/balances`: on-hand table (location + item selects, show-zero switch), columns location / item / qty (base UOM) / avg cost / value; `inventory.balance.read` gating
+- `inventory/low-stock`: location filter, on-hand vs reorder level, Out-of-stock vs Low badges
+- Acceptance: location duplicate code 409 surfaced; delete soft (history kept); balances show decimal-string qty/cost; no `search` param on balances (backend `forbidNonWhitelisted`)
+
+### Phase I2 — Stock movements (post ledger)
+- `transactionApi` (list w/ `locationId`/`itemId`/`type`, get) + `movementApi` (`openingStock`, `adjustment`, `transfer`); `InventoryTransaction`/`Line` types (lines embed item+uom on detail only); `inventory.transaction.*` keys
+- `inventory/transactions` list: type/location/item filters + pagination, number→detail link, type badge, source→destination, reference, occurred; "Post stock" dropdown (Opening stock / Transfer gated by `inventory.transaction.create`, Adjustment by `.adjust`)
+- Movement sheet (`movement-form.tsx`, one component, `mode` prop): location (opening/adjustment) or from/to (transfer) + dynamic line editor (`item` select filtered to active `QUANTITY`-tracked items, `uom` defaults to base UOM, direction select for adjustments, qty 3dp, unit cost for opening/adjustment) + notes
+- `inventory/transactions/[id]` detail: summary (number/type/status/location→destination/occurred/reference/notes) + lines table (item, uom, IN/OUT badge, qty, unit cost, total)
+- Acceptance: `INVENTORY_INSUFFICIENT_STOCK` / `SAME_LOCATION_TRANSFER` / `OPENING_STOCK_ALREADY_DONE` / `ITEM_NOT_TRACKED` surfaced; invalid `from`/`to` rejected client-side; successful posts invalidate transactions+balances+low-stock
+
 ## 5. Cross-cutting acceptance (every phase)
 - Typecheck + lint + `next build` clean
 - Dev-server smoke on real backend (user-run, port 3000/3001); auth as warehouse_manager/manager/admin
@@ -202,13 +239,16 @@ neos_dms_frontend/
 - [x] **Phase A6 — Tax reference + document sequences** — `taxApi` (types/templates/codes read-only) + `documentSequenceApi` (list/create); `tax` page (three read-only sections — system types, templates, org codes with IRD badge/rate/linked account); `document-sequences` list (document type, prefix, next number, branch/FY scope) + create sheet (documentType/prefix/branch/FY/lastNumber, `accounting.document-sequence.create` gating). `tsc` + `eslint` + `next build` clean
 - [x] **Phase T4 — Items** — `itemApi` (list w/ `categoryId`/`brandId`/`isActive` filters, get, create, update) + `Item`/dto types + `ITEM_TYPES`/`VALUATION_METHODS`/`INVENTORY_TRACKINGS`, `itemSchema` (2dp money strings, whole reorder level, `"none"` sentinels for nullable UUID refs), `trading.itemList`/`itemDetail` keys; `trading/items` list (debounced search + category/brand/active filter bar, pagination, name→detail link, sale price NPR, active + type badges, edit/activate-deactivate, `trading.item.*` gating, no delete UI — toggle only) + item create/edit sheet (Identity/Classification/Pricing/Tax & HSN/Inventory/Accounting sections, category/brand/base-UOM/tax-code selects, leaf+active account selects with referenced-account fallback, expiry + negative-stock switches, isActive on edit) + `items/[id]` detail (back link, summary card — identity/tax/pricing/inventory/posting accounts resolved from COA). `tsc` + `eslint` + `next build` clean; `/trading/items` + `/trading/items/[id]` return 200. User smoke pending
 - [x] **Phase T5 — UOM conversions** — `conversionApi` (list w/ `itemId` filter, create, delete) + `UomConversion` type, `conversionSchema` (6dp factor `> 0`, from ≠ to via superRefine, `"none"` itemId sentinel = global), `trading.conversionList` key; `trading/conversions` page (item filter select, scope badge Global/per-item, factor 6dp display, delete w/ destructive confirm — only hard-delete in trading, `trading.uom-conversion.*` gating) + create sheet (item select w/ global option, from/to UOM, live “1 X = N Y” preview, `lockedItemId` for item detail); conversions section wired into `items/[id]`. `tsc` + `eslint` + `next build` clean; `/trading/conversions` returns 200. User smoke pending
+- [x] **Phase I1 — Inventory shell + Locations + Stock levels** — `lib/api/inventory.ts` (locationApi/balanceApi/lowStockApi + types, decimal-string qty/cost, `inventory.balance.read` gating), `locationSchema`, `inventory.*` keys; `/inventory` overview cards; `inventory/locations` (search + type filter, Default badge, edit/activate-deactivate/delete-with-confirm soft-delete, `inventory.location.*` gating) + form sheet (code read-only on edit, type, branch select, address/notes, isDefault switch); `inventory/balances` (location/item selects, show-zero switch, qty/avg-cost/value columns); `inventory/low-stock` (out-of-stock vs low badges). `tsc` + `eslint` + `next build` clean; `/inventory`, `/inventory/locations`, `/inventory/balances`, `/inventory/low-stock` return 200; live API contract smoke passed (location CRUD roundtrip, duplicate 409, DTO payload shapes accepted). User smoke pending
+- [x] **Phase I2 — Stock movements** — `transactionApi` + `movementApi` (openingStock/adjustment/transfer) + transaction/line types; `inventory/transactions` list (type/location/item filters, number→detail, Post stock dropdown gated by `inventory.transaction.create`/`.adjust`) + `transactions/[id]` detail (summary + lines w/ IN/OUT badges, qty/unit-cost/total); shared `movement-form.tsx` sheet (mode: opening/adjustment/transfer, from/to or location, dynamic line editor — item filtered to active QUANTITY-tracked, UOM defaulted to base, direction for adjustments, qty 3dp, cost for opening/adjustment) + `movement-line-editor.tsx`. `tsc` + `eslint` + `next build` clean; `/inventory/transactions` + `/inventory/transactions/[id]` return 200. User smoke pending
 
 ### In Progress
 - [ ] User smoke of accounting core A1–A6 (dev server)
 - [ ] User smoke of trading T4–T5 (dev server)
+- [ ] User smoke of inventory I1–I2 (dev server)
 
 ### Next up
-- [ ] Phase T6 — Sales/Inventory wiring (deferred)
+- [ ] Phase T6 — Sales/Inventory wiring (deferred; inventory movements shipped standalone in I1–I2)
 
 ## 7. Reference — backend trading surface (authoritative)
 

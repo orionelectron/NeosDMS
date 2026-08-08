@@ -4,6 +4,12 @@ import type {
   PartyListQuery,
 } from "@/lib/api/accounting";
 import type {
+  BalanceListQuery,
+  LocationListQuery,
+  LowStockQuery,
+  TransactionListQuery,
+} from "@/lib/api/inventory";
+import type {
   BrandListQuery,
   CategoryListQuery,
   ItemListQuery,
@@ -50,5 +56,17 @@ export const queryKeys = {
     }) => ["accounting", "trial-balance", query] as const,
     taxReference: ["accounting", "tax"] as const,
     documentSequenceList: ["accounting", "document-sequences"] as const,
+  },
+  inventory: {
+    locationList: (query: LocationListQuery) =>
+      ["inventory", "locations", "list", query] as const,
+    balanceList: (query: BalanceListQuery) =>
+      ["inventory", "balances", "list", query] as const,
+    lowStockList: (query: LowStockQuery) =>
+      ["inventory", "low-stock", "list", query] as const,
+    transactionList: (query: TransactionListQuery) =>
+      ["inventory", "transactions", "list", query] as const,
+    transactionDetail: (id: string) =>
+      ["inventory", "transactions", "detail", id] as const,
   },
 };
